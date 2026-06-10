@@ -1,0 +1,11 @@
+node_modules/
+.vitepress/cache/
+.vitepress/dist/
+
+# Pages techniques — NON publiées (protection IP). Gardées en local, exclues du repo public.
+01-concepts/
+02-spec/
+03-api/
+en/01-concepts/
+en/02-spec/
+en/03-api/

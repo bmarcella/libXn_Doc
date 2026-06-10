@@ -1,0 +1,34 @@
+---
+layout: home
+
+hero:
+  name: QPath
+  text: Mémoire symbolique adressable par contenu
+  tagline: Une mémoire de faits et de raisonnement dans un seul graphe — déterministe, à 0 token, sans dépendance. Le LLM devient optionnel ; la mémoire et le raisonnement vivent ici.
+  image:
+    src: /logo.svg
+    alt: QPath
+  actions:
+    - theme: brand
+      text: Démarrer
+      link: /04-guides/getting-started
+    - theme: alt
+      text: Pourquoi QPath
+      link: /why-qpath
+    - theme: alt
+      text: Cas d'usage
+      link: /use-cases
+    - theme: alt
+      text: Aperçu
+      link: /00-overview
+
+features:
+  - title: Adressable par contenu
+    details: La position d'une donnée est entièrement déterminée par son contenu — récupération exacte, déterministe, sans index externe.
+  - title: Symbolique & déterministe
+    details: Faits (sujet, prédicat, objet), index inverses O(1), chaînage avant/arrière tracé. Le LLM est un verbalisateur optionnel ; le raisonnement vit ici.
+  - title: 100% recall, sous la milliseconde
+    details: Benchmark intégré (npm run bench) — récupération exacte + cascades de règles à 100% de recall, ~0.08 ms/requête, sur un graphe de quelques centaines de nœuds.
+  - title: Isomorphe & zéro dépendance
+    details: Tourne en Node, navigateur, Web Worker, Deno. dependencies&#58; {}. Périphérie (Three.js, Qdrant, embeddings) branchée via des ports.
+---
