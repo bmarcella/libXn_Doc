@@ -31,9 +31,9 @@ recommandation, raisonnement explicable, offline/souverain…) avec exemples de 
 
 ## Preuve (benchmark intégré)
 
-Sur les scénarios de référence : **recall 100 % (21/21) · ~0,06 ms par requête**. Récupération exacte,
-cascades de règles et jointures multi-variables (X parent Y ; Y parent Z ⇒ X grand-parent Z),
-déterministe, sur un graphe de quelques centaines de nœuds.
+Sur les scénarios de référence : **recall 100 % (28/28) · ~0,07 ms par requête**. Récupération exacte,
+cascades de règles, jointures multi-variables, comparaisons numériques (>, <, entre), agrégats
+(count/sum/avg/min/max) et quantificateurs (tous/existe) — déterministe, à 0 token.
 
 ## Intégrations
 
