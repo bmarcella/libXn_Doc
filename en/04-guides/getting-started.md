@@ -68,13 +68,12 @@ The core runs under Node (no browser, no Angular — proof it is reusable):
 ```bash
 cd packages/libxn
 npm install
-npm test      # vitest — 28 tests
+npm test      # vitest — 73 tests
 npm run bench # benchmark report
 ```
 
 ```
-CURRENT CAPABILITIES : recall 100% (18/18) · mean latency 0.08 ms · 3 scenarios
-ROADMAP : 0/3  (multi-variable joins — see spec)
+CURRENT CAPABILITIES : recall 100% (21/21) · mean latency 0.06 ms · 3 scenarios
 ```
 
 ## Node / backend (CommonJS)

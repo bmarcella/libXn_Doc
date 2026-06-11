@@ -28,7 +28,7 @@ features:
   - title: Symbolic & deterministic
     details: Facts (subject, predicate, object), O(1) inverse indices, traced forward/backward chaining. The LLM is an optional verbalizer; reasoning lives here.
   - title: 100% recall, sub-millisecond
-    details: Built-in benchmark (npm run bench) — exact retrieval + rule cascades at 100% recall, ~0.08 ms/query, on a graph of a few hundred nodes.
+    details: Built-in benchmark (npm run bench) — exact retrieval, rule cascades and multi-variable joins at 100% recall, ~0.06 ms/query, on a graph of a few hundred nodes.
   - title: Isomorphic & zero-dependency
     details: Runs in Node, the browser, Web Workers, Deno. dependencies&#58; {}. Periphery (Three.js, Qdrant, embeddings) plugs in via ports.
 ---

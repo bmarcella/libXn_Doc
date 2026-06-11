@@ -28,7 +28,7 @@ features:
   - title: Symbolique & déterministe
     details: Faits (sujet, prédicat, objet), index inverses O(1), chaînage avant/arrière tracé. Le LLM est un verbalisateur optionnel ; le raisonnement vit ici.
   - title: 100% recall, sous la milliseconde
-    details: Benchmark intégré (npm run bench) — récupération exacte + cascades de règles à 100% de recall, ~0.08 ms/requête, sur un graphe de quelques centaines de nœuds.
+    details: Benchmark intégré (npm run bench) — récupération exacte, cascades de règles et jointures multi-variables à 100% de recall, ~0.06 ms/requête, sur un graphe de quelques centaines de nœuds.
   - title: Isomorphe & zéro dépendance
     details: Tourne en Node, navigateur, Web Worker, Deno. dependencies&#58; {}. Périphérie (Three.js, Qdrant, embeddings) branchée via des ports.
 ---

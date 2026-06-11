@@ -32,8 +32,9 @@ explainable reasoning, offline/sovereign…) with code examples.
 
 ## Proof (built-in benchmark)
 
-On the reference scenarios: **100% recall (18/18) · ~0.08 ms per query**. Exact retrieval + rule
-cascades, deterministic, on a graph of a few hundred nodes.
+On the reference scenarios: **100% recall (21/21) · ~0.06 ms per query**. Exact retrieval, rule
+cascades and multi-variable joins (X parent Y ; Y parent Z => X grandparent Z), deterministic, on a
+graph of a few hundred nodes.
 
 ## Integrations
 
