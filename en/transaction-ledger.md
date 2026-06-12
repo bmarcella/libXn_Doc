@@ -16,8 +16,8 @@ await ledger.open('12345_c', {
   floor: -4000,           // overdraft allowed down to -4000
   ceiling: 1_000_000,     // maximum positive balance
   limits: [               // velocity: as many limits as you want
-    { windowMs: 60_000,     kind: 'depot',   maxAmount: 2000 }, // ≤ 2000 deposited / minute
-    { windowMs: 86_400_000, kind: 'retrait', maxCount: 3 },     // ≤ 3 withdrawals / day
+    { windowMs: 60_000,     kind: 'deposit',  maxAmount: 2000 }, // ≤ 2000 deposited / minute
+    { windowMs: 86_400_000, kind: 'withdraw', maxCount: 3 },     // ≤ 3 withdrawals / day
   ],
 });
 ```
@@ -36,8 +36,8 @@ restricted to one kind.
 const ledger = new TransactionLedger(kb, {
   currency: 'USD',
   types: [
-    { name: 'salary', kind: 'depot', label: 'Salary' },  // deposit only
-    { name: 'rent',   kind: 'retrait' },                 // withdrawal only
+    { name: 'salary', kind: 'deposit', label: 'Salary' },  // deposit only
+    { name: 'rent',   kind: 'withdraw' },                  // withdrawal only
     { name: 'internal_transfer' },                       // no kind restriction
   ],
 });
@@ -63,6 +63,22 @@ const v = await ledger.transfer('12345_c', '67890_c', 300, { type: 'internal_tra
 ledger.balance('12345_c');    // folded, never written
 ledger.movements('12345_c');  // history: { kind, amount, type, by, at, ref } — the truth
 ```
+
+### Account lifecycle
+
+An account is **active**, **blocked** (temporary freeze) or **closed** (terminal). An operation
+on a non-active account is refused (`account-blocked` / `account-closed`).
+
+```ts
+await ledger.block('12345_c', 'suspected fraud');   // freeze → deposits/withdrawals/transfers refused
+ledger.statusOf('12345_c');                         // 'blocked'
+await ledger.unblock('12345_c');                    // back to 'active'
+
+await ledger.close('12345_c');                      // TERMINAL: no operations, no unblock
+```
+
+> Status changes are themselves facts (retracted/archived on each transition): the account's
+> history — when it was blocked, by whom, why — is auditable.
 
 > **Transfer transactionality.** The `(account, movement, id)` link is written LAST: it is the
 > commit point. A half-written movement is never counted — each write is thus atomic for the

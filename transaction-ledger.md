@@ -16,8 +16,8 @@ await ledger.open('12345_c', {
   floor: -4000,           // découvert autorisé jusqu'à -4000
   ceiling: 1_000_000,     // solde positif maximum
   limits: [               // vélocité : autant de limites que voulu
-    { windowMs: 60_000,     kind: 'depot',   maxAmount: 2000 }, // ≤ 2000 déposés / minute
-    { windowMs: 86_400_000, kind: 'retrait', maxCount: 3 },     // ≤ 3 retraits / jour
+    { windowMs: 60_000,     kind: 'deposit',  maxAmount: 2000 }, // ≤ 2000 déposés / minute
+    { windowMs: 86_400_000, kind: 'withdraw', maxCount: 3 },     // ≤ 3 retraits / jour
   ],
 });
 ```
@@ -36,8 +36,8 @@ REQUIS** : un dépôt/retrait sans type valide est refusé (`reason: 'invalid-ty
 const ledger = new TransactionLedger(kb, {
   currency: 'USD',
   types: [
-    { name: 'salaire', kind: 'depot', label: 'Salaire' },  // dépôt seulement
-    { name: 'loyer',   kind: 'retrait' },                  // retrait seulement
+    { name: 'salaire', kind: 'deposit', label: 'Salaire' },  // dépôt seulement
+    { name: 'loyer',   kind: 'withdraw' },                   // retrait seulement
     { name: 'virement_interne' },                          // sans restriction de sens
   ],
 });
@@ -63,6 +63,22 @@ const v = await ledger.transfer('12345_c', '67890_c', 300, { type: 'virement_int
 ledger.balance('12345_c');    // calculé par repli, jamais écrit
 ledger.movements('12345_c');  // historique : { kind, amount, type, by, at, ref } — la vérité
 ```
+
+### Cycle de vie du compte
+
+Un compte est **actif**, **bloqué** (gel temporaire) ou **fermé** (terminal). Une opération sur
+un compte non actif est refusée (`account-blocked` / `account-closed`).
+
+```ts
+await ledger.block('12345_c', 'fraude suspectée');   // gel → dépôts/retraits/virements refusés
+ledger.statusOf('12345_c');                          // 'blocked'
+await ledger.unblock('12345_c');                     // retour à 'active'
+
+await ledger.close('12345_c');                       // TERMINAL : plus aucune opération, pas de déblocage
+```
+
+> Les changements d'état sont eux-mêmes des faits (rétractés/archivés à chaque transition) :
+> l'historique du compte — quand il a été bloqué, par qui, pourquoi — est auditable.
 
 > **Transactionnalité du virement.** Le lien `(compte, mouvement, id)` est écrit EN DERNIER :
 > c'est le point de commit. Un mouvement à moitié écrit n'est jamais compté — chaque écriture est
