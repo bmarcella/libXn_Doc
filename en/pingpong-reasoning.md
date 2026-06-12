@@ -36,6 +36,11 @@ Three safeguards:
 - The game rules are exported (`PINGPONG_SYSTEM_RULES`) so the host can **compose them with its own
   product identity** (`systemPrompt: identity + rules`) instead of replacing it — otherwise the LLM
   loses its identity during the exchange.
+- **Route upstream**: only send PingPong the questions that are about the fact memory
+  (subject/predicate shape, a subject known to the base, the event plot). Conversation meta,
+  news and general questions gain nothing there — PingPong has no view of them.
+- A TOOL move's verdict forwards the result's **readable text** (`ToolResult.text`) to the LLM;
+  serialize structured values, or they help no one.
 
 ## When to use it
 

@@ -37,6 +37,11 @@ Trois garde-fous :
 - Les règles du jeu sont exportées (`PINGPONG_SYSTEM_RULES`) pour que l'hôte les **compose avec sa
   propre identité produit** (`systemPrompt: identité + règles`) au lieu de les remplacer — sinon le
   LLM perd son identité pendant l'échange.
+- **Routez en amont** : n'envoyez en PingPong que les questions qui portent sur la mémoire de
+  faits (forme sujet/prédicat, sujet connu de la base, trame d'événements). Méta-conversation,
+  actualités et questions générales n'ont rien à y gagner — PingPong n'a aucune vue dessus.
+- Le verdict d'un coup TOOL transmet le **texte lisible** du résultat (`ToolResult.text`) au LLM ;
+  sérialisez vos valeurs structurées, sinon elles n'aident personne.
 
 ## Quand l'utiliser
 
