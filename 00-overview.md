@@ -31,12 +31,14 @@ recommandation, raisonnement explicable, offline/souverain…) avec exemples de 
 
 ## Preuve (benchmark intégré)
 
-Sur les scénarios de référence : **recall 100 % (34/34) · ~0,07 ms par requête**. Récupération exacte,
+Sur les scénarios de référence : **recall 100 % (37/37) · ~0,07 ms par requête**. Récupération exacte,
 cascades de règles, jointures multi-variables, comparaisons numériques (>, <, entre), agrégats
 (count/sum/avg/min/max), quantificateurs (tous/existe) et **héritage avec exceptions** (« le pingouin
 est un oiseau mais ne vole pas » — le « non » est prouvé, pas deviné) — déterministe, à 0 token.
-La mémoire détecte aussi les **contradictions à l'écriture** et sait **induire ses propres règles**
-depuis ses régularités (support, confiance, contre-exemples), sous validation humaine.
+La mémoire détecte aussi les **contradictions à l'écriture**, sait **induire ses propres règles**
+depuis ses régularités (support, confiance, contre-exemples) sous validation humaine, et raisonne
+sur la **trame** des événements ([Plot Reasoning](plot-reasoning) : causes racines, conséquences,
+chronologie, incohérences).
 
 ## Intégrations
 
