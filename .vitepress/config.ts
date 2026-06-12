@@ -40,18 +40,24 @@ export default defineConfig({
         nav: [
           { text: 'Aperçu', link: '/00-overview' },
           { text: 'Pourquoi QPath', link: '/why-qpath' },
-          { text: 'Composants', link: '/components' },
-          { text: "Cas d'usage", link: '/use-cases' },
-          { text: 'Exemples', link: '/examples' },
-          { text: 'Flash reasoning', link: '/flash-reasoning' },
-          { text: 'PingPong reasoning', link: '/pingpong-reasoning' },
-              { text: 'Plot reasoning', link: '/plot-reasoning' },
-              { text: 'Proactive deduction', link: '/insight-reasoning' },
-              { text: 'Access layer', link: '/access-layer' },
-          { text: 'Outils', link: '/tools' },
-          { text: 'Provenance', link: '/fact-provenance' },
-          { text: 'Démarrer', link: '/04-guides/getting-started' },
-          { text: 'Architecture', link: '/04-guides/architecture' },
+          { text: 'Raisonnement', items: [
+            { text: 'Flash reasoning', link: '/flash-reasoning' },
+            { text: 'PingPong reasoning', link: '/pingpong-reasoning' },
+            { text: 'Plot reasoning', link: '/plot-reasoning' },
+            { text: 'Proactive deduction', link: '/insight-reasoning' },
+            { text: "Couche d'accès", link: '/access-layer' },
+          ] },
+          { text: 'Mémoire & outils', items: [
+            { text: 'Composants', link: '/components' },
+            { text: 'Provenance', link: '/fact-provenance' },
+            { text: 'Outils', link: '/tools' },
+            { text: "Cas d'usage", link: '/use-cases' },
+          ] },
+          { text: 'Démarrer', items: [
+            { text: 'Exemples', link: '/examples' },
+            { text: 'Guide de démarrage', link: '/04-guides/getting-started' },
+            { text: 'Architecture', link: '/04-guides/architecture' },
+          ] },
         ],
         sidebar: [
           {
@@ -89,18 +95,24 @@ export default defineConfig({
         nav: [
           { text: 'Overview', link: '/en/00-overview' },
           { text: 'Why QPath', link: '/en/why-qpath' },
-          { text: 'Components', link: '/en/components' },
-          { text: 'Use cases', link: '/en/use-cases' },
-          { text: 'Examples', link: '/en/examples' },
-          { text: 'Flash reasoning', link: '/en/flash-reasoning' },
-          { text: 'PingPong reasoning', link: '/en/pingpong-reasoning' },
-              { text: 'Plot reasoning', link: '/en/plot-reasoning' },
-              { text: 'Proactive deduction', link: '/en/insight-reasoning' },
-              { text: 'Access layer', link: '/en/access-layer' },
-          { text: 'Tools', link: '/en/tools' },
-          { text: 'Provenance', link: '/en/fact-provenance' },
-          { text: 'Getting started', link: '/en/04-guides/getting-started' },
-          { text: 'Architecture', link: '/en/04-guides/architecture' },
+          { text: 'Reasoning', items: [
+            { text: 'Flash reasoning', link: '/en/flash-reasoning' },
+            { text: 'PingPong reasoning', link: '/en/pingpong-reasoning' },
+            { text: 'Plot reasoning', link: '/en/plot-reasoning' },
+            { text: 'Proactive deduction', link: '/en/insight-reasoning' },
+            { text: 'Access layer', link: '/en/access-layer' },
+          ] },
+          { text: 'Memory & tools', items: [
+            { text: 'Components', link: '/en/components' },
+            { text: 'Provenance', link: '/en/fact-provenance' },
+            { text: 'Tools', link: '/en/tools' },
+            { text: 'Use cases', link: '/en/use-cases' },
+          ] },
+          { text: 'Get started', items: [
+            { text: 'Examples', link: '/en/examples' },
+            { text: 'Getting started', link: '/en/04-guides/getting-started' },
+            { text: 'Architecture', link: '/en/04-guides/architecture' },
+          ] },
         ],
         sidebar: [
           {
