@@ -99,7 +99,24 @@ if (parsed.kind === 'statement') {
 }
 ```
 
-> Parseur **permissif et prudent** : en cas de doute, il préfère ne rien affirmer plutôt qu'inventer.
+Le parseur va bien au-delà du « X est Y » scolaire :
+
+```ts
+// Relations naturelles : le prédicat porte la relation entière (plus de snake_case à taper)
+NaturalParser.parse('Alice est la mère de Bob');   // → { s:'alice', p:'mère_de', o:'bob' }
+NaturalParser.parse('Paris est la capitale de la France'); // → { s:'paris', p:'capitale_de', o:'france' }
+
+// Négation → prédicat not_<p>
+NaturalParser.parse('le pingouin ne vole pas');    // → { s:'pingouin', p:'not_vole', o:'…' }
+
+// Plusieurs faits dans un message (parseAll)
+NaturalParser.parseAll('Alice est la mère de Bob. Bob est le père de Carl');
+// → [ {s:'alice',p:'mère_de',o:'bob'}, {s:'bob',p:'père_de',o:'carl'} ]
+```
+
+> Parseur **permissif et prudent** : il distingue un énoncé d'une **question** (« quel chien… »,
+> même sans « ? ») et d'une **réplique** (« je pense que… ») — qu'il ne mémorise pas. En cas de
+> doute, il préfère ne rien affirmer plutôt qu'inventer.
 
 ---
 

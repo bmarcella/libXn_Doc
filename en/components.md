@@ -94,9 +94,24 @@ The natural entry point into QPath memory.
 import { NaturalParser } from '@damba/libxn';
 
 const parsed = NaturalParser.parse('the cat is an animal');
+// (continues below — the parser also handles relations, negation, multiple facts)
 if (parsed.kind === 'statement') {
   await kb.tell(parsed.s, parsed.p, parsed.o);   // cat / is / animal
 }
+```
+
+The parser goes well beyond schoolbook "X is Y":
+
+```ts
+// Natural relations: the predicate carries the whole relation (no snake_case to type)
+NaturalParser.parse('Alice est la mère de Bob');   // → { s:'alice', p:'mère_de', o:'bob' }
+
+// Negation → not_<p> predicate
+NaturalParser.parse('le pingouin ne vole pas');    // → { s:'pingouin', p:'not_vole', o:'…' }
+
+// Multiple facts in one message (parseAll)
+NaturalParser.parseAll('Alice est la mère de Bob. Bob est le père de Carl');
+// → [ {s:'alice',p:'mère_de',o:'bob'}, {s:'bob',p:'père_de',o:'carl'} ]
 ```
 
 > A **permissive, cautious** parser: when in doubt, it prefers to assert nothing rather than invent.
