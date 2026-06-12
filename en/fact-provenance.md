@@ -95,9 +95,31 @@ automatically) — every fact is born *open + minor*:
 |------|---------|--------------------|
 | **⭐ major** | LOAD-BEARING fact (salience) | guaranteed into the answer context window · prioritized in proactive alerts and migration |
 | **🔒 closed** | DECIDED fact (epistemic status) | leaves the re-verification loop · confidence floor in reasoning chains · **wins by default** against a contestation (recorded and traced, but the decision is only overturned by reopening the fact) |
+| **🔑 secret** | CONFIDENTIAL fact | hidden from normal reads (`allFacts`, RAG, admin view); encrypted value; reachable only via authenticated access — see [Access layer](access-layer) |
 
 Closing a fact is an **act of curation**: it is what separates a team memory (decisions
 hold) from a whiteboard anyone can scribble over.
+
+## Linking facts and rules
+
+A fact is not always entered by hand: it can be **derived** by a rule. When the rule engine
+applies `X parent_of Y ; Y parent_of Z => X grandparent_of Z`, the produced fact
+`(alice, grandparent_of, carl)` is written with an **inference source** pointing to its rule:
+
+```
+source: { kind: 'inference', ref: 'rule:grandparent' }
+```
+
+This link makes the inference chain **navigable both ways**:
+
+- **from a fact to its rule**: the derived fact's provenance names the rule that produced it;
+- **from a rule to its facts**: you recover every derived fact by filtering on the
+  `rule:<name>` source.
+
+The same holds for other derivations — **relation generalization** ("mère_de" derives
+"parent_de", source `taxonomy:mère_de`) and **induced rules** (origin `induced`). A fact thus
+always knows *why* it exists: entered, imported, deduced by a given rule, generalized from a
+given relation. Knowledge and reasoning stay woven together, and auditable.
 
 ## Why it's different
 

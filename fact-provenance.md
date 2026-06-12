@@ -95,9 +95,35 @@ Au-delà de la provenance, chaque fait porte deux axes ORTHOGONAUX, posés par l
 |---------|------|-------------------|
 | **⭐ majeur** | fait STRUCTURANT (saillance) | garanti dans la fenêtre de contexte des réponses · prioritaire dans les alertes proactives et la migration |
 | **🔒 fermé** | fait DÉCIDÉ (statut épistémique) | sort du circuit de revérification · plancher de confiance dans les chaînes de raisonnement · **gagne par défaut** face à une contestation (enregistrée et tracée, mais la décision ne se renverse qu'en rouvrant le fait) |
+| **🔑 secret** | fait CONFIDENTIEL | masqué des lectures normales (`allFacts`, RAG, vue admin) ; valeur chiffrée ; accessible seulement par accès authentifié — voir [Couche d'accès](access-layer) |
 
-Fermer un fait est un **acte de curation** : c'est ce qui distingue une mémoire d'équipe
-(les décisions tiennent) d'un tableau blanc que chacun peut raturer.
+L'état par défaut d'un fait est **ouvert** (révisable) et **mineur** (périphérique) ; major,
+fermé et secret sont des décisions explicites. Fermer un fait est un **acte de curation** :
+c'est ce qui distingue une mémoire d'équipe (les décisions tiennent) d'un tableau blanc que
+chacun peut raturer.
+
+## Lier les faits et les règles
+
+Un fait n'est pas toujours saisi à la main : il peut être **dérivé** par une règle. Quand le
+moteur applique `X parent_de Y ; Y parent_de Z => X grand_parent_de Z`, le fait produit
+`(alice, grand_parent_de, carl)` est écrit avec une **source d'inférence** qui pointe vers sa
+règle :
+
+```
+source: { kind: 'inference', ref: 'rule:grand-parent' }
+```
+
+Ce lien rend la chaîne d'inférence **navigable dans les deux sens** :
+
+- **du fait vers sa règle** : la provenance du fait dérivé nomme la règle qui l'a produit ;
+- **de la règle vers ses faits** : on retrouve tous les faits dérivés en filtrant sur la
+  source `rule:<nom>`.
+
+Le même principe vaut pour les autres dérivations — la **généralisation de relations**
+(« mère_de » dérive « parent_de », source `taxonomy:mère_de`) et les **règles induites**
+(origine `induced`). Un fait sait donc toujours *pourquoi* il existe : saisi, importé, déduit
+par telle règle, généralisé depuis telle relation. Connaissance et raisonnement restent
+tissés ensemble, et auditables.
 
 ## Pourquoi c'est différent
 
