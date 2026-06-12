@@ -26,20 +26,42 @@ await ledger.open('12345_c', {
 bounds the **amount** (`maxAmount`) and/or the **count** (`maxCount`) of movements of one kind in
 the window. Stack as many as the domain requires.
 
-### Deposits, withdrawals, transfers
+### PRE-CONFIGURED transaction types
+
+Types are declared at construction. **Once at least one type is configured, it becomes REQUIRED**:
+a deposit/withdrawal without a valid type is refused (`reason: 'invalid-type'`). A type may be
+restricted to one kind.
 
 ```ts
-await ledger.deposit('12345_c', 1000);
-const r = await ledger.withdraw('12345_c', 200);
-//  r.ok / r.reason : 'below-floor' | 'above-ceiling' | 'velocity-exceeded' | 'bad-amount'
+const ledger = new TransactionLedger(kb, {
+  currency: 'USD',
+  types: [
+    { name: 'salary', kind: 'depot', label: 'Salary' },  // deposit only
+    { name: 'rent',   kind: 'retrait' },                 // withdrawal only
+    { name: 'internal_transfer' },                       // no kind restriction
+  ],
+});
+await ledger.ready;            // types are declared asynchronously
+ledger.declaredTypes();        // [{ name:'rent', kind:'retrait' }, …]
+```
 
-// TRANSACTIONAL transfer: pre-validated on both sides; and if a write fails midway, the already
-// committed movements are RETRACTED (compensation) → balances restored.
-const v = await ledger.transfer('12345_c', '67890_c', 300, 'rent');
-//  v.ok / v.reason ('rolled-back' on compensation) / v.side ('from' | 'to') / v.fromBalance / v.toBalance
+### Deposits, withdrawals, transfers (with metadata)
+
+Every movement carries a **type**, its **author** (`by` = created_by) and its **date** (`at` =
+created_at, automatic).
+
+```ts
+await ledger.deposit('12345_c', 2500, { type: 'salary', by: 'alice', ref: 'march' });
+const r = await ledger.withdraw('12345_c', 200, { type: 'rent', by: 'alice' });
+//  r.reason : 'invalid-type' | 'below-floor' | 'above-ceiling' | 'velocity-exceeded' | 'bad-amount'
+
+// TRANSACTIONAL transfer: pre-validated on both sides; if a write fails, committed movements are
+// RETRACTED (compensation) → balances restored. The type must be kind-unrestricted.
+const v = await ledger.transfer('12345_c', '67890_c', 300, { type: 'internal_transfer', by: 'alice' });
+//  v.reason : 'rolled-back' (compensation) | 'invalid-type' | … / v.side ('from' | 'to')
 
 ledger.balance('12345_c');    // folded, never written
-ledger.movements('12345_c');  // the history IS the truth
+ledger.movements('12345_c');  // history: { kind, amount, type, by, at, ref } — the truth
 ```
 
 > **Transfer transactionality.** The `(account, movement, id)` link is written LAST: it is the

@@ -26,20 +26,42 @@ await ledger.open('12345_c', {
 Une limite borne le **montant** (`maxAmount`) et/ou le **nombre** (`maxCount`) de mouvements d'un
 sens dans la fenêtre. On en empile autant que le domaine l'exige.
 
-### Dépôts, retraits, virements
+### Types de transaction PRÉ-CONFIGURÉS
+
+Les types sont déclarés à la construction. **Dès qu'au moins un type est configuré, il devient
+REQUIS** : un dépôt/retrait sans type valide est refusé (`reason: 'invalid-type'`). Un type peut
+être restreint à un sens (`kind`).
 
 ```ts
-await ledger.deposit('12345_c', 1000);
-const r = await ledger.withdraw('12345_c', 200);
-//  r.ok / r.reason : 'below-floor' | 'above-ceiling' | 'velocity-exceeded' | 'bad-amount'
+const ledger = new TransactionLedger(kb, {
+  currency: 'USD',
+  types: [
+    { name: 'salaire', kind: 'depot', label: 'Salaire' },  // dépôt seulement
+    { name: 'loyer',   kind: 'retrait' },                  // retrait seulement
+    { name: 'virement_interne' },                          // sans restriction de sens
+  ],
+});
+await ledger.ready;            // les types sont déclarés en async
+ledger.declaredTypes();        // [{ name:'loyer', kind:'retrait' }, …]
+```
 
-// Virement TRANSACTIONNEL : prévalidé des deux côtés ; et si une écriture échoue en cours
-// de route, les mouvements déjà commités sont RÉTRACTÉS (compensation) → soldes restaurés.
-const v = await ledger.transfer('12345_c', '67890_c', 300, 'loyer');
-//  v.ok / v.reason ('rolled-back' si compensation) / v.side ('from' | 'to') / v.fromBalance / v.toBalance
+### Dépôts, retraits, virements (avec métadonnées)
+
+Chaque mouvement porte un **type**, son **auteur** (`by` = created_by) et sa **date** (`at` =
+created_at, automatique).
+
+```ts
+await ledger.deposit('12345_c', 2500, { type: 'salaire', by: 'alice', ref: 'mars' });
+const r = await ledger.withdraw('12345_c', 200, { type: 'loyer', by: 'alice' });
+//  r.reason : 'invalid-type' | 'below-floor' | 'above-ceiling' | 'velocity-exceeded' | 'bad-amount'
+
+// Virement TRANSACTIONNEL : prévalidé des deux côtés ; si une écriture échoue, les mouvements
+// déjà commités sont RÉTRACTÉS (compensation) → soldes restaurés. Le type doit être NON restreint.
+const v = await ledger.transfer('12345_c', '67890_c', 300, { type: 'virement_interne', by: 'alice' });
+//  v.reason : 'rolled-back' (compensation) | 'invalid-type' | … / v.side ('from' | 'to')
 
 ledger.balance('12345_c');    // calculé par repli, jamais écrit
-ledger.movements('12345_c');  // l'historique EST la vérité
+ledger.movements('12345_c');  // historique : { kind, amount, type, by, at, ref } — la vérité
 ```
 
 > **Transactionnalité du virement.** Le lien `(compte, mouvement, id)` est écrit EN DERNIER :
