@@ -29,6 +29,14 @@ Three safeguards:
   concludes, or the limit is reached. And **the full transcript is kept** (who played what, and QPath's
   verdict) → auditable.
 
+### Integration notes
+
+- ASK / HYPOTHESIS / TOOL moves are **single-line**; the `CONCLUDE` answer may be **multi-line**
+  (lists, paragraphs) — everything after the keyword belongs to the answer.
+- The game rules are exported (`PINGPONG_SYSTEM_RULES`) so the host can **compose them with its own
+  product identity** (`systemPrompt: identity + rules`) instead of replacing it — otherwise the LLM
+  loses its identity during the exchange.
+
 ## When to use it
 
 | Situation | Recommended mode |

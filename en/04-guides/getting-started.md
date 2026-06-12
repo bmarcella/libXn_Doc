@@ -73,7 +73,7 @@ npm run bench # benchmark report
 ```
 
 ```
-CURRENT CAPABILITIES : recall 100% (28/28) · mean latency 0.07 ms · 4 scenarios
+CURRENT CAPABILITIES : recall 100% (34/34) · mean latency 0.07 ms · 5 scenarios
 ```
 
 ## Node / backend (CommonJS)

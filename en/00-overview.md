@@ -32,9 +32,12 @@ explainable reasoning, offline/sovereign…) with code examples.
 
 ## Proof (built-in benchmark)
 
-On the reference scenarios: **100% recall (28/28) · ~0.07 ms per query**. Exact retrieval, rule
+On the reference scenarios: **100% recall (34/34) · ~0.07 ms per query**. Exact retrieval, rule
 cascades, multi-variable joins, numeric comparisons (>, <, between), aggregates
-(count/sum/avg/min/max) and quantifiers (forall/exists) — deterministic, at 0 tokens.
+(count/sum/avg/min/max), quantifiers (forall/exists) and **inheritance with exceptions**
+("a penguin is a bird but does not fly" — the "no" is proven, not guessed) — deterministic,
+at 0 tokens. The memory also detects **contradictions at write time** and can **induce its own
+rules** from its regularities (support, confidence, counterexamples), under human validation.
 
 ## Integrations
 

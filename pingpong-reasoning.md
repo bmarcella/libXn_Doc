@@ -30,6 +30,14 @@ Trois garde-fous :
   que le LLM conclut, ou que la limite est atteinte. Et **toute la transcription est conservée** (qui a
   joué quoi, et le verdict de QPath) → auditable.
 
+### Notes d'intégration
+
+- Les coups ASK / HYPOTHESIS / TOOL sont **mono-ligne** ; la conclusion `CONCLUDE` peut être
+  **multi-ligne** (listes, paragraphes) — tout ce qui suit le mot-clé appartient à la réponse.
+- Les règles du jeu sont exportées (`PINGPONG_SYSTEM_RULES`) pour que l'hôte les **compose avec sa
+  propre identité produit** (`systemPrompt: identité + règles`) au lieu de les remplacer — sinon le
+  LLM perd son identité pendant l'échange.
+
 ## Quand l'utiliser
 
 | Situation | Mode conseillé |
