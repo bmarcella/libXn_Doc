@@ -38,18 +38,65 @@ interface FactAuthenticator {
 Chaque `vault.login()` **émet un fait horodaté** `(audit:<principal>, tentative, succès|échec|verrou)`.
 La couche d'accès raconte sa propre activité **en faits** — auto-référentiel, 100 % QPath.
 
-### `FactGuard` — politiques d'accès
+### `FactGuard` — politiques d'accès GÉNÉRIQUES
 
-Une garde **lit les faits systématiques** pour appliquer une règle d'accès. Verrou après N
-échecs dans une fenêtre :
+Une garde n'est **pas** un verrou de login : c'est une **politique** qui raisonne sur les faits
+(surtout les faits systématiques d'audit) pour **autoriser ou refuser n'importe quelle action**.
+Le verrouillage de compte n'est qu'un exemple parmi une infinité — quota, horaires, plafond,
+géo, rôle, séquence… Toutes passent par la même interface :
 
 ```ts
-vault.addGuard({ principal: 'alice', lockAfterFailures: 5, windowMs: 15 * 60_000 });
-await vault.login('alice', 'mauvais'); // …×5
-vault.isLocked('alice'); // true — même le bon mot de passe est refusé jusqu'à expiration
+interface FactGuard {
+  name: string;
+  actions?: string[];                 // actions gardées (défaut : toutes)
+  check(ctx: GuardContext): { allow: boolean; reason?: string };
+}
 ```
 
+`vault.authorize(principal, action)` est **le** point d'entrée du contrôle d'accès — pour le
+login, un dépôt, une lecture, ou tout verbe métier. Il passe les gardes applicables ; la
+première qui refuse l'emporte. Les actions s'enregistrent en faits systématiques via
+`vault.record(principal, action, outcome)`, sur lesquels les gardes comptent.
+
+**Exemple 1 — verrou après 5 échecs de connexion** (fabrique fournie `lockoutGuard`) :
+
+```ts
+vault.addGuard(lockoutGuard({ action: 'login', maxFailures: 5, windowMs: 15 * 60_000 }));
+await vault.login('alice', 'mauvais'); // …×5 → chaque échec est un fait systématique
+await vault.login('alice', 'bon');     // reason: 'denied' — même le bon mot de passe est refusé
+```
+
+**Exemple 2 — au plus 5 dépôts par jour** (`rateLimitGuard`, sur une action métier) :
+
+```ts
+const DAY = 24 * 3600_000;
+vault.addGuard(rateLimitGuard({ action: 'depot', successOutcome: 'fait', max: 5, windowMs: DAY }));
+
+// avant chaque dépôt :
+if (!vault.authorize('alice', 'depot').allow) throw new Error('quota quotidien atteint');
+await ledger.deposit('alice', 100);
+await vault.record('alice', 'depot', 'fait'); // pour que la garde le compte
+```
+
+**Exemple 3 — garde sur mesure (heures ouvrées)** : n'importe quelle logique, en quelques lignes :
+
+```ts
+vault.addGuard({
+  name: 'heures-ouvrées',
+  actions: ['read'],
+  check: (ctx) => {
+    const h = new Date(ctx.now).getHours();
+    return h >= 9 && h < 17 ? { allow: true } : { allow: false, reason: 'hors heures ouvrées' };
+  },
+});
+```
+
+> Une garde peut tout interroger via `ctx.kb` (faits, rôles, soldes via le ledger…) et
+> `ctx.count(action, outcome, windowMs)` (les faits systématiques). Les protections sont donc
+> **illimitées** : tu en écris autant que ton domaine en demande.
+
 ## `TransactionLedger` — faits transactionnels
+
 
 Un compte / portefeuille modélisé en grand livre **append-only** : chaque mouvement est un fait
 **immuable** horodaté ; le **solde n'est jamais stocké**, il est calculé par repli des
@@ -78,7 +125,7 @@ jamais. Le tout modélisé dans les faits QPath — la crypto branchée par port
 
 ```ts
 import {
-  KnowledgeBase, XNeuroneGrid, FactVault, TransactionLedger,
+  KnowledgeBase, XNeuroneGrid, FactVault, TransactionLedger, lockoutGuard,
   type FactAuthenticator, type CipherPort, type Session,
 } from '@damba/libxn';
 import {
@@ -132,7 +179,7 @@ async function register(principal: string, password: string) {
 }
 await register('bigvai@mail.com', 'hunter2');
 await vault.setSecret('bigvai@mail.com', 'cle_api', 'sk-live-xyz');
-vault.addGuard({ principal: 'bigvai@mail.com', lockAfterFailures: 5, windowMs: 15 * 60_000 });
+vault.addGuard(lockoutGuard({ action: 'login', maxFailures: 5, windowMs: 15 * 60_000 }));
 
 // ── Connexion (résistante au brute-force : 5 échecs → verrou ; chaque essai = fait d'audit)
 await vault.login('bigvai@mail.com', 'mauvais');               // échec, tracé
@@ -145,7 +192,7 @@ await ledger.open('bigvai@mail.com');
 await ledger.deposit('bigvai@mail.com', 250);
 await ledger.withdraw('bigvai@mail.com', 100);
 ledger.balance('bigvai@mail.com');                   // 150 — calculé par repli, jamais stocké
-vault.auditTrail('bigvai@mail.com');                 // [{ outcome:'échec', at }, { outcome:'succès', at }]
+vault.auditTrail('bigvai@mail.com', 'login');        // [{ action:'login', outcome:'échec', at }, { …'succès' }]
 ```
 
 **Ce que ça résout, concrètement** : le mot de passe n'existe nulle part (seul son hash), le

@@ -38,17 +38,65 @@ interface FactAuthenticator {
 Every `vault.login()` **emits a timestamped fact** `(audit:<principal>, attempt, success|failure|lock)`.
 The access layer narrates its own activity **as facts** — self-referential, 100% QPath.
 
-### `FactGuard` — access policies
+### `FactGuard` — GENERIC access policies
 
-A guard **reads the system facts** to enforce an access rule. Lock after N failures in a window:
+A guard is **not** a login lock: it is a **policy** that reasons over facts (chiefly the
+systematic audit facts) to **allow or deny any action**. Account lockout is just one example
+among an infinity — quota, schedule, ceiling, geo, role, sequence… All go through the same
+interface:
 
 ```ts
-vault.addGuard({ principal: 'alice', lockAfterFailures: 5, windowMs: 15 * 60_000 });
-await vault.login('alice', 'wrong'); // …×5
-vault.isLocked('alice'); // true — even the right password is refused until it expires
+interface FactGuard {
+  name: string;
+  actions?: string[];                 // guarded actions (default: all)
+  check(ctx: GuardContext): { allow: boolean; reason?: string };
+}
 ```
 
+`vault.authorize(principal, action)` is **the** access-control entry point — for login, a
+deposit, a read, or any business verb. It runs the applicable guards; the first one that denies
+wins. Actions are recorded as systematic facts via `vault.record(principal, action, outcome)`,
+which guards count.
+
+**Example 1 — lock after 5 failed logins** (provided `lockoutGuard` factory):
+
+```ts
+vault.addGuard(lockoutGuard({ action: 'login', maxFailures: 5, windowMs: 15 * 60_000 }));
+await vault.login('alice', 'wrong'); // …×5 → each failure is a systematic fact
+await vault.login('alice', 'right'); // reason: 'denied' — even the right password is refused
+```
+
+**Example 2 — at most 5 deposits per day** (`rateLimitGuard`, on a business action):
+
+```ts
+const DAY = 24 * 3600_000;
+vault.addGuard(rateLimitGuard({ action: 'deposit', successOutcome: 'done', max: 5, windowMs: DAY }));
+
+// before each deposit:
+if (!vault.authorize('alice', 'deposit').allow) throw new Error('daily quota reached');
+await ledger.deposit('alice', 100);
+await vault.record('alice', 'deposit', 'done'); // so the guard counts it
+```
+
+**Example 3 — custom guard (office hours)**: any logic, in a few lines:
+
+```ts
+vault.addGuard({
+  name: 'office-hours',
+  actions: ['read'],
+  check: (ctx) => {
+    const h = new Date(ctx.now).getHours();
+    return h >= 9 && h < 17 ? { allow: true } : { allow: false, reason: 'outside office hours' };
+  },
+});
+```
+
+> A guard can query anything via `ctx.kb` (facts, roles, balances through the ledger…) and
+> `ctx.count(action, outcome, windowMs)` (the systematic facts). Protections are therefore
+> **unlimited**: write as many as your domain requires.
+
 ## `TransactionLedger` — transactional facts
+
 
 An account / wallet modeled as an **append-only** ledger: each movement is an **immutable**
 timestamped fact; the **balance is never stored**, it is computed by folding the movements; a
@@ -77,7 +125,7 @@ stays invisible until you log in, and a balance that never corrupts. All modeled
 
 ```ts
 import {
-  KnowledgeBase, XNeuroneGrid, FactVault, TransactionLedger,
+  KnowledgeBase, XNeuroneGrid, FactVault, TransactionLedger, lockoutGuard,
   type FactAuthenticator, type CipherPort, type Session,
 } from '@damba/libxn';
 import {
@@ -131,7 +179,7 @@ async function register(principal: string, password: string) {
 }
 await register('bigvai@mail.com', 'hunter2');
 await vault.setSecret('bigvai@mail.com', 'api_key', 'sk-live-xyz');
-vault.addGuard({ principal: 'bigvai@mail.com', lockAfterFailures: 5, windowMs: 15 * 60_000 });
+vault.addGuard(lockoutGuard({ action: 'login', maxFailures: 5, windowMs: 15 * 60_000 }));
 
 // ── Login (brute-force resistant: 5 failures → lock; each attempt = an audit fact)
 await vault.login('bigvai@mail.com', 'wrong');                // failure, traced
@@ -144,7 +192,7 @@ await ledger.open('bigvai@mail.com');
 await ledger.deposit('bigvai@mail.com', 250);
 await ledger.withdraw('bigvai@mail.com', 100);
 ledger.balance('bigvai@mail.com');                   // 150 — folded, never stored
-vault.auditTrail('bigvai@mail.com');                 // [{ outcome:'failure', at }, { outcome:'success', at }]
+vault.auditTrail('bigvai@mail.com', 'login');        // [{ action:'login', outcome:'failure', at }, { …'success' }]
 ```
 
 **What it solves, concretely**: the password exists nowhere (only its hash), the secret is
