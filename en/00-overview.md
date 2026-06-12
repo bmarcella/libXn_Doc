@@ -42,7 +42,7 @@ regularities (support, confidence, counterexamples) under human validation, and 
 incoherences). Finally, [proactive deduction](insight-reasoning) anticipates and alerts without
 being asked: contradictions, violated near-rules, missing data. And identity is first-class:
 merged aliases, **separated homonyms** ("two Jeans" don't contradict each other — they get
-told apart), splitting with preserved provenance.
+told apart), splitting with preserved provenance. QPath also offers an [access layer](access-layer) for developers: encrypted secret facts, authentication via an injected port, guards, and transactional facts (append-only ledger).
 
 ## Integrations
 

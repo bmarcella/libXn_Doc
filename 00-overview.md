@@ -41,7 +41,7 @@ sur la **trame** des événements ([Plot Reasoning](plot-reasoning) : causes rac
 chronologie, incohérences). Enfin, la [déduction proactive](insight-reasoning) anticipe et alerte
 sans question : contradictions, presque-règles violées, données manquantes. Et l'identité est
 de première classe : alias fusionnés, **homonymes séparés** (« deux Jean » ne se contredisent
-pas — ils se distinguent), scission avec provenance préservée.
+pas — ils se distinguent), scission avec provenance préservée. QPath offre aussi une [couche d'accès](access-layer) pour les développeurs : faits secrets chiffrés, authentification par port injecté, gardes, et faits transactionnels (grand livre append-only).
 
 ## Intégrations
 
