@@ -160,9 +160,13 @@ auditable). Les droits héritent donc de tout QPath : traçables, **superposable
 au niveau org couvre toutes les conversations via la pile de portées) et interrogeables.
 
 ```ts
-const acl = new FactAccessControl(kb);
+const acl = new FactAccessControl(kb, { requireDeclaredGroups: true });
 
-// 1) Grouper des faits
+// 0) DÉCLARER les groupes en amont (entités de 1re classe, existent même vides)
+await acl.declareGroup('finances', { description: 'Données financières' });
+acl.declaredGroups();   // [{ name:'finances', description:'…', factCount:0, declared:true }]
+
+// 1) Grouper des faits (refusé si le groupe n'est pas déclaré, en mode strict)
 await kb.tell('budget', 'montant', '50000');
 acl.assign('budget', 'montant', '50000', 'finances');   // → groupe « finances »
 
@@ -177,7 +181,12 @@ acl.permissionsOf('alice', 'finances');                 // ['read']
 acl.membersWithAccess('finances', 'write');             // ['admin']  — qui peut écrire ?
 acl.groupsAccessibleBy('alice', 'read');                // ['finances']
 
-// 4) Opérations gouvernées (CRUD vérifié)
+// 4) Rechercher des faits par groupe
+acl.factsInGroup('finances');                  // tous les faits du groupe
+acl.searchInGroup('finances', 'budget');       // recherche plein-texte dans le groupe
+acl.factsAccessibleBy('alice', 'read');        // tous les faits qu'alice peut lire (tous groupes)
+
+// 5) Opérations gouvernées (CRUD vérifié)
 const { result, facts } = acl.read('bob', 'finances');  // result.allowed=false (bob non autorisé)
 await acl.write('admin', 'finances', 'prime', 'vaut', '1000');     // ok → fait tagué « finances »
 await acl.update('admin', 'finances', 'prime', 'vaut', '1000', '1200');

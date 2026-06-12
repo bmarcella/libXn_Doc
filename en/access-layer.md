@@ -160,9 +160,13 @@ thus inherit everything QPath offers: traceable, **layerable** (a right set at t
 covers all conversations via the scope stack) and queryable.
 
 ```ts
-const acl = new FactAccessControl(kb);
+const acl = new FactAccessControl(kb, { requireDeclaredGroups: true });
 
-// 1) Group facts
+// 0) DECLARE groups upfront (first-class entities, exist even when empty)
+await acl.declareGroup('finance', { description: 'Financial data' });
+acl.declaredGroups();   // [{ name:'finance', description:'…', factCount:0, declared:true }]
+
+// 1) Group facts (refused if the group isn't declared, in strict mode)
 await kb.tell('budget', 'amount', '50000');
 acl.assign('budget', 'amount', '50000', 'finance');     // → "finance" group
 
@@ -177,7 +181,12 @@ acl.permissionsOf('alice', 'finance');                  // ['read']
 acl.membersWithAccess('finance', 'write');              // ['admin']  — who can write?
 acl.groupsAccessibleBy('alice', 'read');                // ['finance']
 
-// 4) Governed operations (checked CRUD)
+// 4) Search facts by group
+acl.factsInGroup('finance');                   // all facts in the group
+acl.searchInGroup('finance', 'budget');        // full-text search within the group
+acl.factsAccessibleBy('alice', 'read');        // every fact alice can read (across groups)
+
+// 5) Governed operations (checked CRUD)
 const { result, facts } = acl.read('bob', 'finance');   // result.allowed=false (bob not allowed)
 await acl.write('admin', 'finance', 'bonus', 'is', '1000');        // ok → fact tagged "finance"
 await acl.update('admin', 'finance', 'bonus', 'is', '1000', '1200');
