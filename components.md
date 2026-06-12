@@ -79,6 +79,34 @@ kb.askInverse('aime', 'chocolat');   // ['marc']
 
 > Lectures **fiables et déterministes**, mémoire **éditable et auditable**.
 
+### CompanionFacts — des faits qui en accompagnent un autre
+
+Rattacher à un **propriétaire** un bloc de faits qui le décrivent : le **profil** d'une personne
+autour de son compte (adresse, sexe, date de naissance…), les métadonnées d'un document, etc. Le
+propriétaire est soit une **entité** (un sujet), soit un **fait précis** (un triplet).
+
+```ts
+import { CompanionFacts } from '@damba/libxn';
+const comp = new CompanionFacts(kb);
+
+// Profil d'une personne (propriétaire = entité)
+const owner = { entity: 'bigvai' };
+await comp.attach(owner, 'bigvai', 'adresse', 'port-au-prince');
+await comp.attach(owner, 'bigvai', 'né_le', '1991-01-01', { cascade: true });
+comp.profileOf(owner);     // { adresse:['port-au-prince'], 'né_le':['1991-01-01'] }
+
+// Métadonnées d'un fait précis (propriétaire = triplet)
+const f = { fact: { s: 'bigvai', p: 'a', o: 'compte_12345' } };
+await comp.attach(f, 'compte_12345', 'ouvert_le', '2020-06-01', { cascade: true });
+
+// Cycle de vie configurable : `cascade` → le compagnon part avec son propriétaire (archivé)
+comp.retractOwner(f);      // rétracte le fait + ses compagnons cascade
+```
+
+> Les compagnons restent des **faits ordinaires** (interrogeables normalement) ; ils sont juste
+> tagués vers leur propriétaire. `cascade` lie leur cycle de vie ; sans lui, ils sont indépendants.
+
+
 ### NaturalParser — du langage aux faits
 
 Le **pont entre le texte libre et la KnowledgeBase** : il transforme une phrase en langage naturel en un

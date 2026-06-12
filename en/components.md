@@ -79,6 +79,34 @@ kb.askInverse('likes', 'chocolate');  // ['marc']
 
 > **Reliable, deterministic** reads; **editable and auditable** memory.
 
+### CompanionFacts — facts that accompany another
+
+Attach to an **owner** a block of facts that describe it: a person's **profile** around their
+account (address, gender, date of birth…), a document's metadata, etc. The owner is either an
+**entity** (a subject) or a **precise fact** (a triplet).
+
+```ts
+import { CompanionFacts } from '@damba/libxn';
+const comp = new CompanionFacts(kb);
+
+// A person's profile (owner = entity)
+const owner = { entity: 'bigvai' };
+await comp.attach(owner, 'bigvai', 'address', 'port-au-prince');
+await comp.attach(owner, 'bigvai', 'born_on', '1991-01-01', { cascade: true });
+comp.profileOf(owner);     // { address:['port-au-prince'], born_on:['1991-01-01'] }
+
+// Metadata on a precise fact (owner = triplet)
+const f = { fact: { s: 'bigvai', p: 'has', o: 'account_12345' } };
+await comp.attach(f, 'account_12345', 'opened_on', '2020-06-01', { cascade: true });
+
+// Configurable lifecycle: `cascade` → the companion leaves with its owner (archived)
+comp.retractOwner(f);      // retracts the fact + its cascade companions
+```
+
+> Companions stay **ordinary facts** (queryable normally); they are merely tagged to their owner.
+> `cascade` ties their lifecycle; without it they are independent.
+
+
 ### NaturalParser — from language to facts
 
 The **bridge between free text and the KnowledgeBase**: it turns a natural-language sentence into a
