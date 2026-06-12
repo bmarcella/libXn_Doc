@@ -46,6 +46,7 @@ export default defineConfig({
             { text: 'Plot reasoning', link: '/plot-reasoning' },
             { text: 'Proactive deduction', link: '/insight-reasoning' },
             { text: "Couche d'accès", link: '/access-layer' },
+            { text: 'Grand livre', link: '/transaction-ledger' },
           ] },
           { text: 'Mémoire & outils', items: [
             { text: 'Composants', link: '/components' },
@@ -73,6 +74,7 @@ export default defineConfig({
               { text: 'Plot reasoning', link: '/plot-reasoning' },
               { text: 'Proactive deduction', link: '/insight-reasoning' },
               { text: 'Access layer', link: '/access-layer' },
+              { text: 'Transaction ledger', link: '/transaction-ledger' },
               { text: 'Outils (Tools)', link: '/tools' },
               { text: 'Provenance & revérification', link: '/fact-provenance' },
               { text: 'Démarrer', link: '/04-guides/getting-started' },
@@ -101,6 +103,7 @@ export default defineConfig({
             { text: 'Plot reasoning', link: '/en/plot-reasoning' },
             { text: 'Proactive deduction', link: '/en/insight-reasoning' },
             { text: 'Access layer', link: '/en/access-layer' },
+              { text: 'Transaction ledger', link: '/en/transaction-ledger' },
           ] },
           { text: 'Memory & tools', items: [
             { text: 'Components', link: '/en/components' },
@@ -128,6 +131,7 @@ export default defineConfig({
               { text: 'Plot reasoning', link: '/en/plot-reasoning' },
               { text: 'Proactive deduction', link: '/en/insight-reasoning' },
               { text: 'Access layer', link: '/en/access-layer' },
+              { text: 'Transaction ledger', link: '/en/transaction-ledger' },
               { text: 'Tools', link: '/en/tools' },
               { text: 'Provenance & re-verification', link: '/en/fact-provenance' },
               { text: 'Getting started', link: '/en/04-guides/getting-started' },
