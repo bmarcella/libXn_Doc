@@ -115,9 +115,12 @@ const acl = new FactAccessControl(kb, { requireDeclaredGroups: true });
 await acl.declareGroup('finances', { description: 'Données financières' });
 acl.declaredGroups();   // [{ name:'finances', description:'…', factCount:0, declared:true }]
 
-// 1) Grouper des faits (refusé si le groupe n'est pas déclaré, en mode strict)
-await kb.tell('budget', 'montant', '50000');
-acl.assign('budget', 'montant', '50000', 'finances');   // → groupe « finances »
+// 1) Grouper des faits — en UN appel (écrit + rattache, retourne l'id du fait)
+const id = await acl.tellInGroup('budget', 'montant', '50000', 'finances');
+//  → id === kb.factId('budget','montant','50000')  (l'id est DÉTERMINISTE : hash du triplet,
+//    pas un id généré — donc kb.tell n'a pas à le « renvoyer », il se calcule à tout moment)
+
+// (équivalent en deux temps si tu préfères : kb.tell(...) puis acl.assign(...))
 
 // 2) Accorder / révoquer (chaque droit est un fait)
 await acl.grant('alice', 'finances', 'read', 'write');  // alice : lecture + écriture
