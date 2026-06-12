@@ -243,3 +243,11 @@ the core.
   production.
 - QPath **models and orchestrates**; the real strength (hash strength, encryption secrecy,
   persistence, transactions) comes from what the developer plugs in.
+- **Transparent normalization**: the Vault re-encodes the ciphertext before storing it, so a
+  secret survives intact (case, symbols, Unicode) regardless of the `CipherPort` — you have no
+  format constraint on your cipher's output.
+
+> ⚠️ A secret fact attached to an **access group** (`FactAccessControl`) is returned by
+> `factsInGroup` / `read` in its **encrypted** form: the ACL governs group membership, while
+> decryption stays exclusively the `FactVault`'s job (authenticated read). The two layers are
+> intentionally orthogonal.

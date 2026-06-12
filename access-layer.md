@@ -243,3 +243,11 @@ ports injectés (AES, scrypt), pas du noyau.
   chiffrement en production.
 - QPath **modélise et orchestre** ; la solidité réelle (force du hachage, secret du chiffrement,
   persistance, transactions) vient de ce que le développeur branche.
+- **Normalisation transparente** : le Vault ré-encode la valeur chiffrée avant de la stocker, donc
+  un secret survit intact (casse, symboles, Unicode) quel que soit le `CipherPort` — vous n'avez
+  aucune contrainte de format sur la sortie de votre chiffrement.
+
+> ⚠️ Un fait secret rattaché à un **groupe d'accès** (`FactAccessControl`) est renvoyé par
+> `factsInGroup` / `read` sous sa forme **chiffrée** : l'ACL régit l'appartenance au groupe, le
+> déchiffrement reste exclusivement du ressort du `FactVault` (lecture authentifiée). Les deux
+> couches sont volontairement orthogonales.
