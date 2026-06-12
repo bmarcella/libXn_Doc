@@ -68,6 +68,92 @@ ledger.movements('12345_c');  // the history IS the truth
 > responsibility: for real value, back this model with a transactional system of record. QPath
 > models the ledger; it does not replace a banking core.
 
+## Full example — personal vault + wallet
+
+**The problem.** An app where every user has (a) a password, (b) a secret to protect (API key,
+private note), (c) a wallet. We want: registration, brute-force-resistant login, a secret that
+stays invisible until you log in, and a balance that never corrupts. All modeled in QPath facts
+— crypto plugged in via ports.
+
+```ts
+import {
+  KnowledgeBase, XNeuroneGrid, FactVault, TransactionLedger,
+  type FactAuthenticator, type CipherPort, type Session,
+} from '@damba/libxn';
+import {
+  scryptSync, randomBytes, timingSafeEqual, createCipheriv, createDecipheriv,
+} from 'node:crypto';
+
+// 1) REAL encryption of secret values (AES-256-GCM). In the browser: Web Crypto.
+class AesCipher implements CipherPort {
+  constructor(private key: Buffer) {}                 // 32 bytes, kept OUT of the graph
+  encrypt(plain: string): string {
+    const iv = randomBytes(12);
+    const c = createCipheriv('aes-256-gcm', this.key, iv);
+    const enc = Buffer.concat([c.update(plain, 'utf8'), c.final()]);
+    return [iv.toString('hex'), c.getAuthTag().toString('hex'), enc.toString('hex')].join(':');
+  }
+  decrypt(cipher: string): string {
+    const [iv, tag, enc] = cipher.split(':').map(h => Buffer.from(h, 'hex'));
+    const d = createDecipheriv('aes-256-gcm', this.key, iv);
+    d.setAuthTag(tag);
+    return Buffer.concat([d.update(enc), d.final()]).toString('utf8');
+  }
+}
+
+// 2) REAL authenticator: verifies a scrypt hash stored as a fact (never the password).
+class PasswordAuthenticator implements FactAuthenticator {
+  constructor(private kb: KnowledgeBase) {}
+  async authenticate(principal: string, password: string): Promise<Session | null> {
+    const [record] = this.kb.ask(principal, 'pwd');   // "salt:hash"
+    if (!record) return null;
+    const [salt, hash] = record.split(':');
+    const candidate = scryptSync(password, salt, 32).toString('hex');
+    const ok = timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(hash, 'hex'));
+    return ok ? { principal, issuedAt: Date.now(), expiresAt: Date.now() + 3_600_000 } : null;
+  }
+  verify(s: Session): boolean { return !s.expiresAt || s.expiresAt > Date.now(); }
+}
+
+// ── Setup
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const vault = new FactVault(kb, {
+  authenticator: new PasswordAuthenticator(kb),
+  cipher: new AesCipher(randomBytes(32)),             // key out of the graph
+});
+const ledger = new TransactionLedger(kb, { currency: 'USD' });
+
+// ── Registration: store the HASH, never the password; the secret is encrypted
+async function register(principal: string, password: string) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(password, salt, 32).toString('hex');
+  await kb.tell(principal, 'pwd', `${salt}:${hash}`);
+}
+await register('bigvai@mail.com', 'hunter2');
+await vault.setSecret('bigvai@mail.com', 'api_key', 'sk-live-xyz');
+vault.addGuard({ principal: 'bigvai@mail.com', lockAfterFailures: 5, windowMs: 15 * 60_000 });
+
+// ── Login (brute-force resistant: 5 failures → lock; each attempt = an audit fact)
+await vault.login('bigvai@mail.com', 'wrong');                // failure, traced
+const { session } = await vault.login('bigvai@mail.com', 'hunter2'); // success
+
+// ── After login: the secret is revealed, the wallet is usable
+vault.read('bigvai@mail.com', 'api_key');           // []            — without a session
+vault.read('bigvai@mail.com', 'api_key', session!); // ['sk-live-xyz'] — decrypted
+await ledger.open('bigvai@mail.com');
+await ledger.deposit('bigvai@mail.com', 250);
+await ledger.withdraw('bigvai@mail.com', 100);
+ledger.balance('bigvai@mail.com');                   // 150 — folded, never stored
+vault.auditTrail('bigvai@mail.com');                 // [{ outcome:'failure', at }, { outcome:'success', at }]
+```
+
+**What it solves, concretely**: the password exists nowhere (only its hash), the secret is
+encrypted and invisible to normal reads and admins, brute-force is blocked at the 5th attempt
+and every try leaves an auditable trace, and the balance recomputes from history — impossible to
+desync. Everything lives in facts; the strength comes from the injected ports (AES, scrypt), not
+the core.
+
+
 ## The security principle
 
 - Crypto lives in **injected ports** (`CipherPort`, `FactAuthenticator`) — never in the core.
