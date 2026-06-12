@@ -128,18 +128,24 @@ await ledger.deposit('12345_c', 1000);
 const r = await ledger.withdraw('12345_c', 200);
 //  r.ok / r.reason : 'below-floor' | 'above-ceiling' | 'velocity-exceeded' | 'bad-amount'
 
-// ATOMIC transfer: pre-validated on both sides BEFORE any write (nothing if either refuses).
+// TRANSACTIONAL transfer: pre-validated on both sides; and if a write fails midway, the already
+// committed movements are RETRACTED (compensation) → balances restored.
 const v = await ledger.transfer('12345_c', '67890_c', 300, 'rent');
-//  v.ok / v.reason / v.side ('from' | 'to') / v.fromBalance / v.toBalance
+//  v.ok / v.reason ('rolled-back' on compensation) / v.side ('from' | 'to') / v.fromBalance / v.toBalance
 
 ledger.balance('12345_c');    // folded, never written
 ledger.movements('12345_c');  // the history IS the truth
 ```
 
-> **Guarantee boundary.** The ledger provides the SEMANTICS (immutability, balance, floor/ceiling,
-> velocity, transfer pre-validation). **Strong consistency** (ACID, concurrency, true transfer
-> atomicity under crash) remains the host's responsibility: for real value, back this model with a
-> transactional system of record. QPath models the ledger; it does not replace a banking core.
+> **Transfer transactionality.** The `(account, movement, id)` link is written LAST: it is the
+> commit point. A half-written movement is never counted — each write is thus atomic for the
+> balance, and a transfer that fails midway **retracts** (compensation, saga) what was committed,
+> restoring the balances (`reason: 'rolled-back'`).
+>
+> **Guarantee boundary.** Strong consistency under CONCURRENCY (two simultaneous transfers on the
+> same account) or a machine crash between the two writes remains the host's responsibility: for
+> real value, back this model with a transactional system of record. QPath models the ledger; it
+> does not replace a banking core.
 
 
 ## `FactAccessControl` — access groups & permissions (RBAC)

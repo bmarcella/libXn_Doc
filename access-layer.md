@@ -128,19 +128,24 @@ await ledger.deposit('12345_c', 1000);
 const r = await ledger.withdraw('12345_c', 200);
 //  r.ok / r.reason : 'below-floor' | 'above-ceiling' | 'velocity-exceeded' | 'bad-amount'
 
-// Virement ATOMIQUE : prévalidé des deux côtés AVANT toute écriture (rien si l'un refuse).
+// Virement TRANSACTIONNEL : prévalidé des deux côtés ; et si une écriture échoue en cours
+// de route, les mouvements déjà commités sont RÉTRACTÉS (compensation) → soldes restaurés.
 const v = await ledger.transfer('12345_c', '67890_c', 300, 'loyer');
-//  v.ok / v.reason / v.side ('from' | 'to') / v.fromBalance / v.toBalance
+//  v.ok / v.reason ('rolled-back' si compensation) / v.side ('from' | 'to') / v.fromBalance / v.toBalance
 
 ledger.balance('12345_c');    // calculé par repli, jamais écrit
 ledger.movements('12345_c');  // l'historique EST la vérité
 ```
 
-> **Limite de garantie.** Le ledger fournit la SÉMANTIQUE (immuabilité, solde, plancher/plafond,
-> vélocité, prévalidation du virement). La **consistance forte** (ACID, concurrence, atomicité
-> réelle d'un virement sous crash) reste du ressort de l'hôte : pour de la valeur réelle, adosser
-> ce modèle à un système de référence transactionnel. QPath modélise le grand livre ; il ne
-> remplace pas un cœur bancaire.
+> **Transactionnalité du virement.** Le lien `(compte, mouvement, id)` est écrit EN DERNIER :
+> c'est le point de commit. Un mouvement à moitié écrit n'est jamais compté — chaque écriture est
+> donc atomique pour le solde, et un virement qui échoue à mi-chemin **rétracte** (compensation,
+> saga) ce qui a été commité, restaurant les soldes (`reason: 'rolled-back'`).
+>
+> **Limite de garantie.** La consistance forte sous CONCURRENCE (deux virements simultanés sur le
+> même compte) ou crash machine entre les deux écritures reste du ressort de l'hôte : pour de la
+> valeur réelle, adosser ce modèle à un système de référence transactionnel. QPath modélise le
+> grand livre ; il ne remplace pas un cœur bancaire.
 
 
 ## `FactAccessControl` — groupes d'accès & permissions (RBAC)
