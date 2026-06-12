@@ -86,6 +86,19 @@ kb.historyOf('marcella');
 history of its own facts — invaluable wherever historization matters (healthcare, legal,
 finance, compliance).
 
+## Flags: epistemic status and salience
+
+Beyond provenance, every fact carries two ORTHOGONAL axes, set by a human (never
+automatically) — every fact is born *open + minor*:
+
+| Flag | Meaning | Mechanical effects |
+|------|---------|--------------------|
+| **⭐ major** | LOAD-BEARING fact (salience) | guaranteed into the answer context window · prioritized in proactive alerts and migration |
+| **🔒 closed** | DECIDED fact (epistemic status) | leaves the re-verification loop · confidence floor in reasoning chains · **wins by default** against a contestation (recorded and traced, but the decision is only overturned by reopening the fact) |
+
+Closing a fact is an **act of curation**: it is what separates a team memory (decisions
+hold) from a whiteboard anyone can scribble over.
+
 ## Why it's different
 
 | Problem | QPath's answer |

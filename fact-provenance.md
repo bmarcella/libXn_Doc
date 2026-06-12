@@ -86,6 +86,19 @@ kb.historyOf('marcella');
 l'histoire de ses propres faits — précieux partout où l'historisation compte (santé, juridique,
 finance, conformité).
 
+## Les drapeaux : statut épistémique et saillance
+
+Au-delà de la provenance, chaque fait porte deux axes ORTHOGONAUX, posés par l'humain
+(jamais automatiques) — tout fait naît *ouvert + mineur* :
+
+| Drapeau | Sens | Effets mécaniques |
+|---------|------|-------------------|
+| **⭐ majeur** | fait STRUCTURANT (saillance) | garanti dans la fenêtre de contexte des réponses · prioritaire dans les alertes proactives et la migration |
+| **🔒 fermé** | fait DÉCIDÉ (statut épistémique) | sort du circuit de revérification · plancher de confiance dans les chaînes de raisonnement · **gagne par défaut** face à une contestation (enregistrée et tracée, mais la décision ne se renverse qu'en rouvrant le fait) |
+
+Fermer un fait est un **acte de curation** : c'est ce qui distingue une mémoire d'équipe
+(les décisions tiennent) d'un tableau blanc que chacun peut raturer.
+
 ## Pourquoi c'est différent
 
 | Problème | Réponse QPath |
