@@ -40,7 +40,9 @@ at 0 tokens. The memory also detects **contradictions at write time**, can **ind
 regularities (support, confidence, counterexamples) under human validation, and reasons over the
 **plot** of events ([Plot Reasoning](plot-reasoning): root causes, consequences, timeline,
 incoherences). Finally, [proactive deduction](insight-reasoning) anticipates and alerts without
-being asked: contradictions, violated near-rules, missing data.
+being asked: contradictions, violated near-rules, missing data. And identity is first-class:
+merged aliases, **separated homonyms** ("two Jeans" don't contradict each other — they get
+told apart), splitting with preserved provenance.
 
 ## Integrations
 

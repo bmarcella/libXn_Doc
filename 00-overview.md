@@ -39,7 +39,9 @@ La mémoire détecte aussi les **contradictions à l'écriture**, sait **induire
 depuis ses régularités (support, confiance, contre-exemples) sous validation humaine, et raisonne
 sur la **trame** des événements ([Plot Reasoning](plot-reasoning) : causes racines, conséquences,
 chronologie, incohérences). Enfin, la [déduction proactive](insight-reasoning) anticipe et alerte
-sans question : contradictions, presque-règles violées, données manquantes.
+sans question : contradictions, presque-règles violées, données manquantes. Et l'identité est
+de première classe : alias fusionnés, **homonymes séparés** (« deux Jean » ne se contredisent
+pas — ils se distinguent), scission avec provenance préservée.
 
 ## Intégrations
 
