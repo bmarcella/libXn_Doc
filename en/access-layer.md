@@ -142,6 +142,47 @@ ledger.movements('12345_c');  // the history IS the truth
 > transactional system of record. QPath models the ledger; it does not replace a banking core.
 
 
+## `FactAccessControl` — access groups & permissions (RBAC)
+
+For an **organization**: group facts under **access groups**, define **CRUD** permissions
+(read / write / update / delete), and **grant or revoke** access per member. Who can see what,
+who can change what — at group granularity.
+
+The fully-QPath principle: **permissions are themselves facts**. Granting means writing a fact;
+revoking means retracting it (archived — the access history is complete and auditable). Rights
+thus inherit everything QPath offers: traceable, **layerable** (a right set at the org level
+covers all conversations via the scope stack) and queryable.
+
+```ts
+const acl = new FactAccessControl(kb);
+
+// 1) Group facts
+await kb.tell('budget', 'amount', '50000');
+acl.assign('budget', 'amount', '50000', 'finance');     // → "finance" group
+
+// 2) Grant / revoke (each right is a fact)
+await acl.grant('alice', 'finance', 'read', 'write');   // alice: read + write
+await acl.grant('admin', 'finance');                    // all permissions
+acl.revoke('alice', 'finance', 'write');                // archived, not erased
+
+// 3) Check & introspect
+acl.can('alice', 'finance', 'read');                    // true
+acl.permissionsOf('alice', 'finance');                  // ['read']
+acl.membersWithAccess('finance', 'write');              // ['admin']  — who can write?
+acl.groupsAccessibleBy('alice', 'read');                // ['finance']
+
+// 4) Governed operations (checked CRUD)
+const { result, facts } = acl.read('bob', 'finance');   // result.allowed=false (bob not allowed)
+await acl.write('admin', 'finance', 'bonus', 'is', '1000');        // ok → fact tagged "finance"
+await acl.update('admin', 'finance', 'bonus', 'is', '1000', '1200');
+acl.remove('admin', 'finance', 'bonus', 'is', '1200');            // retracted (archived)
+```
+
+Each `read/write/update/delete` checks the permission before acting and returns
+`{ allowed, missing? }`. Since rights are facts, a full audit ("who granted write access to
+finance, and when?") reads directly from provenance and history.
+
+
 ## Full example — personal vault + wallet
 
 **The problem.** An app where every user has (a) a password, (b) a secret to protect (API key,

@@ -143,6 +143,47 @@ ledger.movements('12345_c');  // l'historique EST la vérité
 > remplace pas un cœur bancaire.
 
 
+## `FactAccessControl` — groupes d'accès & permissions (RBAC)
+
+Pour une **organisation** : grouper les faits sous des **groupes d'accès**, définir des
+permissions **CRUD** (read / write / update / delete), et **accorder ou révoquer** l'accès par
+membre. Qui peut voir quoi, qui peut modifier quoi — à la granularité du groupe.
+
+Le principe 100 % QPath : **les permissions sont elles-mêmes des faits**. Accorder, c'est écrire
+un fait ; révoquer, c'est le rétracter (archivé — l'historique des accès est complet et
+auditable). Les droits héritent donc de tout QPath : traçables, **superposables** (un droit posé
+au niveau org couvre toutes les conversations via la pile de portées) et interrogeables.
+
+```ts
+const acl = new FactAccessControl(kb);
+
+// 1) Grouper des faits
+await kb.tell('budget', 'montant', '50000');
+acl.assign('budget', 'montant', '50000', 'finances');   // → groupe « finances »
+
+// 2) Accorder / révoquer (chaque droit est un fait)
+await acl.grant('alice', 'finances', 'read', 'write');  // alice : lecture + écriture
+await acl.grant('admin', 'finances');                   // toutes les permissions
+acl.revoke('alice', 'finances', 'write');               // archivé, pas effacé
+
+// 3) Vérifier & introspecter
+acl.can('alice', 'finances', 'read');                   // true
+acl.permissionsOf('alice', 'finances');                 // ['read']
+acl.membersWithAccess('finances', 'write');             // ['admin']  — qui peut écrire ?
+acl.groupsAccessibleBy('alice', 'read');                // ['finances']
+
+// 4) Opérations gouvernées (CRUD vérifié)
+const { result, facts } = acl.read('bob', 'finances');  // result.allowed=false (bob non autorisé)
+await acl.write('admin', 'finances', 'prime', 'vaut', '1000');     // ok → fait tagué « finances »
+await acl.update('admin', 'finances', 'prime', 'vaut', '1000', '1200');
+acl.remove('admin', 'finances', 'prime', 'vaut', '1200');          // rétracté (archivé)
+```
+
+Chaque opération `read/write/update/delete` vérifie la permission avant d'agir et renvoie
+`{ allowed, missing? }`. Comme les droits sont des faits, un audit complet (« qui a donné l'accès
+écriture à finances, et quand ? ») se lit directement dans la provenance et l'historique.
+
+
 ## Exemple complet — coffre personnel + portefeuille
 
 **Le problème.** Une app où chaque utilisateur a (a) un mot de passe, (b) un secret à protéger
