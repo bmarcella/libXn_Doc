@@ -80,6 +80,45 @@ await ledger.close('12345_c');                      // TERMINAL: no operations, 
 > Status changes are themselves facts (retracted/archived on each transition): the account's
 > history — when it was blocked, by whom, why — is auditable.
 
+### Enumerate: accounts & movements (pagination, filters, search)
+
+Every account opened (or merely touched by a movement) becomes **enumerable**. Lists return a
+`Page<T>`: `{ items, total, offset, limit, hasMore }` — `total` is the count **before** slicing,
+so you can compute the number of pages.
+
+```ts
+// Accounts: search by id, filters (status / currency / balance), sort, pagination
+const page = ledger.accounts({
+  search: 'cli_',           // substring in the id
+  status: 'active',         // 'active' | 'blocked' | 'closed'
+  currency: 'HTG',
+  minBalance: 1000, maxBalance: 50_000,
+  sort: 'balance', desc: true,   // 'id' | 'balance' | 'movements'
+  offset: 0, limit: 20,
+});
+page.items;   // [{ id, balance, currency, status, movementCount, floor, ceiling }, …]
+page.total;   // number of accounts matching the filter
+page.hasMore; // is there a next page?
+
+ledger.account('cli_bob');     // summary of ONE account, or undefined
+ledger.hasAccount('cli_bob');  // exists?
+
+// Movements: deposits / withdrawals filtered and paginated
+ledger.deposits('cli_bob', { offset: 0, limit: 50 });       // shortcut kind='deposit'
+ledger.withdrawals('cli_bob', { since: t0, until: t1 });    // shortcut kind='withdraw'
+ledger.movementsPage('cli_bob', {
+  kind: 'withdraw', type: 'rent', by: 'alice',
+  ref: 'march', search: 'transfer',  // full-text search over id/ref/type/author
+  since: t0, until: t1,             // time bounds (epoch ms)
+  desc: true, offset: 0, limit: 100, // newest first
+});
+
+ledger.movementById('mv:cli_bob:withdraw:200:1700000000000'); // direct lookup, or undefined
+```
+
+> Everything is **computed**, never denormalized: a balance and a page's count are folded on the
+> fly from the immutable movements — no counter to maintain, so nothing to desync.
+
 > **Transfer transactionality.** The `(account, movement, id)` link is written LAST: it is the
 > commit point. A half-written movement is never counted — each write is thus atomic for the
 > balance, and a transfer that fails midway **retracts** (compensation, saga) what was committed,

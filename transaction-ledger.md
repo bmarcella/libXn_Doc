@@ -80,6 +80,45 @@ await ledger.close('12345_c');                       // TERMINAL : plus aucune o
 > Les changements d'état sont eux-mêmes des faits (rétractés/archivés à chaque transition) :
 > l'historique du compte — quand il a été bloqué, par qui, pourquoi — est auditable.
 
+### Énumérer : comptes & mouvements (pagination, filtres, recherche)
+
+Tout compte ouvert (ou simplement touché par un mouvement) devient **énumérable**. Les listes
+renvoient une `Page<T>` : `{ items, total, offset, limit, hasMore }` — `total` est le décompte
+**avant** découpe, pour calculer le nombre de pages.
+
+```ts
+// Comptes : recherche par id, filtres (statut / devise / solde), tri, pagination
+const page = ledger.accounts({
+  search: 'cli_',           // sous-chaîne dans l'id
+  status: 'active',         // 'active' | 'blocked' | 'closed'
+  currency: 'HTG',
+  minBalance: 1000, maxBalance: 50_000,
+  sort: 'balance', desc: true,   // 'id' | 'balance' | 'movements'
+  offset: 0, limit: 20,
+});
+page.items;   // [{ id, balance, currency, status, movementCount, floor, ceiling }, …]
+page.total;   // nb de comptes correspondant au filtre
+page.hasMore; // reste-t-il une page suivante ?
+
+ledger.account('cli_bob');     // synthèse d'UN compte, ou undefined
+ledger.hasAccount('cli_bob');  // existe ?
+
+// Mouvements : dépôts / retraits filtrés et paginés
+ledger.deposits('cli_bob', { offset: 0, limit: 50 });       // raccourci kind='deposit'
+ledger.withdrawals('cli_bob', { since: t0, until: t1 });    // raccourci kind='withdraw'
+ledger.movementsPage('cli_bob', {
+  kind: 'withdraw', type: 'loyer', by: 'alice',
+  ref: 'mars', search: 'virement',   // recherche plein-texte sur id/ref/type/auteur
+  since: t0, until: t1,              // bornes temporelles (epoch ms)
+  desc: true, offset: 0, limit: 100, // plus récent d'abord
+});
+
+ledger.movementById('mv:cli_bob:withdraw:200:1700000000000'); // lookup direct, ou undefined
+```
+
+> Tout est **calculé**, jamais dénormalisé : le solde et le décompte d'une page sont repliés à la
+> volée depuis les mouvements immuables — aucun compteur à maintenir, donc rien à désynchroniser.
+
 > **Transactionnalité du virement.** Le lien `(compte, mouvement, id)` est écrit EN DERNIER :
 > c'est le point de commit. Un mouvement à moitié écrit n'est jamais compté — chaque écriture est
 > donc atomique pour le solde, et un virement qui échoue à mi-chemin **rétracte** (compensation,
