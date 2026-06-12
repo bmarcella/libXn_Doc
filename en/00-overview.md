@@ -39,7 +39,8 @@ cascades, multi-variable joins, numeric comparisons (>, <, between), aggregates
 at 0 tokens. The memory also detects **contradictions at write time**, can **induce its own rules** from its
 regularities (support, confidence, counterexamples) under human validation, and reasons over the
 **plot** of events ([Plot Reasoning](plot-reasoning): root causes, consequences, timeline,
-incoherences).
+incoherences). Finally, [proactive deduction](insight-reasoning) anticipates and alerts without
+being asked: contradictions, violated near-rules, missing data.
 
 ## Integrations
 
