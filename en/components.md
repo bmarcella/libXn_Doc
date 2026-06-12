@@ -105,6 +105,9 @@ comp.retractOwner(f);      // retracts the fact + its cascade companions
 
 > Companions stay **ordinary facts** (queryable normally); they are merely tagged to their owner.
 > `cascade` ties their lifecycle; without it they are independent.
+>
+> Identity-coherent: merging two entities (`mergeEntities`) keeps **one** profile (reads follow
+> aliases), and splitting a fact (`splitEntity`) **rebinds** its companions to the new id.
 
 
 ### NaturalParser — from language to facts

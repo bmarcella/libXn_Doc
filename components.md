@@ -105,6 +105,9 @@ comp.retractOwner(f);      // rétracte le fait + ses compagnons cascade
 
 > Les compagnons restent des **faits ordinaires** (interrogeables normalement) ; ils sont juste
 > tagués vers leur propriétaire. `cascade` lie leur cycle de vie ; sans lui, ils sont indépendants.
+>
+> Cohérent avec l'identité : fusionner deux entités (`mergeEntities`) garde **un seul** profil (les
+> lectures suivent les alias), et scinder un fait (`splitEntity`) **re-lie** ses compagnons au nouvel id.
 
 
 ### NaturalParser — du langage aux faits
