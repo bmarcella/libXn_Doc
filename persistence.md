@@ -71,6 +71,9 @@ await initLibxnSchema(myMigrator);
 Le noyau fournit des adaptateurs **en mémoire**, zéro dépendance : double de test, mode hors-ligne,
 et **spécification exécutable** du comportement attendu — notamment l'ACID de `tx()`.
 
+Trois références, une par port : `InMemoryKbStore`, `InMemoryFactStore`, `InMemoryVectorStore`
+(recherche cosinus exacte — le comportement que pgvector reproduit à l'échelle via HNSW).
+
 ```ts
 import { InMemoryKbStore, InMemoryFactStore } from '@damba/libxn';
 

@@ -71,6 +71,9 @@ await initLibxnSchema(myMigrator);
 The core ships **in-memory** adapters, zero dependencies: test double, offline mode, and an
 **executable specification** of the expected behavior — notably the ACID of `tx()`.
 
+Three references, one per port: `InMemoryKbStore`, `InMemoryFactStore`, `InMemoryVectorStore`
+(exact cosine search — the behavior pgvector reproduces at scale via HNSW).
+
 ```ts
 import { InMemoryKbStore, InMemoryFactStore } from '@damba/libxn';
 
