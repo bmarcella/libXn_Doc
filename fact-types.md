@@ -87,8 +87,31 @@ Raccourcis : `kb.aggregate(s, p, fn)` = `compute({ s, p }, fn)` · `kb.aggregate
 `compute({ p }, fn)`. Et pour interroger : `kb.askNumeric('age', '>', 18)` (« qui a plus de 18 ans ? »),
 `kb.numericValueOf(s, p)`, `kb.compareNumeric(s1, s2, p)`.
 
+## Objets alphanumériques — fonctions texte
+
+Quand l'objet est du **texte**, le même filtre `{ s?, p?, o? }` donne des fonctions adaptées.
+
+```ts
+kb.distinctValues({ p: 'ville' });        // valeurs uniques triées → ['lyon', 'paris']
+kb.frequencies({ p: 'ville' });           // histogramme → { paris: 2, lyon: 1 }
+kb.mode({ p: 'ville' });                   // la plus fréquente → 'paris'
+kb.longest({ p: 'nom' });                  // l'objet le plus long
+kb.shortest({ p: 'nom' });                 // le plus court
+kb.concat({ s: 'alice', p: 'aime' }, ' | '); // 'café | thé | lecture'
+kb.matchCount({ p: 'email' }, '@gmail');   // combien d'objets contiennent une sous-chaîne
+```
+
+| Fonction | Renvoie | Sert à |
+|---|---|---|
+| `distinctValues(filtre)` | `string[]` | les valeurs uniques (triées) |
+| `frequencies(filtre)` | `Record<string, number>` | un **histogramme** (valeur → nombre) |
+| `mode(filtre)` | `string` | la valeur la plus fréquente |
+| `concat(filtre, sep?)` | `string` | concaténer les objets |
+| `longest` / `shortest(filtre)` | `string` | par longueur de chaîne |
+| `matchCount(filtre, sous-chaîne)` | `number` | combien contiennent un motif (insensible à la casse) |
+
 ## En une phrase
 
 Un seul type (le triplet), deux axes (**6 drapeaux** × **7 provenances**), **4 faits spéciaux** de
-raisonnement, et **9 calculs** sur les objets numériques — le tout manipulable par une interface
-unique, `kb.fact(...)`, par triplet ou par id.
+raisonnement, **9 calculs** numériques et des **fonctions texte** (distinct, fréquences, mode…) — le
+tout par filtre `{ s?, p?, o? }`, et manipulable via une interface unique, `kb.fact(...)`.

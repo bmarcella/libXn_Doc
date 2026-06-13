@@ -87,8 +87,31 @@ Shortcuts: `kb.aggregate(s, p, fn)` = `compute({ s, p }, fn)` · `kb.aggregateAl
 `compute({ p }, fn)`. And to query: `kb.askNumeric('age', '>', 18)` ("who is older than 18?"),
 `kb.numericValueOf(s, p)`, `kb.compareNumeric(s1, s2, p)`.
 
+## Alphanumeric objects — text functions
+
+When the object is **text**, the same `{ s?, p?, o? }` filter gives suitable functions.
+
+```ts
+kb.distinctValues({ p: 'city' });          // unique values, sorted → ['lyon', 'paris']
+kb.frequencies({ p: 'city' });             // histogram → { paris: 2, lyon: 1 }
+kb.mode({ p: 'city' });                     // most frequent → 'paris'
+kb.longest({ p: 'name' });                  // longest object
+kb.shortest({ p: 'name' });                 // shortest
+kb.concat({ s: 'alice', p: 'likes' }, ' | '); // 'coffee | tea | reading'
+kb.matchCount({ p: 'email' }, '@gmail');    // how many objects contain a substring
+```
+
+| Function | Returns | For |
+|---|---|---|
+| `distinctValues(filter)` | `string[]` | unique values (sorted) |
+| `frequencies(filter)` | `Record<string, number>` | a **histogram** (value → count) |
+| `mode(filter)` | `string` | the most frequent value |
+| `concat(filter, sep?)` | `string` | join the objects |
+| `longest` / `shortest(filter)` | `string` | by string length |
+| `matchCount(filter, substring)` | `number` | how many contain a pattern (case-insensitive) |
+
 ## In one sentence
 
-One type (the triplet), two axes (**6 flags** × **7 provenances**), **4 special** reasoning facts, and
-**9 computations** on numeric objects — all manipulable through a single interface, `kb.fact(...)`, by
-triplet or by id.
+One type (the triplet), two axes (**6 flags** × **7 provenances**), **4 special** reasoning facts,
+**9 numeric** computations and **text functions** (distinct, frequencies, mode…) — all via a
+`{ s?, p?, o? }` filter, and manipulable through a single interface, `kb.fact(...)`.
