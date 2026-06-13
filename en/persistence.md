@@ -73,6 +73,92 @@ import { CachingKbStore } from '@damba/libxn';
 const store = new CachingKbStore(pgKbStore); // cache-first reads, write-through writes
 ```
 
+## Use cases
+
+### 1. An assistant that remembers (durable per-user memory)
+
+The assistant retains facts about the user from one session to the next.
+
+```ts
+// On login: reload THIS user's memory.
+const kb = new DurableKnowledgeBase(grid, factStore, `user:${userId}`);
+await kb.hydrate();
+
+// During the conversation: record what you learn (persisted automatically).
+await kb.tell('user', 'first_name', 'Alice');
+await kb.tell('user', 'city', 'Port-au-Prince');
+await kb.flush();
+
+// Next session (same userId), after hydrate():
+kb.ask('user', 'city');   // ['port-au-prince'] — it remembers
+```
+
+### 2. A wallet / account (durable + atomic transfer)
+
+```ts
+import { TransactionLedger } from '@damba/libxn';
+
+const kb = new DurableKnowledgeBase(grid, factStore, `wallet:${userId}`);
+await kb.hydrate();
+const ledger = new TransactionLedger(kb, { currency: 'HTG' });
+
+await ledger.open('checking', { initialBalance: 5000, floor: 0 });
+await ledger.deposit('checking', 1200, { type: 'salary' });
+
+// Debit + credit in one block: all succeeds, or nothing (DB-level rollback).
+await ledger.transfer('checking', 'savings', 800, { ref: 'monthly' });
+await kb.flush();
+
+ledger.balance('checking');  // 5400 — recomputed, durable, survives a restart
+```
+
+### 3. A durable secrets vault (`FactVault`)
+
+```ts
+import { FactVault } from '@damba/libxn';
+
+const kb = new DurableKnowledgeBase(grid, factStore, `vault:${userId}`);
+await kb.hydrate();
+const vault = new FactVault(kb, { cipher: myAesCipher });
+
+await vault.setSecret('user', 'api_key', 'sk-live-xyz');  // encrypted AT REST + durable
+await kb.flush();
+
+// Hidden from normal reads; revealed only with an authenticated session.
+vault.read('user', 'api_key', session);   // ['sk-live-xyz']
+```
+
+### 4. The same code in tests and production
+
+Only the line that creates the `factStore` changes — all your logic stays identical.
+
+```ts
+// In tests (no database, instant):
+const factStore = new InMemoryFactStore();
+
+// In production (injected by the backend):
+const factStore = pgFactStore;            // Postgres
+
+// ↓ exactly the same code on both sides
+const kb = new DurableKnowledgeBase(grid, factStore, scope);
+await kb.hydrate();
+```
+
+### 5. Multi-tenant isolation (one memory per organization)
+
+The **scope key** guarantees isolation: two scopes never see each other.
+
+```ts
+const orgKb = (orgId: string) =>
+  new DurableKnowledgeBase(new XNeuroneGrid(undefined, { headless: true }), factStore, `org:${orgId}`);
+
+const acme = orgKb('acme');     await acme.hydrate();
+const globex = orgKb('globex'); await globex.hydrate();
+
+await acme.tell('policy', 'leave', '25 days');
+globex.ask('policy', 'leave');   // [] — Globex sees nothing of Acme's
+```
+
 ## Good to know
 
 - **Guaranteeing writes**: writes are mirrored in the background; call `flush()` when you need

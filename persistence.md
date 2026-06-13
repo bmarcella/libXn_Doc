@@ -74,6 +74,92 @@ import { CachingKbStore } from '@damba/libxn';
 const store = new CachingKbStore(pgKbStore); // lecture cache-first, écriture write-through
 ```
 
+## Cas d'usage
+
+### 1. Un assistant qui se souvient (mémoire durable par utilisateur)
+
+L'assistant retient des faits sur l'utilisateur d'une session à l'autre.
+
+```ts
+// À la connexion : on recharge la mémoire de CET utilisateur.
+const kb = new DurableKnowledgeBase(grid, factStore, `user:${userId}`);
+await kb.hydrate();
+
+// Pendant la conversation : on enregistre ce qu'on apprend (persisté tout seul).
+await kb.tell('user', 'prénom', 'Alice');
+await kb.tell('user', 'ville', 'Port-au-Prince');
+await kb.flush();
+
+// À la prochaine session (même userId), après hydrate() :
+kb.ask('user', 'ville');   // ['port-au-prince'] — il s'en souvient
+```
+
+### 2. Un portefeuille / compte (durable + virement atomique)
+
+```ts
+import { TransactionLedger } from '@damba/libxn';
+
+const kb = new DurableKnowledgeBase(grid, factStore, `wallet:${userId}`);
+await kb.hydrate();
+const ledger = new TransactionLedger(kb, { currency: 'HTG' });
+
+await ledger.open('courant', { initialBalance: 5000, floor: 0 });
+await ledger.deposit('courant', 1200, { type: 'salaire' });
+
+// Débit + crédit en un seul bloc : tout réussit, ou rien (rollback côté base).
+await ledger.transfer('courant', 'epargne', 800, { ref: 'mensuel' });
+await kb.flush();
+
+ledger.balance('courant');  // 5400 — recalculé, durable, survit au redémarrage
+```
+
+### 3. Un coffre à secrets durable (`FactVault`)
+
+```ts
+import { FactVault } from '@damba/libxn';
+
+const kb = new DurableKnowledgeBase(grid, factStore, `vault:${userId}`);
+await kb.hydrate();
+const vault = new FactVault(kb, { cipher: monChiffrementAES });
+
+await vault.setSecret('user', 'cle_api', 'sk-live-xyz');  // chiffré AU REPOS + durable
+await kb.flush();
+
+// Masqué des lectures normales ; révélé seulement avec une session authentifiée.
+vault.read('user', 'cle_api', session);   // ['sk-live-xyz']
+```
+
+### 4. Le même code en test et en production
+
+Seule la ligne qui crée le `factStore` change — toute ta logique reste identique.
+
+```ts
+// En test (aucune base, instantané) :
+const factStore = new InMemoryFactStore();
+
+// En production (injecté par le backend) :
+const factStore = pgFactStore;            // Postgres
+
+// ↓ strictement le même code des deux côtés
+const kb = new DurableKnowledgeBase(grid, factStore, scope);
+await kb.hydrate();
+```
+
+### 5. Isolation multi-locataire (une mémoire par organisation)
+
+La **clé de scope** garantit l'étanchéité : deux scopes ne se voient jamais.
+
+```ts
+const orgKb = (orgId: string) =>
+  new DurableKnowledgeBase(new XNeuroneGrid(undefined, { headless: true }), factStore, `org:${orgId}`);
+
+const acme = orgKb('acme');     await acme.hydrate();
+const globex = orgKb('globex'); await globex.hydrate();
+
+await acme.tell('politique', 'congés', '25 jours');
+globex.ask('politique', 'congés');   // [] — Globex ne voit rien d'Acme
+```
+
 ## Bon à savoir
 
 - **Garantir l'écriture** : les écritures sont répercutées en tâche de fond ; appelle `flush()` quand
