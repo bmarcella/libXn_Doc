@@ -30,6 +30,7 @@ import {
 } from '@damba/libxn';
 
 const factStore = new InMemoryFactStore();                       // dev ; prod = Postgres
+// undefined = default encoder ; headless = no rendering (Node/server)
 const grid = new XNeuroneGrid(undefined, { headless: true });
 const bank = new DurableKnowledgeBase(grid, factStore, 'bank');  // ONE scope = atomic transfers
 await bank.hydrate();

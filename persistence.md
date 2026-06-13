@@ -13,7 +13,8 @@ Tout ce qui s'appuie dessus — faits, [grand livre](/transaction-ledger), [couc
 ```ts
 import { DurableKnowledgeBase, InMemoryFactStore, XNeuroneGrid } from '@damba/libxn';
 
-const grid = new XNeuroneGrid(undefined, { headless: true }); // le graphe = mémoire de travail
+// undefined = encodeur par défaut ; headless = sans rendu (Node/serveur). Le graphe = mémoire de travail.
+const grid = new XNeuroneGrid(undefined, { headless: true });
 const factStore = new InMemoryFactStore();                    // OÙ persister (voir « Créer un store »)
 const kb = new DurableKnowledgeBase(grid, factStore, `user:${userId}`);
 

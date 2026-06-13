@@ -13,7 +13,8 @@ permissions) — becomes persistent **without touching the rest of your code**.
 ```ts
 import { DurableKnowledgeBase, InMemoryFactStore, XNeuroneGrid } from '@damba/libxn';
 
-const grid = new XNeuroneGrid(undefined, { headless: true }); // the graph = working memory
+// undefined = default encoder ; headless = no rendering (Node/server). The graph = working memory.
+const grid = new XNeuroneGrid(undefined, { headless: true });
 const factStore = new InMemoryFactStore();                    // WHERE to persist (see "Create a store")
 const kb = new DurableKnowledgeBase(grid, factStore, `user:${userId}`);
 
