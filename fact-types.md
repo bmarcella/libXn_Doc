@@ -64,23 +64,27 @@ kb.fact(id).sources();   // [{ kind: 'document', ref: 'cv.pdf', at: … }]
 ## Objets numériques — calculs
 
 Quand l'objet est un nombre (`'30'`, `'1,5'`, `'60 kg'`…), QPath sait calculer dessus, **sans token**.
+Tu **cibles** les faits voulus par un **filtre `{ s?, p?, o? }`** (chaque champ absent = joker), puis
+tu calcules.
 
 ```ts
-// Sur les objets d'un (sujet, prédicat) :
-kb.aggregate('classe', 'note', 'avg');      // moyenne
-kb.aggregate('classe', 'note', 'median');   // médiane
-kb.aggregate('classe', 'note', 'stddev');   // écart-type
+// compute(filtre, fonction) — le point d'entrée
+kb.compute({ p: 'age' }, 'avg');                  // moyenne des âges de TOUT le monde
+kb.compute({ s: 'classe', p: 'note' }, 'median'); // médiane des notes d'une classe
+kb.compute({ s: 'alice' }, 'sum');                // somme de tous les objets numériques d'alice
+kb.compute({ p: 'prix', o: '100' }, 'count');     // combien de prix valent 100
 
-// Transverse, sur tous les sujets porteurs d'un prédicat :
-kb.aggregateAll('age', 'avg');              // âge moyen de tout le monde
-
-// Tout d'un coup :
-kb.stats('classe', 'note');
+// Toutes les stats d'un coup, avec le même filtre :
+kb.stats({ p: 'age' });
 // → { count, sum, avg, min, max, median, variance, stddev, range }
+
+// La sélection brute (les faits qui matchent) :
+kb.matchFacts({ p: 'age', o: '40' });             // [{ s, p, o }, …]
 ```
 
-Fonctions disponibles : **`count` · `sum` · `avg` · `min` · `max` · `median` · `variance` · `stddev`
-· `range`**. Et pour interroger : `kb.askNumeric('age', '>', 18)` (« qui a plus de 18 ans ? »),
+Fonctions : **`count` · `sum` · `avg` · `min` · `max` · `median` · `variance` · `stddev` · `range`**.
+Raccourcis : `kb.aggregate(s, p, fn)` = `compute({ s, p }, fn)` · `kb.aggregateAll(p, fn)` =
+`compute({ p }, fn)`. Et pour interroger : `kb.askNumeric('age', '>', 18)` (« qui a plus de 18 ans ? »),
 `kb.numericValueOf(s, p)`, `kb.compareNumeric(s1, s2, p)`.
 
 ## En une phrase
