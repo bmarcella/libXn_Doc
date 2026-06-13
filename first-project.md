@@ -27,6 +27,9 @@ const factStore = new InMemoryFactStore();   // dev/test ; prod = adaptateur Pos
 
 ## 3. Le cœur métier : un ledger durable
 
+On réutilise le **`factStore` créé à l'étape 2** (en test, `new InMemoryFactStore()` ; en prod,
+l'adaptateur Postgres injecté). C'est lui qui rend toute la banque durable.
+
 ```ts
 import { DurableKnowledgeBase, TransactionLedger, XNeuroneGrid } from '@damba/libxn';
 
@@ -35,7 +38,7 @@ import { DurableKnowledgeBase, TransactionLedger, XNeuroneGrid } from '@damba/li
 // comptes est ATOMIQUE (il s'exécute dans une seule transaction). Deux comptes dans
 // des scopes différents ne pourraient PAS être virés atomiquement.
 const grid = new XNeuroneGrid(undefined, { headless: true });
-const bank = new DurableKnowledgeBase(grid, factStore, 'bank');
+const bank = new DurableKnowledgeBase(grid, factStore, 'bank'); // factStore = celui de l'étape 2
 
 const ledger = new TransactionLedger(bank, { currency: 'USD' });
 
