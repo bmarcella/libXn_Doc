@@ -21,6 +21,48 @@ Sur les sujets en focus (la conversation en cours) :
 - **sujets similaires** — « titi ressemble à tweety (4 faits communs) — comparer ? » ;
 - **faits hérités méconnus** — « au passage : tweety a des plumes (hérité d'oiseau) ».
 
+## En pratique
+
+```ts
+import { KnowledgeBase, XNeuroneGrid, InsightEngine } from '@damba/libxn';
+
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+
+// Une contradiction…
+await kb.tell('x', 'aime', 'thé', { kind: 'user' });
+await kb.tell('x', 'not_aime', 'thé', { kind: 'user' });
+// …et une donnée manquante : tous les employés ont un salaire, sauf diana
+for (const e of ['alice', 'bob', 'carol']) {
+  await kb.tell(e, 'est', 'employé', { kind: 'user' });
+  await kb.tell(e, 'salaire', '3000', { kind: 'user' });
+}
+await kb.tell('diana', 'est', 'employé', { kind: 'user' });   // pas de salaire
+
+const insights = new InsightEngine(kb);
+
+// Balaie la mémoire — alertes d'abord, puis anticipations sur le focus (conversation en cours).
+for (const i of insights.scan({ focus: ['x'] })) {
+  console.log(`[${i.severity}] ${i.kind} — ${i.text}`);
+}
+// [warning] contradiction — « x aime thé » ET « x not_aime thé » coexistent…
+// [warning] gap — diana est le seul « employé » sans « salaire »
+```
+
+**Déduplication entre scans** — chaque aperçu porte une **clé stable** (`i.key`) : l'hôte garde ce
+qu'il a déjà montré et n'alerte **qu'une fois**.
+
+```ts
+const seen = new Set<string>();
+function nouveauxAperçus() {
+  const fresh = insights.scan().filter(i => !seen.has(i.key));
+  fresh.forEach(i => seen.add(i.key));   // au prochain scan, on ne les re-signale plus
+  return fresh;
+}
+```
+
+Options de `scan(opts)` : `focus` (sujets prioritaires), `alertsOnly: true` (coupe les
+anticipations `info`), `maxInsights` (plafond, défaut 10).
+
 ## Le contrat
 
 - Chaque aperçu porte une **clé stable** : l'hôte déduplique — on n'alerte **qu'une fois**.
