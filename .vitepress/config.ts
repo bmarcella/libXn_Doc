@@ -56,6 +56,7 @@ export default defineConfig({
             { text: "Cas d'usage", link: '/use-cases' },
           ] },
           { text: 'Démarrer', items: [
+            { text: 'Premier projet (Express)', link: '/first-project' },
             { text: 'Exemples', link: '/examples' },
             { text: 'Guide de démarrage', link: '/04-guides/getting-started' },
             { text: 'Architecture', link: '/04-guides/architecture' },
@@ -67,6 +68,7 @@ export default defineConfig({
             items: [
               { text: 'Aperçu', link: '/00-overview' },
               { text: 'Pourquoi QPath', link: '/why-qpath' },
+              { text: 'Premier projet (Express)', link: '/first-project' },
               { text: 'Composants clés', link: '/components' },
               { text: "Cas d'usage", link: '/use-cases' },
               { text: 'Exemples', link: '/examples' },
@@ -115,6 +117,7 @@ export default defineConfig({
             { text: 'Use cases', link: '/en/use-cases' },
           ] },
           { text: 'Get started', items: [
+            { text: 'First project (Express)', link: '/en/first-project' },
             { text: 'Examples', link: '/en/examples' },
             { text: 'Getting started', link: '/en/04-guides/getting-started' },
             { text: 'Architecture', link: '/en/04-guides/architecture' },
@@ -126,6 +129,7 @@ export default defineConfig({
             items: [
               { text: 'Overview', link: '/en/00-overview' },
               { text: 'Why QPath', link: '/en/why-qpath' },
+              { text: 'First project (Express)', link: '/en/first-project' },
               { text: 'Key components', link: '/en/components' },
               { text: 'Use cases', link: '/en/use-cases' },
               { text: 'Examples', link: '/en/examples' },
