@@ -76,11 +76,9 @@ import { InMemoryFactStore } from '@damba/libxn';
 const factStore = new InMemoryFactStore();   // all in RAM, behaves like production
 ```
 
-**In production — a durable adapter.** You write **a single small file** that (1) opens the
-connection to your database, (2) creates the tables (`initLibxnSchema`), (3) translates the
-`FactStore` interface to SQL. It's the **only** code specific to your database; nothing else moves.
-
-👉 **Complete, copy-pasteable** example below: [The `FactStore` in production (Postgres)](#the-factstore-in-production-postgres).
+**In production — a durable adapter.** Install **`@damba/libxn-postgres`** (Postgres + pgvector) —
+the adapters are ready to use. For another database, implement the `FactStore` / `SchemaMigrator`
+interfaces. See [The `FactStore` in production](#the-factstore-in-production-postgres).
 
 ### Where to initialize it: once, at startup
 
@@ -90,16 +88,15 @@ per request.
 
 ```ts
 // persistence.ts — your app's setup, run once at startup
-import postgres from 'postgres';
 import { DurableKnowledgeBase, XNeuroneGrid, initLibxnSchema } from '@damba/libxn';
-import { makeFactStore, makeMigrator } from './pg-adapter'; // your adapter (see above)
+import { makeSql, pgFactStore, pgSchemaMigrator } from '@damba/libxn-postgres';
 
-const sql = postgres(process.env.DATABASE_URL!);   // the connection (one shared pool)
-export const factStore = makeFactStore(sql);       // ← THE store, created HERE, once and for all
+const sql = makeSql(process.env.DATABASE_URL!);    // the connection (one shared pool)
+export const factStore = pgFactStore(sql);          // ← THE store, created HERE, once and for all
 
 /** Call at server startup, BEFORE serving requests. */
 export async function bootPersistence(): Promise<void> {
-  await initLibxnSchema(makeMigrator(sql));         // create/align the tables (idempotent)
+  await initLibxnSchema(pgSchemaMigrator(sql));      // create/align the tables (idempotent)
 }
 
 /** Open a durable memory for a scope, reusing THE factStore. */
@@ -142,129 +139,9 @@ const store = new CachingKbStore(pgKbStore);   // cache-first reads, write-throu
 > const factStore = pgFactStore(sql);
 > ```
 
-If you'd rather **understand / adapt it** (another database: MySQL, SQLite…), here is the **complete**
-adapter the package contains — you write it once. It's what Damba uses (verified on Neon).
-
-**The tables** LibXN declares (created by `initLibxnSchema`): `libxn_fact` (the fact:
-`scope, id, s, p, o, flags, created_at`, + archive `retracted_at`) and `libxn_fact_source` (its
-provenance, 1 fact → N sources). The adapter translates the interface into queries on these two tables.
-
-```ts
-// pg-adapter.ts — the migrator + the Postgres FactStore, complete.
-import postgres from 'postgres';
-import {
-  type ColumnSpec, type FactRow, type FactSource, type FactStore, type FactTx,
-  type IndexSpec, type SchemaMigrator, type Scope, type TableSpec,
-} from '@damba/libxn';
-
-type Sql = ReturnType<typeof postgres>;
-
-// ── Connection (Neon/pgbouncer note: no prepared statements) ──
-export const makeSql = (url: string): Sql => postgres(url, { prepare: false });
-
-// ── 1) Migrator: SchemaSpec → idempotent DDL ──
-const sqlType = (t: ColumnSpec['type']): string =>
-  typeof t === 'object' && 'vector' in t ? `vector(${t.vector})`
-    : ({ text: 'TEXT', jsonb: 'JSONB', timestamptz: 'TIMESTAMPTZ', bigint: 'BIGINT',
-         int: 'INTEGER', real: 'REAL', boolean: 'BOOLEAN', vector: 'vector' } as const)[t];
-
-const createTable = (t: TableSpec): string =>
-  `CREATE TABLE IF NOT EXISTS ${t.name} (\n` +
-  [...t.columns.map(c => `  ${c.name} ${sqlType(c.type)}${c.nullable ? '' : ' NOT NULL'}`),
-   `  PRIMARY KEY (${t.primaryKey.join(', ')})`].join(',\n') + '\n)';
-
-const createIndex = (t: TableSpec, i: IndexSpec): string =>
-  i.method === 'hnsw'
-    ? `CREATE INDEX IF NOT EXISTS ${i.name} ON ${t.name} USING hnsw (${i.columns[0]} vector_cosine_ops)`
-    : `CREATE ${i.unique ? 'UNIQUE ' : ''}INDEX IF NOT EXISTS ${i.name} ON ${t.name} (${i.columns.join(', ')})`;
-
-export const makeMigrator = (sql: Sql): SchemaMigrator => ({
-  async ensureSchema(spec) {
-    for (const ext of spec.extensions ?? []) { await sql.unsafe(`CREATE EXTENSION IF NOT EXISTS ${ext}`); }
-    for (const t of spec.tables) {
-      await sql.unsafe(createTable(t));
-      for (const idx of t.indexes ?? []) { await sql.unsafe(createIndex(t, idx)); }
-    }
-  },
-});
-
-// ── 2) FactStore: the interface translated to SQL ──
-const toSource = (r: any): FactSource => ({
-  kind: r.kind,
-  ...(r.ref != null && { ref: r.ref }),
-  ...(r.at != null && { at: Number(r.at) }),
-  ...(r.confidence != null && { confidence: r.confidence }),
-  ...(r.display != null && { display: r.display }),
-});
-
-async function hydrate(sql: Sql, facts: any[]): Promise<FactRow[]> {
-  const out: FactRow[] = [];
-  for (const f of facts) {
-    const srcs = await sql`SELECT kind, ref, at, confidence, display FROM libxn_fact_source
-                           WHERE fact_id = ${f.id} ORDER BY seq`;
-    out.push({ id: f.id, s: f.s, p: f.p, o: f.o, flags: f.flags ?? undefined,
-               createdAt: Number(f.created_at), sources: srcs.map(toSource) });
-  }
-  return out;
-}
-
-// Operations bound to ONE SQL executor (normal connection OR transaction).
-function ops(sql: Sql): FactTx {
-  return {
-    async get(scope, s, p) {
-      const facts = p
-        ? await sql`SELECT id,s,p,o,flags,created_at FROM libxn_fact
-                    WHERE scope=${scope} AND s=${s} AND p=${p} AND retracted_at IS NULL`
-        : await sql`SELECT id,s,p,o,flags,created_at FROM libxn_fact
-                    WHERE scope=${scope} AND s=${s} AND retracted_at IS NULL`;
-      return hydrate(sql, facts);
-    },
-    async put(scope, row) {
-      await sql`INSERT INTO libxn_fact (id, scope, s, p, o, flags, created_at)
-                VALUES (${row.id}, ${scope}, ${row.s}, ${row.p}, ${row.o},
-                        ${row.flags ? sql.json(row.flags as any) : null}, ${row.createdAt})
-                ON CONFLICT (scope, id)
-                DO UPDATE SET flags = EXCLUDED.flags, retracted_at = NULL, retracted_reason = NULL`;
-      await sql`DELETE FROM libxn_fact_source WHERE fact_id = ${row.id}`;
-      let seq = 0;
-      for (const src of row.sources) {
-        await sql`INSERT INTO libxn_fact_source (fact_id, seq, kind, ref, at, confidence, display)
-                  VALUES (${row.id}, ${seq++}, ${src.kind}, ${src.ref ?? null},
-                          ${src.at ?? null}, ${src.confidence ?? null}, ${src.display ?? null})`;
-      }
-    },
-    async retract(scope, s, p, o, reason) {
-      await sql`UPDATE libxn_fact SET retracted_at = ${Date.now()}, retracted_reason = ${reason}
-                WHERE scope=${scope} AND s=${s} AND p=${p} AND o=${o} AND retracted_at IS NULL`;
-    },
-    async setFlags(scope, s, p, o, flags) {
-      await sql`UPDATE libxn_fact SET flags = COALESCE(flags, '{}'::jsonb) || ${sql.json(flags as any)}
-                WHERE scope=${scope} AND s=${s} AND p=${p} AND o=${o}`;
-    },
-  };
-}
-
-export const makeFactStore = (sql: Sql): FactStore => ({
-  ...ops(sql),
-  async getAll(scope) {
-    const facts = await sql`SELECT id,s,p,o,flags,created_at FROM libxn_fact
-                            WHERE scope=${scope} AND retracted_at IS NULL`;
-    return hydrate(sql, facts);
-  },
-  tx: (fn) => sql.begin((tx) => fn(ops(tx as Sql))),   // ← ACID comes from YOUR DB (BEGIN/COMMIT/ROLLBACK)
-});
-```
-
-And the wiring at startup (the `persistence.ts` module from the previous section):
-
-```ts
-import { initLibxnSchema } from '@damba/libxn';
-import { makeSql, makeMigrator, makeFactStore } from './pg-adapter';
-
-const sql = makeSql(process.env.DATABASE_URL!);
-export const factStore = makeFactStore(sql);                 // created once, reused everywhere
-export const bootPersistence = () => initLibxnSchema(makeMigrator(sql)); // creates the tables at boot
-```
+For **another database** (MySQL, SQLite…), simply implement the `FactStore` interface
+(`get`/`getAll`/`put`/`retract`/`setFlags`/`tx`) and a `SchemaMigrator`. The **complete, verified
+reference code** lives in `@damba/libxn-postgres` — start from there and swap the client.
 
 > To add **vector search** (pgvector) too, the `VectorStore` adapter follows the same shape on the
 > `libxn_vector` table (the `<=>` operator for cosine).
