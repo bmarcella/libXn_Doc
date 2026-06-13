@@ -67,6 +67,20 @@ Quand l'objet est un nombre (`'30'`, `'1,5'`, `'60 kg'`…), QPath sait calculer
 Tu **cibles** les faits voulus par un **filtre `{ s?, p?, o? }`** (chaque champ absent = joker), puis
 tu calcules.
 
+### Comparateurs (sur sujet, prédicat, objet)
+
+Chaque champ accepte soit une **chaîne** (égalité), soit un **comparateur** `{ op, value }` :
+`=` · `!=` · `<` · `<=` · `>` · `>=` (sur la valeur numérique) · `like` (sous-chaîne) · `in` (liste).
+
+```ts
+kb.compute({ p: 'age', o: { op: '>', value: 18 } }, 'count');        // combien de majeurs
+kb.compute({ p: 'age', o: { op: '>=', value: 25 } }, 'avg');          // âge moyen des ≥ 25
+kb.matchFacts({ s: { op: 'in', value: ['alice', 'bob'] } });          // faits d'alice OU bob
+kb.compute({ p: 'email', o: { op: 'like', value: '@gmail' } }, 'count'); // emails gmail
+kb.matchFacts({ p: 'prix', o: { op: '!=', value: '0' } });           // prix non nuls
+```
+
+
 ```ts
 // compute(filtre, fonction) — le point d'entrée
 kb.compute({ p: 'age' }, 'avg');                  // moyenne des âges de TOUT le monde

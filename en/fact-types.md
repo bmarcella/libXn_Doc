@@ -67,6 +67,20 @@ When the object is a number (`'30'`, `'1.5'`, `'60 kg'`…), QPath can compute o
 You **target** the facts you want with a **filter `{ s?, p?, o? }`** (each missing field = wildcard),
 then compute.
 
+### Comparators (on subject, predicate, object)
+
+Each field accepts either a **string** (equality) or a **comparator** `{ op, value }`:
+`=` · `!=` · `<` · `<=` · `>` · `>=` (on the numeric value) · `like` (substring) · `in` (list).
+
+```ts
+kb.compute({ p: 'age', o: { op: '>', value: 18 } }, 'count');        // how many adults
+kb.compute({ p: 'age', o: { op: '>=', value: 25 } }, 'avg');          // mean age of the ≥ 25
+kb.matchFacts({ s: { op: 'in', value: ['alice', 'bob'] } });          // facts of alice OR bob
+kb.compute({ p: 'email', o: { op: 'like', value: '@gmail' } }, 'count'); // gmail emails
+kb.matchFacts({ p: 'price', o: { op: '!=', value: '0' } });          // non-zero prices
+```
+
+
 ```ts
 // compute(filter, function) — the entry point
 kb.compute({ p: 'age' }, 'avg');                  // mean age of EVERYONE
