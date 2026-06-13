@@ -50,6 +50,7 @@ export default defineConfig({
           ] },
           { text: 'Mémoire & outils', items: [
             { text: 'Composants', link: '/components' },
+            { text: 'Types de faits', link: '/fact-types' },
             { text: 'Provenance', link: '/fact-provenance' },
             { text: 'Persistance', link: '/persistence' },
             { text: 'Outils', link: '/tools' },
@@ -69,6 +70,7 @@ export default defineConfig({
               { text: 'Aperçu', link: '/00-overview' },
               { text: 'Pourquoi QPath', link: '/why-qpath' },
               { text: 'Composants clés', link: '/components' },
+              { text: 'Types de faits', link: '/fact-types' },
               { text: "Cas d'usage", link: '/use-cases' },
               { text: 'Exemples', link: '/examples' },
               { text: 'Flash reasoning · web · LLM', link: '/flash-reasoning' },
@@ -111,6 +113,7 @@ export default defineConfig({
           ] },
           { text: 'Memory & tools', items: [
             { text: 'Components', link: '/en/components' },
+            { text: 'Fact types', link: '/en/fact-types' },
             { text: 'Provenance', link: '/en/fact-provenance' },
             { text: 'Persistence', link: '/en/persistence' },
             { text: 'Tools', link: '/en/tools' },
@@ -130,6 +133,7 @@ export default defineConfig({
               { text: 'Overview', link: '/en/00-overview' },
               { text: 'Why QPath', link: '/en/why-qpath' },
               { text: 'Key components', link: '/en/components' },
+              { text: 'Fact types', link: '/en/fact-types' },
               { text: 'Use cases', link: '/en/use-cases' },
               { text: 'Examples', link: '/en/examples' },
               { text: 'Flash reasoning · web · LLM', link: '/en/flash-reasoning' },
