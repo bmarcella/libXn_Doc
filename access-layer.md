@@ -72,12 +72,12 @@ await vault.login('alice', 'bon');     // reason: 'denied' — même le bon mot 
 
 ```ts
 const DAY = 24 * 3600_000;
-vault.addGuard(rateLimitGuard({ action: 'depot', successOutcome: 'fait', max: 5, windowMs: DAY }));
+vault.addGuard(rateLimitGuard({ action: 'deposit', successOutcome: 'fait', max: 5, windowMs: DAY }));
 
 // avant chaque dépôt :
-if (!vault.authorize('alice', 'depot').allow) throw new Error('quota quotidien atteint');
+if (!vault.authorize('alice', 'deposit').allow) throw new Error('quota quotidien atteint');
 await ledger.deposit('alice', 100);
-await vault.record('alice', 'depot', 'fait'); // pour que la garde le compte
+await vault.record('alice', 'deposit', 'fait'); // pour que la garde le compte
 ```
 
 **Exemple 3 — garde sur mesure (heures ouvrées)** : n'importe quelle logique, en quelques lignes :

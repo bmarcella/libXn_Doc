@@ -19,7 +19,7 @@ Une fois publié :
 npm install @damba/libxn
 ```
 
-Le paquet n'a qu'une dépendance runtime : `rxjs`.
+Le paquet n'a **aucune** dépendance runtime (`dependencies: {}`).
 
 ## Hello QPath
 

@@ -4,7 +4,7 @@
 
 QPath est traité comme un **primitif réutilisable**. Le paquet `@damba/libxn` ne contient que ce qui
 est **framework-agnostic et sans dépendance lourde** : zéro Angular, zéro Three.js, zéro accès réseau,
-zéro service applicatif. Sa seule dépendance runtime est `rxjs`.
+zéro service applicatif. **Zéro dépendance runtime** (`dependencies: {}` ; les événements passent par un `Emitter` interne).
 
 ## Ce qui est dans le noyau
 

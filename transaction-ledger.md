@@ -42,7 +42,7 @@ const ledger = new TransactionLedger(kb, {
   ],
 });
 await ledger.ready;            // les types sont déclarés en async
-ledger.declaredTypes();        // [{ name:'loyer', kind:'retrait' }, …]
+ledger.declaredTypes();        // [{ name:'loyer', kind:'withdraw' }, …]
 ```
 
 ### Dépôts, retraits, virements (avec métadonnées)
