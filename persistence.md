@@ -63,33 +63,58 @@ Un **store** est l'objet qui persiste réellement les données ; c'est lui qu'on
 `DurableKnowledgeBase` (le `factStore`) ou qu'on utilise seul (un `KbStore`). Le noyau définit
 seulement les *interfaces* (`FactStore`, `KbStore`) ; l'implémentation dépend d'où tu veux stocker.
 
+> ❓ **Quelle base ? Comment se connecter ?** LibXN **ne le sait pas — et n'a pas à le savoir.** Il ne
+> voit que les interfaces. Le **type de base et la connexion sont à TOI** : tu crées le client (avec
+> ta chaîne de connexion), tu l'enveloppes dans un adaptateur, et tu le passes à LibXN. C'est ce qui
+> garde le noyau zéro-dépendance et portable (Postgres, MySQL, SQLite, en mémoire…).
+
 **En test ou hors-ligne — fourni par le noyau, zéro config :**
 
 ```ts
-import { InMemoryFactStore, InMemoryKbStore } from '@damba/libxn';
+import { InMemoryFactStore } from '@damba/libxn';
 
 const factStore = new InMemoryFactStore();   // tout en RAM, se comporte comme la production
 ```
 
-**En production — un adaptateur durable.** Le noyau **n'embarque aucune dépendance base de données** :
-l'adaptateur Postgres vit dans ton backend (il porte la connexion). Côté Damba c'est `PgFactStore`,
-fourni par l'injection de dépendances — tu le reçois et l'utilises tel quel :
+**En production — connecte TA base via un adaptateur.** Tu fournis trois choses au démarrage : la
+**connexion**, un **migrateur** (crée les tables), un **adaptateur** (traduit l'interface en SQL).
 
 ```ts
-// dans un service backend (NestJS) : l'adaptateur durable est injecté
-constructor(private readonly factStore: PgFactStore) {}
+import postgres from 'postgres'; // TON client de base (ici Postgres ; libre à toi)
+import {
+  DurableKnowledgeBase, XNeuroneGrid, initLibxnSchema,
+  type FactStore, type SchemaMigrator,
+} from '@damba/libxn';
+
+// 1️⃣ LA CONNEXION — c'est TOI qui la possèdes (type de base + URL = ton choix)
+const sql = postgres(process.env.DATABASE_URL!);
+
+// 2️⃣ LE SCHÉMA — un migrateur exécute, sur ta connexion, les tables que LibXN déclare (idempotent)
+const migrator: SchemaMigrator = {
+  async ensureSchema(spec) {
+    for (const ext of spec.extensions ?? []) { await sql.unsafe(`CREATE EXTENSION IF NOT EXISTS ${ext}`); }
+    for (const t of spec.tables) { await sql.unsafe(toCreateTableSQL(t)); } // → CREATE TABLE IF NOT EXISTS …
+  },
+};
+await initLibxnSchema(migrator); // au boot du serveur
+
+// 3️⃣ L'ADAPTATEUR — traduit l'interface FactStore en SQL sur ta connexion
+const factStore: FactStore = {
+  get:      (scope, s, p)            => sql`SELECT … FROM libxn_fact WHERE …`.then(toRows),
+  getAll:   (scope)                  => sql`SELECT … WHERE scope = ${scope} …`.then(toRows),
+  put:      (scope, row)             => sql`INSERT … ON CONFLICT … DO UPDATE …`.then(() => {}),
+  retract:  (scope, s, p, o, reason) => sql`UPDATE libxn_fact SET retracted_at = … WHERE …`.then(() => {}),
+  setFlags: (scope, s, p, o, flags)  => sql`UPDATE libxn_fact SET flags = … WHERE …`.then(() => {}),
+  tx:       (fn) => sql.begin((tx) => fn(/* même interface, liée à la transaction */)), // ← l'ACID vient de TA base
+};
+
+// LibXN consomme l'interface — il ignore toujours que c'est Postgres.
+const kb = new DurableKnowledgeBase(new XNeuroneGrid(undefined, { headless: true }), factStore, 'bank');
 ```
 
-Pour brancher **ta** propre base, implémente l'interface `FactStore`
-(`get` / `getAll` / `put` / `retract` / `setFlags` / `tx`) — le reste du code ne change pas.
-
-**Les tables se créent seules.** LibXN possède son schéma et le matérialise à l'initialisation
-(idempotent) :
-
-```ts
-import { initLibxnSchema } from '@damba/libxn';
-await initLibxnSchema(myMigrator);   // au démarrage du serveur
-```
+> Côté Damba, cet adaptateur est déjà écrit (`PgFactStore` + `PgSchemaMigrator`, branchés par
+> l'injection NestJS) — tu peux t'en inspirer tel quel. Pour MySQL / SQLite / autre : **même
+> interface**, un autre client. C'est le seul fichier à écrire ; tout le reste du code ne bouge pas.
 
 **Avec un cache** (Redis plus tard) — enveloppe n'importe quel store, sans changer les appelants :
 

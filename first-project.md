@@ -160,5 +160,7 @@ Coupe le serveur et relance-le : `hydrate()` rejoue le store, **les soldes sont 
 - **Authentification & secrets** : protège un compte par code PIN avec `FactVault` (haché/chiffré,
   verrou après N échecs) — voir [Couche d'accès](/access-layer).
 - **Cycle de vie** : `ledger.block()` / `unblock()` / `close()` pour geler ou fermer un compte.
-- **Production** : remplace `new InMemoryFactStore()` par l'adaptateur Postgres (injecté), appelle
-  `initLibxnSchema()` au démarrage, scope par client/organisation — voir [Persistance](/persistence).
+- **Production** : remplace `new InMemoryFactStore()` par un adaptateur **connecté à ta base** —
+  c'est toi qui crées la connexion (Postgres, MySQL…) ; LibXN ne voit que l'interface. Appelle
+  `initLibxnSchema()` au démarrage pour créer les tables. L'exemple de connexion complet est dans
+  [Persistance › Créer un store](/persistence#créer-un-store).

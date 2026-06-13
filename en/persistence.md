@@ -62,32 +62,58 @@ A **store** is the object that actually persists data; it's what you pass to `Du
 (the `factStore`) or use on its own (a `KbStore`). The core only defines the *interfaces*
 (`FactStore`, `KbStore`); the implementation depends on where you want to store.
 
+> ❓ **Which database? How does it connect?** LibXN **doesn't know — and doesn't need to.** It only
+> sees the interfaces. The **database type and the connection are YOURS**: you create the client
+> (with your connection string), wrap it in an adapter, and pass it to LibXN. That's what keeps the
+> core dependency-free and portable (Postgres, MySQL, SQLite, in-memory…).
+
 **In tests or offline — shipped by the core, zero config:**
 
 ```ts
-import { InMemoryFactStore, InMemoryKbStore } from '@damba/libxn';
+import { InMemoryFactStore } from '@damba/libxn';
 
 const factStore = new InMemoryFactStore();   // all in RAM, behaves like production
 ```
 
-**In production — a durable adapter.** The core **carries no database dependency**: the Postgres
-adapter lives in your backend (it holds the connection). On the Damba side it's `PgFactStore`,
-provided by dependency injection — you receive it and use it as-is:
+**In production — connect YOUR database via an adapter.** You provide three things at startup: the
+**connection**, a **migrator** (creates the tables), an **adapter** (translates the interface to SQL).
 
 ```ts
-// in a backend service (NestJS): the durable adapter is injected
-constructor(private readonly factStore: PgFactStore) {}
+import postgres from 'postgres'; // YOUR database client (here Postgres; your choice)
+import {
+  DurableKnowledgeBase, XNeuroneGrid, initLibxnSchema,
+  type FactStore, type SchemaMigrator,
+} from '@damba/libxn';
+
+// 1️⃣ THE CONNECTION — YOU own it (database type + URL = your choice)
+const sql = postgres(process.env.DATABASE_URL!);
+
+// 2️⃣ THE SCHEMA — a migrator runs, on your connection, the tables LibXN declares (idempotent)
+const migrator: SchemaMigrator = {
+  async ensureSchema(spec) {
+    for (const ext of spec.extensions ?? []) { await sql.unsafe(`CREATE EXTENSION IF NOT EXISTS ${ext}`); }
+    for (const t of spec.tables) { await sql.unsafe(toCreateTableSQL(t)); } // → CREATE TABLE IF NOT EXISTS …
+  },
+};
+await initLibxnSchema(migrator); // at server boot
+
+// 3️⃣ THE ADAPTER — translates the FactStore interface to SQL on your connection
+const factStore: FactStore = {
+  get:      (scope, s, p)            => sql`SELECT … FROM libxn_fact WHERE …`.then(toRows),
+  getAll:   (scope)                  => sql`SELECT … WHERE scope = ${scope} …`.then(toRows),
+  put:      (scope, row)             => sql`INSERT … ON CONFLICT … DO UPDATE …`.then(() => {}),
+  retract:  (scope, s, p, o, reason) => sql`UPDATE libxn_fact SET retracted_at = … WHERE …`.then(() => {}),
+  setFlags: (scope, s, p, o, flags)  => sql`UPDATE libxn_fact SET flags = … WHERE …`.then(() => {}),
+  tx:       (fn) => sql.begin((tx) => fn(/* same interface, bound to the transaction */)), // ← ACID comes from YOUR DB
+};
+
+// LibXN consumes the interface — it still doesn't know it's Postgres.
+const kb = new DurableKnowledgeBase(new XNeuroneGrid(undefined, { headless: true }), factStore, 'bank');
 ```
 
-To plug in **your** own database, implement the `FactStore` interface
-(`get` / `getAll` / `put` / `retract` / `setFlags` / `tx`) — nothing else changes.
-
-**Tables create themselves.** LibXN owns its schema and materializes it at init (idempotent):
-
-```ts
-import { initLibxnSchema } from '@damba/libxn';
-await initLibxnSchema(myMigrator);   // at server startup
-```
+> On the Damba side, this adapter is already written (`PgFactStore` + `PgSchemaMigrator`, wired by
+> NestJS injection) — you can reuse it as-is. For MySQL / SQLite / other: **same interface**, a
+> different client. It's the only file you write; the rest of your code stays put.
 
 **With a cache** (Redis later) — wrap any store, no caller changes:
 
