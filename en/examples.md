@@ -62,7 +62,7 @@ await kb.tell('mortal', 'has', 'end');
 
 const chain = new ChainResolver(kb).chain('socrates', 'has');
 ChainResolver.format(chain!);
-// → "socrates —is→ human —is→ mortal —has→ end  (⇒ has = end, confidence 1.00)"
+// → "socrates —is→ human —is→ mortal —has→ end  (⇒ has = end, confidence 1.00, via transitive)"
 ```
 
 ### 6. All possible conclusions

@@ -97,8 +97,9 @@ automatically) — every fact is born *open + minor*:
 | **🔒 closed** | DECIDED fact (epistemic status) | leaves the re-verification loop · confidence floor in reasoning chains · **wins by default** against a contestation (recorded and traced, but the decision is only overturned by reopening the fact) |
 | **🔑 secret** | CONFIDENTIAL fact | hidden from normal reads (`allFacts`, RAG, admin view); encrypted value; reachable only via authenticated access — see [Access layer](access-layer) |
 
-Closing a fact is an **act of curation**: it is what separates a team memory (decisions
-hold) from a whiteboard anyone can scribble over.
+A fact's default state is **open** (revisable) and **minor** (peripheral); major, closed and
+secret are explicit decisions. Closing a fact is an **act of curation**: it is what separates a
+team memory (decisions hold) from a whiteboard anyone can scribble over.
 
 ## Linking facts and rules
 

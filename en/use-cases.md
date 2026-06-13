@@ -66,7 +66,7 @@ await kb.tell('resident', 'entitled_to', 'benefit-A');
 
 const chain = new ChainResolver(kb).chain('case-42', 'entitled_to');
 ChainResolver.format(chain!);
-// → "case-42 —is→ resident —entitled_to→ benefit-A  (⇒ entitled_to = benefit-A, confidence 1.00)"
+// → "case-42 —is→ resident —entitled_to→ benefit-A  (⇒ entitled_to = benefit-A, confidence 1.00, via transitive)"
 ```
 
 **Domains.** Eligibility (insurance, social benefits), compliance, clinical decision support, legal
@@ -112,6 +112,6 @@ grid.predictClass(BinaryConverter.toBinaryPairs({ area: 110, rooms: 4 })).label;
 ---
 
 ::: tip Going further
-Vector search (Qdrant or another store) via `@damba/libxn-qdrant`, 3D graph visualization via
-`@damba/libxn-visualization`. See [Architecture](04-guides/architecture).
+Vector search via `@damba/libxn-postgres` (pgvector) or `@damba/libxn-qdrant`, 3D graph visualization
+via `@damba/libxn-visualization`. See [Architecture](04-guides/architecture).
 :::

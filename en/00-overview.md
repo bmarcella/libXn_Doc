@@ -47,7 +47,7 @@ told apart), splitting with preserved provenance. QPath also offers an [access l
 ## Integrations
 
 The core is **isomorphic and dependency-free** (Node, browser, Web Worker). Optional building blocks
-(3D visualization, Qdrant-style vector search, embeddings) plug in via adapters — see
+(3D visualization, pgvector/Qdrant vector search, embeddings) plug in via adapters — see
 [Architecture](04-guides/architecture).
 
 ---

@@ -46,7 +46,7 @@ pas — ils se distinguent), scission avec provenance préservée. QPath offre a
 ## Intégrations
 
 Le cœur est **isomorphe et sans dépendance** (Node, navigateur, Web Worker). Les briques optionnelles
-(visualisation 3D, recherche vectorielle type Qdrant, embeddings) se branchent via des adaptateurs —
+(visualisation 3D, recherche vectorielle pgvector/Qdrant, embeddings) se branchent via des adaptateurs —
 voir [Architecture](04-guides/architecture).
 
 ---

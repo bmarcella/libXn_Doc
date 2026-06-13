@@ -14,7 +14,7 @@ zéro service applicatif. **Zéro dépendance runtime** (`dependencies: {}` ; le
 ├── encoders  SemanticEncoder · TabularEncoder
 ├── symbolic  KnowledgeBase · PredicateAlgebra · ChainResolver · RuleEngine · NaturalParser
 ├── vector    VectorStore (port) · TextEmbedder (port) · VectorGridStore (logique hybride)
-└── datasets  BenchScenarios · HousingDataset · IrisDataset
+└── datasets  BenchScenarios · HousingDataset · IrisDataset · Benchmark
 ```
 
 ## Ce qui reste en périphérie (dans l'app, à extraire en sous-paquets)

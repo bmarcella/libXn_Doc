@@ -63,32 +63,36 @@ console.log(ChainResolver.format(chain!));
 
 ## Tests & benchmark
 
-The core runs under Node (no browser, no Angular — proof it is reusable):
+The core runs under [vitest](https://vitest.dev) (Node runner, no browser — proof the core runs
+outside Angular):
 
 ```bash
 cd packages/libxn
 npm install
-npm test      # vitest — 94 tests
-npm run bench # benchmark report
+npm test       # the test suite
+npm run bench  # benchmark report (recall + latency across the built-in scenarios)
 ```
 
-```
-CURRENT CAPABILITIES : recall 100% (37/37) · mean latency 0.07 ms · 6 scenarios
-```
+More runnable examples in [`../examples/`](../examples/).
 
 ## Node / backend (CommonJS)
 
-The package is **dual ESM + CJS**, so it is consumable from a CommonJS backend (e.g. NestJS). In this
-repo, the `server/` backend declares it as a local dependency:
+The package is **dual ESM + CJS** (built with [tsup](https://tsup.egoist.dev): `dist/index.js` ESM,
+`dist/index.cjs` CJS, `dist/index.d.ts`), so it is consumable from a CommonJS backend (e.g. NestJS).
+In this repo, the `server/` backend declares it as a local dependency:
 
 ```jsonc
 // server/package.json
 "dependencies": { "@damba/libxn": "file:../packages/libxn" }
 ```
 
-> Build order: build the package **before** installing/building the server (the `file:` dependency
-> points at `dist/`):
+> ⚠️ Build order: build the package **before** installing/building the server, because the `file:`
+> dependency points at `dist/`:
 > ```bash
 > cd packages/libxn && npm install && npm run build
 > cd ../../server   && npm install
 > ```
+
+Being **isomorphic and dependency-free**, the same core serves the front (via the source alias) and
+the back (via the CJS package). NestJS integration example: `server/src/qpath/qpath.service.ts`
+(`QPathService`, an injectable wrapping a `KnowledgeBase`). Smoke test: `node server/scripts/libxn-smoke.cjs`.

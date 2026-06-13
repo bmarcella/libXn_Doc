@@ -63,7 +63,7 @@ async function signup(email: string, password: string) {
 
   await bank.tell(userId, 'email', email);                 // identité
   await bank.tell(userId, 'password_hash', sha(password)); // jamais le mot de passe en clair
-  await vault.setSecret(userId, 'cle_api', randomBytes(16).toString('hex')); // secret chiffré
+  await vault.setSecret(userId, 'api_key', randomBytes(16).toString('hex')); // secret chiffré
   await bank.flush();
   return userId;
 }

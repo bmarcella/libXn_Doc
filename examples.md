@@ -62,7 +62,7 @@ await kb.tell('mortel', 'a', 'fin');
 
 const chain = new ChainResolver(kb).chain('socrate', 'a');
 ChainResolver.format(chain!);
-// → "socrate —est→ humain —est→ mortel —a→ fin  (⇒ a = fin, confiance 1.00)"
+// → "socrate —est→ humain —est→ mortel —a→ fin  (⇒ a = fin, confiance 1.00, via transitive)"
 ```
 
 ### 6. Toutes les conclusions possibles

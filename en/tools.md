@@ -56,7 +56,7 @@ Reproducible, traceable, no LLM.
 
 ### 2. LLM-driven (TOOL move in PingPong)
 
-In [PingPong reasoning](pingpong-reasoning), the LLM can play a `TOOL` move; the tool runs, its facts
+In [PingPong reasoning](/en/pingpong-reasoning), the LLM can play a `TOOL` move; the tool runs, its facts
 enter QPath, and the exchange continues — grounded.
 
 ```ts
@@ -113,5 +113,5 @@ reused at zero token.
 
 ::: tip
 QPath's internals are not documented publicly. For technical access or a partnership, contact the
-author. See also [PingPong reasoning](pingpong-reasoning) and [Key components](components).
+author. See also [PingPong reasoning](/en/pingpong-reasoning) and [Key components](/en/components).
 :::

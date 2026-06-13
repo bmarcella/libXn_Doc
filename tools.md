@@ -18,12 +18,12 @@ import { Tool, ToolResult } from '@damba/libxn';
 const weather: Tool = {
   name: 'weather',
   description: 'Météo actuelle d\'une ville',
-  resolves: ['meteo'],                       // (optionnel) prédicat qu'il sait résoudre
+  resolves: ['weather_of'],                       // (optionnel) prédicat qu'il sait résoudre
   async run(input): Promise<ToolResult> {
     const city = String(input['subject'] ?? input['query']);
-    const data = await fetchMeteo(city);
+    const data = await fetchWeather(city);
     return {
-      facts: [[city, 'meteo', data.condition]],  // → mémorisé dans QPath
+      facts: [[city, 'weather_of', data.condition]],  // → mémorisé dans QPath
       value: data,                                // → réponse directe optionnelle
     };
   },
@@ -41,13 +41,13 @@ const tools = new ToolRegistry().register(weather);
 
 ### 1. Déterministe (liaison de prédicat) — sans LLM
 
-Si un outil déclare `resolves: ['meteo']`, QPath l'appelle automatiquement quand il ignore `(s, meteo)` :
+Si un outil déclare `resolves: ['weather_of']`, QPath l'appelle automatiquement quand il ignore `(s, weather_of)` :
 
 ```ts
 import { resolveWithTools } from '@damba/libxn';
 
-const r = await resolveWithTools(kb, tools, 'paris', 'meteo');
-// QPath ne savait pas → l'outil tourne → le fait est mémorisé → r.objects = ['pluie']
+const r = await resolveWithTools(kb, tools, 'paris', 'weather_of');
+// QPath ne savait pas → l'outil tourne → le fait est mémorisé → r.objects = ['rain']
 // La prochaine fois, QPath répond seul : 0 token, 0 appel d'outil.
 ```
 
@@ -55,15 +55,15 @@ Reproductible, traçable, sans LLM.
 
 ### 2. Piloté par le LLM (coup TOOL dans PingPong)
 
-En [PingPong reasoning](pingpong-reasoning), le LLM peut jouer un coup `TOOL` ; l'outil tourne, ses faits
+En [PingPong reasoning](/pingpong-reasoning), le LLM peut jouer un coup `TOOL` ; l'outil tourne, ses faits
 entrent dans QPath, et l'échange continue — ancré.
 
 ```ts
 import { PingPongReasoner } from '@damba/libxn';
 
 const result = await new PingPongReasoner(kb, llm, { tools }).run('Quel temps fait-il à Paris ?');
-// Le LLM joue : TOOL weather | city=paris  → QPath mémorise (paris, meteo, pluie) → CONCLUDE
-result.factsLearned;   // [{ s: 'paris', p: 'meteo', o: 'pluie' }]
+// Le LLM joue : TOOL weather | city=paris  → QPath mémorise (paris, weather_of, rain) → CONCLUDE
+result.factsLearned;   // [{ s: 'paris', p: 'weather_of', o: 'rain' }]
 ```
 
 ## Réponses dynamiques (volatiles)
@@ -77,11 +77,11 @@ rappelle donc l'outil la prochaine fois (valeur fraîche).
 const weather: Tool = {
   name: 'weather',
   description: 'Météo actuelle',
-  resolves: ['meteo'],
+  resolves: ['weather_of'],
   ephemeral: true,                         // ← jamais mémorisé (donnée dynamique)
   async run(input) {
     const city = String(input['subject'] ?? input['query']);
-    return { facts: [[city, 'meteo', await currentWeather(city)]] };
+    return { facts: [[city, 'weather_of', await currentWeather(city)]] };
   },
 };
 ```
@@ -112,6 +112,6 @@ réutilisé à 0 token.
 
 ::: tip
 Le fonctionnement interne de QPath n'est pas documenté publiquement. Pour un accès technique ou un
-partenariat, contactez l'auteur. Voir aussi [PingPong reasoning](pingpong-reasoning) et
-[Composants clés](components).
+partenariat, contactez l'auteur. Voir aussi [PingPong reasoning](/pingpong-reasoning) et
+[Composants clés](/components).
 :::

@@ -40,6 +40,7 @@ Posés via le handle (`.closed()/.major()/.group()`) ou `kb.setFlags(...)`. Lus 
 | **`secret` 🔑** | **confidentiel** : chiffré au repos, masqué des lectures normales | [`FactVault.setSecret`](/access-layer) |
 | **`group`** | rattaché à un **groupe d'accès** (permissions) | `.group('finances')` / [`FactAccessControl`](/access-layer) |
 | **`companionOf`** | **fait compagnon** d'un propriétaire (profil) | [`CompanionFacts.attach`](/components) |
+| **`cascade`** | le compagnon **suit la rétractation** de son propriétaire | [`CompanionFacts.attach`](/components)`({ cascade: true })` |
 
 ## Axe « provenance » — l'origine du fait
 

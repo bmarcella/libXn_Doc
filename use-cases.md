@@ -66,7 +66,7 @@ await kb.tell('résident', 'a_droit', 'prestation-A');
 
 const chain = new ChainResolver(kb).chain('dossier-42', 'a_droit');
 ChainResolver.format(chain!);
-// → "dossier-42 —est→ résident —a_droit→ prestation-A  (⇒ a_droit = prestation-A, confiance 1.00)"
+// → "dossier-42 —est→ résident —a_droit→ prestation-A  (⇒ a_droit = prestation-A, confiance 1.00, via transitive)"
 ```
 
 **Domaines.** Éligibilité (assurance, prestations sociales), conformité, aide à la décision médicale,
@@ -112,6 +112,6 @@ grid.predictClass(BinaryConverter.toBinaryPairs({ surface: 110, pieces: 4 })).la
 ---
 
 ::: tip Aller plus loin
-Recherche vectorielle (Qdrant ou autre base) via `@damba/libxn-qdrant`, visualisation 3D du graphe via
-`@damba/libxn-visualization`. Voir [Architecture](04-guides/architecture).
+Recherche vectorielle via `@damba/libxn-postgres` (pgvector) ou `@damba/libxn-qdrant`, visualisation 3D
+du graphe via `@damba/libxn-visualization`. Voir [Architecture](04-guides/architecture).
 :::

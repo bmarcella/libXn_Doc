@@ -40,6 +40,7 @@ Set via the handle (`.closed()/.major()/.group()`) or `kb.setFlags(...)`. Read v
 | **`secret` 🔑** | **confidential**: encrypted at rest, hidden from normal reads | [`FactVault.setSecret`](/en/access-layer) |
 | **`group`** | attached to an **access group** (permissions) | `.group('finance')` / [`FactAccessControl`](/en/access-layer) |
 | **`companionOf`** | **companion fact** of an owner (profile) | [`CompanionFacts.attach`](/en/components) |
+| **`cascade`** | the companion **follows the retraction** of its owner | [`CompanionFacts.attach`](/en/components)`({ cascade: true })` |
 
 ## "Provenance" axis — the origin of the fact
 

@@ -4,7 +4,8 @@
 
 QPath is treated as a **reusable primitive**. The `@damba/libxn` package contains only what is
 **framework-agnostic and dependency-light**: zero Angular, zero Three.js, zero network, zero app
-service. Its only runtime footprint is **none** (`dependencies: {}`).
+service. Its only runtime footprint is **none** (`dependencies: {}`; events go through an internal
+`Emitter`).
 
 ## What is in the core
 
@@ -26,7 +27,9 @@ service. Its only runtime footprint is **none** (`dependencies: {}`).
 | Persistence **✅ ports in the core** | `KbStore` / `FactStore` / `SchemaMigrator` (+ `DurableKnowledgeBase`, `InMemory*`, `CachingKbStore`); Postgres adapters on the backend | Postgres / pgvector — see [Persistence](/en/persistence) |
 | Embeddings | `SemanticVectorizer`, `embedding.worker` | `@huggingface/transformers`, Web Worker |
 | Perceptual encoders | `PerceptualEncoder`, `AudioEncoder` | canvas DOM |
-| Agents & LLM | `Agent`, `*Agent`, `LLMOrchestrator` | LLM API |
+| Retrieval | `Retriever`, `WebSearcher` | external services |
+| Agents & LLM | `Agent`, `*Agent`, `LLMOrchestrator`, `LLMExtractor`, `QPathDSL` | LLM API |
+| Inputs | `PdfReader`, `SpeechListener` | pdfjs / Web Speech API |
 
 ## The dependency-inversion pattern
 
@@ -38,6 +41,12 @@ interface** and **receives the implementation by injection**. Two examples alrea
   core.
 - **Vector DB** — `interface VectorStore`. Any adapter (`QdrantVectorStore`, a future pgvector/Pinecone
   one) implements it and is passed to `VectorGridStore`.
+
+## Compatibility during extraction
+
+The old `src/app/LibXN/<X>.ts` paths are **shims** that re-export from `@damba/libxn/<X>`. Existing
+importers (app + periphery) are therefore unchanged, and the build stays green at every step. The
+shims will be removed once every importer points directly at `@damba/libxn`.
 
 ## Why this boundary
 

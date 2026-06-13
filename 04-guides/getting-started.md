@@ -61,7 +61,7 @@ const chain = new ChainResolver(kb).chain('socrate', 'a');
 console.log(ChainResolver.format(chain!));
 ```
 
-## Tests
+## Tests & benchmark
 
 Le paquet utilise [vitest](https://vitest.dev) (runner Node, sans navigateur — preuve que le noyau
 tourne hors Angular) :
@@ -69,7 +69,8 @@ tourne hors Angular) :
 ```bash
 cd packages/libxn
 npm install
-npm test
+npm test       # la suite de tests
+npm run bench  # rapport de benchmark (recall + latence sur les scénarios intégrés)
 ```
 
 Plus d'exemples exécutables dans [`../examples/`](../examples/).
