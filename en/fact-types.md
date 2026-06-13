@@ -96,6 +96,11 @@ kb.stats({ p: 'age' });
 kb.matchFacts({ p: 'age', o: '40' });             // [{ s, p, o }, …]
 ```
 
+> **Engine vocabulary excluded by default.** Computations and text functions **skip** facts whose
+> predicate is internal (`même_que`, `distinct_de`, `not_*`, `est`/`est_un`/`is`) — `compute({ s: 'bob' })`
+> does not count the `même_que` facts created by a merge. To include them: `{ …, excludeReserved: false }`.
+> Direct check: `KnowledgeBase.isReservedPredicate('même_que') // true`.
+
 Functions: **`count` · `sum` · `avg` · `min` · `max` · `median` · `variance` · `stddev` · `range`**.
 Shortcuts: `kb.aggregate(s, p, fn)` = `compute({ s, p }, fn)` · `kb.aggregateAll(p, fn)` =
 `compute({ p }, fn)`. And to query: `kb.askNumeric('age', '>', 18)` ("who is older than 18?"),

@@ -96,6 +96,11 @@ kb.stats({ p: 'age' });
 kb.matchFacts({ p: 'age', o: '40' });             // [{ s, p, o }, …]
 ```
 
+> **Vocabulaire moteur exclu par défaut.** Les calculs et fonctions texte **ignorent** les faits dont
+> le prédicat est interne (`même_que`, `distinct_de`, `not_*`, `est`/`est_un`/`is`) — `compute({ s: 'bob' })`
+> ne compte pas les `même_que` créés par une fusion. Pour les réintégrer : `{ …, excludeReserved: false }`.
+> Test direct : `KnowledgeBase.isReservedPredicate('même_que') // true`.
+
 Fonctions : **`count` · `sum` · `avg` · `min` · `max` · `median` · `variance` · `stddev` · `range`**.
 Raccourcis : `kb.aggregate(s, p, fn)` = `compute({ s, p }, fn)` · `kb.aggregateAll(p, fn)` =
 `compute({ p }, fn)`. Et pour interroger : `kb.askNumeric('age', '>', 18)` (« qui a plus de 18 ans ? »),
