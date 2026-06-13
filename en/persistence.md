@@ -115,6 +115,46 @@ const kb = new DurableKnowledgeBase(new XNeuroneGrid(undefined, { headless: true
 > NestJS injection) — you can reuse it as-is. For MySQL / SQLite / other: **same interface**, a
 > different client. It's the only file you write; the rest of your code stays put.
 
+### Where to initialize it: once, at startup
+
+The `factStore` is created **once**, at your app's boot, in a dedicated module; then all your code
+reuses **that same instance** (it's the `factStore` in every example on this page). Never recreate it
+per request.
+
+```ts
+// persistence.ts — your app's setup, run once at startup
+import postgres from 'postgres';
+import { DurableKnowledgeBase, XNeuroneGrid, initLibxnSchema } from '@damba/libxn';
+import { makeFactStore, makeMigrator } from './pg-adapter'; // your adapter (see above)
+
+const sql = postgres(process.env.DATABASE_URL!);   // the connection (one shared pool)
+export const factStore = makeFactStore(sql);       // ← THE store, created HERE, once and for all
+
+/** Call at server startup, BEFORE serving requests. */
+export async function bootPersistence(): Promise<void> {
+  await initLibxnSchema(makeMigrator(sql));         // create/align the tables (idempotent)
+}
+
+/** Open a durable memory for a scope, reusing THE factStore. */
+export async function openMemory(scope: string): Promise<DurableKnowledgeBase> {
+  const kb = new DurableKnowledgeBase(new XNeuroneGrid(undefined, { headless: true }), factStore, scope);
+  await kb.hydrate();
+  return kb;
+}
+```
+
+```ts
+// main.ts — the entry point
+import { bootPersistence, openMemory } from './persistence';
+
+await bootPersistence();                 // once at boot: connection + table creation
+const bank = await openMemory('bank');   // reuses factStore, hydrates this scope
+// … bank is ready: tell / ledger / vault …
+```
+
+> In **tests**, the same `persistence.ts` does `factStore = new InMemoryFactStore()` and
+> `bootPersistence` becomes a no-op (no tables to create) — **no other code changes**.
+
 **With a cache** (Redis later) — wrap any store, no caller changes:
 
 ```ts

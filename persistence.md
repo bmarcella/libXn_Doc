@@ -116,6 +116,46 @@ const kb = new DurableKnowledgeBase(new XNeuroneGrid(undefined, { headless: true
 > l'injection NestJS) — tu peux t'en inspirer tel quel. Pour MySQL / SQLite / autre : **même
 > interface**, un autre client. C'est le seul fichier à écrire ; tout le reste du code ne bouge pas.
 
+### Où l'initialiser : une fois, au démarrage
+
+Le `factStore` se crée **une seule fois**, au boot de ton app, dans un module dédié ; ensuite, tout
+le code réutilise **cette même instance** (c'est le `factStore` de tous les exemples de cette page).
+Ne le recrée jamais par requête.
+
+```ts
+// persistence.ts — LE setup de ton app, exécuté une fois au démarrage
+import postgres from 'postgres';
+import { DurableKnowledgeBase, XNeuroneGrid, initLibxnSchema } from '@damba/libxn';
+import { makeFactStore, makeMigrator } from './pg-adapter'; // ton adaptateur (cf. ci-dessus)
+
+const sql = postgres(process.env.DATABASE_URL!);   // la connexion (un seul pool, partagé)
+export const factStore = makeFactStore(sql);       // ← LE store, créé ICI, une fois pour toutes
+
+/** À appeler au démarrage du serveur, AVANT de servir des requêtes. */
+export async function bootPersistence(): Promise<void> {
+  await initLibxnSchema(makeMigrator(sql));         // crée/aligne les tables (idempotent)
+}
+
+/** Ouvre une mémoire durable pour un scope, en réutilisant LE factStore. */
+export async function openMemory(scope: string): Promise<DurableKnowledgeBase> {
+  const kb = new DurableKnowledgeBase(new XNeuroneGrid(undefined, { headless: true }), factStore, scope);
+  await kb.hydrate();
+  return kb;
+}
+```
+
+```ts
+// main.ts — le point d'entrée
+import { bootPersistence, openMemory } from './persistence';
+
+await bootPersistence();                 // 1× au boot : connexion + création des tables
+const bank = await openMemory('bank');   // réutilise factStore, hydrate ce scope
+// … bank est prête : tell / ledger / vault …
+```
+
+> En **test**, le même `persistence.ts` fait `factStore = new InMemoryFactStore()` et `bootPersistence`
+> devient un no-op (pas de tables à créer) — **aucun autre code ne change**.
+
 **Avec un cache** (Redis plus tard) — enveloppe n'importe quel store, sans changer les appelants :
 
 ```ts
