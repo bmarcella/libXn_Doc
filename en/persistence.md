@@ -95,4 +95,6 @@ Any durable adapter (Postgres…) must behave **like** these references.
 | **Distributed scale** | CockroachDB | subclass of the Postgres adapter (compatible protocol) |
 
 > Persistence lives server-side (Postgres). On the client, memory flows through the backend — there
-> is no more browser storage (IndexedDB removed).
+> is no more browser storage (IndexedDB removed). **Vector search** too: the client computes the
+> embedding (MiniLM) then queries **pgvector via the backend** — no more direct access to an
+> external vector database.

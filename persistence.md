@@ -95,4 +95,6 @@ Tout adaptateur durable (Postgres…) doit se comporter **comme** ces référenc
 | **Échelle distribuée** | CockroachDB | sous-classe de l'adaptateur Postgres (protocole compatible) |
 
 > La persistance vit côté serveur (Postgres). Côté client, la mémoire transite par le backend — il
-> n'y a plus de stockage navigateur (IndexedDB retiré).
+> n'y a plus de stockage navigateur (IndexedDB retiré). La **recherche vectorielle** aussi : le
+> client calcule l'embedding (MiniLM) puis interroge **pgvector via le backend** — plus d'accès
+> direct à une base vectorielle externe.
