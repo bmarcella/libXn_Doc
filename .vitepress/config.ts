@@ -51,6 +51,7 @@ export default defineConfig({
           { text: 'Mémoire & outils', items: [
             { text: 'Composants', link: '/components' },
             { text: 'Provenance', link: '/fact-provenance' },
+            { text: 'Persistance', link: '/persistence' },
             { text: 'Outils', link: '/tools' },
             { text: "Cas d'usage", link: '/use-cases' },
           ] },
@@ -77,6 +78,7 @@ export default defineConfig({
               { text: 'Transaction ledger', link: '/transaction-ledger' },
               { text: 'Outils (Tools)', link: '/tools' },
               { text: 'Provenance & revérification', link: '/fact-provenance' },
+              { text: 'Persistance', link: '/persistence' },
               { text: 'Démarrer', link: '/04-guides/getting-started' },
               { text: 'Architecture', link: '/04-guides/architecture' },
             ],
@@ -108,6 +110,7 @@ export default defineConfig({
           { text: 'Memory & tools', items: [
             { text: 'Components', link: '/en/components' },
             { text: 'Provenance', link: '/en/fact-provenance' },
+            { text: 'Persistence', link: '/en/persistence' },
             { text: 'Tools', link: '/en/tools' },
             { text: 'Use cases', link: '/en/use-cases' },
           ] },
@@ -134,6 +137,7 @@ export default defineConfig({
               { text: 'Transaction ledger', link: '/en/transaction-ledger' },
               { text: 'Tools', link: '/en/tools' },
               { text: 'Provenance & re-verification', link: '/en/fact-provenance' },
+              { text: 'Persistence', link: '/en/persistence' },
               { text: 'Getting started', link: '/en/04-guides/getting-started' },
               { text: 'Architecture', link: '/en/04-guides/architecture' },
             ],
