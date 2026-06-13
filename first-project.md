@@ -1,166 +1,197 @@
-# Premier projet : une API bancaire avec LibXN + Express
+# Premier projet : une banque **conversationnelle** (LibXN + Express)
 
-On construit une petite **API bancaire** de bout en bout : ouvrir des comptes, déposer, retirer,
-faire des **virements atomiques**, lire les soldes et l'historique. Le tout **durable** (survit au
-redémarrage) et **transactionnel** (un virement réussit en entier ou pas du tout).
+On construit une banque où l'utilisateur **s'inscrit** (identité + secret via la couche d'accès),
+**se connecte**, **ouvre un compte USD**, et fait **tout le reste en discutant** — pas de formulaire.
+Il écrit *« ouvre-moi un compte en dollars »*, *« vire 25 $ à Bob »*, *« mon solde ? »*.
 
-C'est l'occasion de voir les **bonnes pratiques** LibXN sur un cas réel.
+## Le principe : le LLM comprend, le déterministe détient la vérité
+
+> 🧠 **Le LLM** traduit le langage en **intention** (comprendre la demande).
+> ⚙️ **QPath (déterministe)** exécute et répond : soldes, mouvements, virements. **L'argent n'est
+> jamais décidé par le LLM** — il ne fait que router. Un virement refusé (solde insuffisant) le
+> reste, quelle que soit la jolie phrase.
 
 ## 1. Installer
 
 ```bash
-npm init -y
 npm install express @damba/libxn
 ```
 
-## 2. Le store (où les faits sont persistés)
+## 2. Le setup (au démarrage)
 
-`DurableKnowledgeBase` a besoin d'un **store**. En développement, l'implémentation en mémoire du
-noyau suffit ; en production, on injecte un adaptateur Postgres (voir [Persistance](/persistence) —
-le reste du code ne change pas).
-
-```ts
-import { InMemoryFactStore } from '@damba/libxn';
-
-const factStore = new InMemoryFactStore();   // dev/test ; prod = adaptateur Postgres
-```
-
-## 3. Le cœur métier : un ledger durable
-
-On réutilise le **`factStore` créé à l'étape 2** (en test, `new InMemoryFactStore()` ; en prod,
-l'adaptateur Postgres injecté). C'est lui qui rend toute la banque durable.
+Le store, la KB durable, le grand livre, et le coffre d'identité — créés **une fois** au boot.
+(En prod, `factStore` = adaptateur Postgres ; cf. [Persistance › Créer un store](/persistence#créer-un-store).)
 
 ```ts
-import { DurableKnowledgeBase, TransactionLedger, XNeuroneGrid } from '@damba/libxn';
+import { createHash, randomBytes } from 'crypto';
+import {
+  DurableKnowledgeBase, FactVault, InMemoryFactStore, TransactionLedger, XNeuroneGrid,
+  lockoutGuard, type FactAuthenticator,
+} from '@damba/libxn';
 
-// 🔑 BONNE PRATIQUE — un SEUL scope pour la banque.
-// Tous les comptes vivent dans le même scope « bank », donc un virement entre deux
-// comptes est ATOMIQUE (il s'exécute dans une seule transaction). Deux comptes dans
-// des scopes différents ne pourraient PAS être virés atomiquement.
+const factStore = new InMemoryFactStore();                       // dev ; prod = Postgres
 const grid = new XNeuroneGrid(undefined, { headless: true });
-const bank = new DurableKnowledgeBase(grid, factStore, 'bank'); // factStore = celui de l'étape 2
+const bank = new DurableKnowledgeBase(grid, factStore, 'bank');  // UN scope = virements atomiques
+await bank.hydrate();
 
-const ledger = new TransactionLedger(bank, { currency: 'USD' });
+// Le grand livre n'est pas « que de l'argent » : on le nomme et on fixe l'unité par défaut.
+const ledger = new TransactionLedger(bank, { name: 'Comptes clients', unit: 'USD' });
 
-await bank.hydrate();   // au démarrage : recharge l'état durable depuis le store
+// Comment on vérifie un mot de passe = TON hachage (la couche d'accès ne code rien en dur).
+const sha = (s: string) => createHash('sha256').update(s).digest('hex');
+const authenticator: FactAuthenticator = {
+  async authenticate(principal, password) {
+    const ok = bank.ask(principal, 'password_hash')[0] === sha(password);
+    return ok ? { principal, issuedAt: Date.now(), expiresAt: Date.now() + 3_600_000 } : null;
+  },
+  verify: (s) => !s.expiresAt || s.expiresAt > Date.now(),
+};
+const vault = new FactVault(bank, { authenticator });
+vault.addGuard(lockoutGuard({ action: 'login', maxFailures: 5, windowMs: 15 * 60_000 })); // anti-bruteforce
 ```
 
-> 💡 **Montants en plus petite unité.** Stocke les sommes en **entiers** (centimes), jamais en
-> flottants — `1050` pour 10,50 $. Pas d'erreur d'arrondi sur l'argent.
+## 3. S'inscrire — identité + secret (couche d'accès)
 
-## 4. L'API Express
+L'inscription stocke l'**identité** (faits ordinaires), le **hash** du mot de passe (jamais en clair)
+et un **secret** chiffré au repos (clé d'API), masqué des lectures normales.
+
+```ts
+async function signup(email: string, password: string) {
+  const userId = `user:${email}`;
+  if (bank.ask(userId, 'password_hash').length) throw new Error('déjà inscrit');
+
+  await bank.tell(userId, 'email', email);                 // identité
+  await bank.tell(userId, 'password_hash', sha(password)); // jamais le mot de passe en clair
+  await vault.setSecret(userId, 'cle_api', randomBytes(16).toString('hex')); // secret chiffré
+  await bank.flush();
+  return userId;
+}
+```
+
+## 4. Se connecter
+
+`vault.login` applique les gardes (verrou anti-bruteforce), authentifie, et **émet un fait d'audit
+horodaté** (succès/échec) — gratuitement.
+
+```ts
+async function login(email: string, password: string) {
+  const r = await vault.login(`user:${email}`, password);
+  return r.session;   // null si mauvais identifiants ou compte verrouillé
+}
+```
+
+## 5. Tout le reste — **en chattant**
+
+Le cœur : un message libre → le LLM en extrait une **intention** → le **déterministe** l'exécute.
+
+```ts
+const llm = async (prompt: string): Promise<string> => /* appelle TON modèle (Claude, GPT…) */ '';
+const money = (cents: number) => (cents / 100).toFixed(2);
+const accId = (userId: string, unit: string) => `${userId}:${unit.toLowerCase()}`;
+
+// 1) LE LLM COMPREND : texte → { action, unit?, amount?, to?, ref? }
+async function understand(message: string) {
+  const prompt = `Convertis cette demande bancaire en JSON, et RIEN d'autre.
+Schéma: {"action":"open|deposit|transfer|balance|history|other","unit"?:"usd","amount"?:<centimes>,"to"?:"<compte>","ref"?:"<texte>"}
+Demande: "${message}"`;
+  return JSON.parse(await llm(prompt)) as {
+    action: string; unit?: string; amount?: number; to?: string; ref?: string;
+  };
+}
+
+// 2) LE DÉTERMINISTE EXÉCUTE — l'argent passe UNIQUEMENT par le ledger validé
+async function handle(userId: string, message: string): Promise<string> {
+  const i = await understand(message);
+  const unit = i.unit ?? 'usd';
+  const acc = accId(userId, unit);
+
+  switch (i.action) {
+    case 'open':
+      await ledger.open(acc, { unit });
+      await bank.flush();
+      return `Compte ${unit.toUpperCase()} ouvert ✅`;
+
+    case 'deposit': {
+      const r = await ledger.deposit(acc, i.amount!, { ref: i.ref });
+      await bank.flush();
+      return r.ok ? `Dépôt effectué. Solde : ${money(r.balance)} ${unit.toUpperCase()}.` : `Refusé (${r.reason}).`;
+    }
+
+    case 'transfer': {
+      const r = await ledger.transfer(acc, accId(i.to!, unit), i.amount!, { ref: i.ref });
+      await bank.flush();
+      return r.ok ? `Virement effectué. Solde : ${money(r.fromBalance)}.` : `Refusé (${r.reason}).`;
+    }
+
+    case 'balance':                                   // ← 100 % déterministe, jamais le LLM
+      return `Ton solde est de ${money(ledger.balance(acc))} ${unit.toUpperCase()}.`;
+
+    case 'history':                                   // ← vérité, depuis le grand livre
+      return ledger.movementsPage(acc, { limit: 5, desc: true })
+        .items.map(m => `• ${m.kind} ${money(m.amount)} ${m.ref ? `(${m.ref})` : ''}`).join('\n') || 'Aucun mouvement.';
+
+    default:
+      return 'Je peux : ouvrir un compte, déposer, virer, donner ton solde ou ton historique.';
+  }
+}
+```
+
+### L'API Express
 
 ```ts
 import express from 'express';
-
 const app = express();
 app.use(express.json());
-
-// 🔑 BONNE PRATIQUE — un refus métier n'est pas une exception : c'est une DONNÉE
-// (`{ ok, reason }`). On mappe la raison vers le bon code HTTP.
-const REASON_STATUS: Record<string, number> = {
-  'bad-amount': 400, 'invalid-type': 400, 'unknown-account': 404,
-  'below-floor': 422, 'above-ceiling': 422, 'velocity-exceeded': 429,
-  'account-blocked': 409, 'account-closed': 409, 'rolled-back': 500,
-};
-
-// Petit wrapper : capture les erreurs async (Express 4 ne le fait pas seul).
 const wrap = (fn: express.RequestHandler): express.RequestHandler =>
   (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-// Ouvrir un compte
-app.post('/accounts', wrap(async (req, res) => {
-  const { id, owner, initialBalance = 0, floor = 0 } = req.body;
-  await ledger.open(id, { initialBalance, floor });
-  await bank.tell(id, 'titulaire', owner);   // métadonnée libre : à qui est le compte
-  await bank.flush();                         // 🔑 durabilité GARANTIE avant de répondre
-  res.status(201).json(ledger.account(id));
+app.post('/signup', wrap(async (req, res) =>
+  res.status(201).json({ userId: await signup(req.body.email, req.body.password) })));
+
+app.post('/login', wrap(async (req, res) => {
+  const session = await login(req.body.email, req.body.password);
+  session ? res.json({ token: issueToken(session) }) : res.status(401).json({ error: 'identifiants invalides' });
 }));
 
-// Dépôt
-app.post('/accounts/:id/deposit', wrap(async (req, res) => {
-  const r = await ledger.deposit(req.params.id, req.body.amount, { ref: req.body.ref });
-  await bank.flush();
-  if (!r.ok) return res.status(REASON_STATUS[r.reason!] ?? 400).json({ error: r.reason });
-  res.json({ balance: r.balance });
-}));
+// Tout passe par le chat — `requireAuth` valide le token et donne req.userId.
+app.post('/chat', requireAuth, wrap(async (req, res) =>
+  res.json({ reply: await handle(req.userId, req.body.message) })));
 
-// Retrait (refusé si ça passe sous le plancher)
-app.post('/accounts/:id/withdraw', wrap(async (req, res) => {
-  const r = await ledger.withdraw(req.params.id, req.body.amount, { ref: req.body.ref });
-  await bank.flush();
-  if (!r.ok) return res.status(REASON_STATUS[r.reason!] ?? 400).json({ error: r.reason });
-  res.json({ balance: r.balance });
-}));
-
-// Virement ATOMIQUE — débit + crédit, tout ou rien
-app.post('/transfer', wrap(async (req, res) => {
-  const { from, to, amount, ref } = req.body;
-  const r = await ledger.transfer(from, to, amount, { ref });
-  await bank.flush();
-  if (!r.ok) return res.status(REASON_STATUS[r.reason!] ?? 400).json({ error: r.reason, side: r.side });
-  res.json({ fromBalance: r.fromBalance, toBalance: r.toBalance });
-}));
-
-// Solde + titulaire (on combine la synthèse du ledger et un fait métier)
-app.get('/accounts/:id', wrap(async (req, res) => {
-  const acc = ledger.account(req.params.id);
-  if (!acc) return res.status(404).json({ error: 'unknown-account' });
-  res.json({ ...acc, owner: bank.ask(req.params.id, 'titulaire')[0] });
-}));
-
-// Historique paginé (le plus récent d'abord)
-app.get('/accounts/:id/movements', wrap(async (req, res) => {
-  const offset = Number(req.query.offset) || 0;
-  const limit = Number(req.query.limit) || 20;
-  res.json(ledger.movementsPage(req.params.id, { offset, limit, desc: true }));
-}));
-
-app.listen(3000, () => console.log('🏦 Bank API → http://localhost:3000'));
+app.listen(3000, () => console.log('🏦 Banque conversationnelle → http://localhost:3000'));
 ```
 
-## 5. Essayer
+### Le dialogue
 
-```bash
-# ouvrir deux comptes
-curl -X POST localhost:3000/accounts -H 'content-type: application/json' \
-  -d '{"id":"acc_alice","owner":"Alice","initialBalance":100000}'
-curl -X POST localhost:3000/accounts -H 'content-type: application/json' \
-  -d '{"id":"acc_bob","owner":"Bob"}'
-
-# virement de 250,00 $ (en centimes)
-curl -X POST localhost:3000/transfer -H 'content-type: application/json' \
-  -d '{"from":"acc_alice","to":"acc_bob","amount":25000,"ref":"loyer"}'
-
-# soldes
-curl localhost:3000/accounts/acc_alice     # balance: 75000
-curl localhost:3000/accounts/acc_bob       # balance: 25000
+```text
+POST /chat  « ouvre-moi un compte en dollars »   → « Compte USD ouvert ✅ »
+POST /chat  « dépose 100 dollars »               → « Dépôt effectué. Solde : 100.00 USD. »
+POST /chat  « vire 25 dollars à user:bob@x.com » → « Virement effectué. Solde : 75.00. »
+POST /chat  « quel est mon solde ? »             → « Ton solde est de 75.00 USD. »
+POST /chat  « mes dernières opérations »         → « • withdraw 25.00 … • deposit 100.00 … »
 ```
 
-Coupe le serveur et relance-le : `hydrate()` rejoue le store, **les soldes sont toujours là**.
+## Pourquoi c'est sûr
 
-## Les bonnes pratiques, en résumé
+- Le LLM **ne décide jamais** d'un solde ni d'un virement : il produit une *intention*, point.
+- Toute opération d'argent passe par `ledger`, qui **valide** (plancher, plafond, vélocité, statut) et
+  qui est **atomique** sur une KB durable. Un refus reste un refus.
+- Les réponses factuelles (`balance`, `history`) viennent **directement du grand livre déterministe**
+  — zéro hallucination. La même question donne toujours la même réponse vérifiable.
 
-1. **Un scope = une frontière transactionnelle.** Mets dans le même scope tout ce qui doit pouvoir
-   être viré atomiquement (ici, toute la banque). Sépare les scopes pour isoler (un par client si
-   les virements inter-clients ne sont pas nécessaires).
-2. **`hydrate()` une fois au démarrage**, puis réutilise la même instance de KB / ledger.
-3. **`flush()` après chaque écriture** avant de répondre — l'appelant a la certitude que c'est durable.
-4. **Le métier renvoie des données, pas des exceptions** (`{ ok, reason }`) → mappe `reason` vers HTTP.
-5. **Les soldes ne sont jamais stockés** : ils sont recalculés depuis les mouvements immuables. Rien
-   à désynchroniser.
-6. **Argent en entiers** (centimes).
-7. **Mémoriser n'importe quel attribut** d'un compte avec un simple `tell` (ici `titulaire`) — la KB
-   est aussi ta base de métadonnées.
+## Bonnes pratiques
+
+1. **Un scope = une frontière transactionnelle** (toute la banque → virements atomiques).
+2. **`hydrate()` au démarrage**, **`flush()` après chaque écriture**.
+3. **Identité & secrets via la couche d'accès** : hash pour le mot de passe (jamais en clair),
+   `setSecret` pour les valeurs réversibles (chiffrées, masquées) ; garde anti-bruteforce.
+4. **Le LLM pour comprendre, le déterministe pour exécuter** — l'argent ne dépend jamais du modèle.
+5. **Montants en entiers** (centimes).
 
 ## Pour aller plus loin
 
-- **Types de transaction & plafonds** : configure `types` et des `limits` de vélocité à l'ouverture
-  (ex. « max 3 retraits / jour ») — voir [Grand livre](/transaction-ledger).
-- **Authentification & secrets** : protège un compte par code PIN avec `FactVault` (haché/chiffré,
-  verrou après N échecs) — voir [Couche d'accès](/access-layer).
-- **Cycle de vie** : `ledger.block()` / `unblock()` / `close()` pour geler ou fermer un compte.
-- **Production** : remplace `new InMemoryFactStore()` par un adaptateur **connecté à ta base** —
-  c'est toi qui crées la connexion (Postgres, MySQL…) ; LibXN ne voit que l'interface. Appelle
-  `initLibxnSchema()` au démarrage pour créer les tables. L'exemple de connexion complet est dans
-  [Persistance › Créer un store](/persistence#créer-un-store).
+- **Raisonnement déterministe** au-delà du ledger : règles (`RuleEngine`), chaînes (`ChainResolver`),
+  questions inverses (« à qui ai-je viré ? ») — tout sans LLM. Voir [Composants](/components).
+- **Types & plafonds** : `types` pré-configurés et `limits` de vélocité — voir [Grand livre](/transaction-ledger).
+- **Audit** : `vault.auditTrail(principal)` rejoue toutes les connexions (réussies/échouées).
+- **Production** : `factStore` = adaptateur connecté à ta base ; tu crées la connexion, LibXN ne voit
+  que l'interface — voir [Persistance › Créer un store](/persistence#créer-un-store).

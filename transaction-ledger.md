@@ -9,7 +9,7 @@ applique des **contraintes par compte** et sait faire des **virements**.
 ### Ouvrir un compte (solde initial, plancher, plafond, vélocité)
 
 ```ts
-const ledger = new TransactionLedger(kb, { currency: 'USD' });
+const ledger = new TransactionLedger(kb, { unit: 'USD' });
 
 await ledger.open('12345_c', {
   initialBalance: 5000,   // dotation d'ouverture
@@ -34,7 +34,7 @@ REQUIS** : un dépôt/retrait sans type valide est refusé (`reason: 'invalid-ty
 
 ```ts
 const ledger = new TransactionLedger(kb, {
-  currency: 'USD',
+  unit: 'USD',
   types: [
     { name: 'salaire', kind: 'deposit', label: 'Salaire' },  // dépôt seulement
     { name: 'loyer',   kind: 'withdraw' },                   // retrait seulement
@@ -91,12 +91,12 @@ renvoient une `Page<T>` : `{ items, total, offset, limit, hasMore }` — `total`
 const page = ledger.accounts({
   search: 'cli_',           // sous-chaîne dans l'id
   status: 'active',         // 'active' | 'blocked' | 'closed'
-  currency: 'HTG',
+  unit: 'HTG',
   minBalance: 1000, maxBalance: 50_000,
   sort: 'balance', desc: true,   // 'id' | 'balance' | 'movements'
   offset: 0, limit: 20,
 });
-page.items;   // [{ id, balance, currency, status, movementCount, floor, ceiling }, …]
+page.items;   // [{ id, balance, unit, status, movementCount, floor, ceiling }, …]
 page.total;   // nb de comptes correspondant au filtre
 page.hasMore; // reste-t-il une page suivante ?
 

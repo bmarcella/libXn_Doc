@@ -203,7 +203,7 @@ const vault = new FactVault(kb, {
   authenticator: new PasswordAuthenticator(kb),
   cipher: new AesCipher(randomBytes(32)),             // clé hors du graphe
 });
-const ledger = new TransactionLedger(kb, { currency: 'USD' });
+const ledger = new TransactionLedger(kb, { unit: 'USD' });
 
 // ── Inscription : on stocke le HASH, jamais le mot de passe ; le secret est chiffré
 async function register(principal: string, password: string) {

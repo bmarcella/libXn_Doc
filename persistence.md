@@ -193,7 +193,7 @@ import { TransactionLedger } from '@damba/libxn';
 
 const kb = new DurableKnowledgeBase(grid, factStore, `wallet:${userId}`);
 await kb.hydrate();
-const ledger = new TransactionLedger(kb, { currency: 'HTG' });
+const ledger = new TransactionLedger(kb, { unit: 'HTG' });
 
 await ledger.open('courant', { initialBalance: 5000, floor: 0 });
 await ledger.deposit('courant', 1200, { type: 'salaire' });

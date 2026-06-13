@@ -9,7 +9,7 @@ timestamped fact; the **balance is never stored**, it is computed by folding. Th
 ### Open an account (initial balance, floor, ceiling, velocity)
 
 ```ts
-const ledger = new TransactionLedger(kb, { currency: 'USD' });
+const ledger = new TransactionLedger(kb, { unit: 'USD' });
 
 await ledger.open('12345_c', {
   initialBalance: 5000,   // opening endowment
@@ -34,7 +34,7 @@ restricted to one kind.
 
 ```ts
 const ledger = new TransactionLedger(kb, {
-  currency: 'USD',
+  unit: 'USD',
   types: [
     { name: 'salary', kind: 'deposit', label: 'Salary' },  // deposit only
     { name: 'rent',   kind: 'withdraw' },                  // withdrawal only
@@ -87,16 +87,16 @@ Every account opened (or merely touched by a movement) becomes **enumerable**. L
 so you can compute the number of pages.
 
 ```ts
-// Accounts: search by id, filters (status / currency / balance), sort, pagination
+// Accounts: search by id, filters (status / unit / balance), sort, pagination
 const page = ledger.accounts({
   search: 'cli_',           // substring in the id
   status: 'active',         // 'active' | 'blocked' | 'closed'
-  currency: 'HTG',
+  unit: 'HTG',
   minBalance: 1000, maxBalance: 50_000,
   sort: 'balance', desc: true,   // 'id' | 'balance' | 'movements'
   offset: 0, limit: 20,
 });
-page.items;   // [{ id, balance, currency, status, movementCount, floor, ceiling }, …]
+page.items;   // [{ id, balance, unit, status, movementCount, floor, ceiling }, …]
 page.total;   // number of accounts matching the filter
 page.hasMore; // is there a next page?
 
