@@ -86,6 +86,33 @@ await facts.tx(async (t) => {
 
 Any durable adapter (Postgres…) must behave **like** these references.
 
+## Durable KB (`DurableKnowledgeBase`)
+
+An **opt-in** subclass of `KnowledgeBase` that backs it with a `FactStore` (the core stays
+persistence-free). This makes EVERYTHING built on the KB durable — facts, plus the
+[access layer](/en/access-layer) (secrets, permissions) and the [ledger](/en/transaction-ledger).
+
+```ts
+import { DurableKnowledgeBase } from '@damba/libxn';
+
+const kb = new DurableKnowledgeBase(grid, factStore, scope);
+await kb.hydrate();                       // replays durable facts in memory (at startup)
+await kb.tell('alice', 'role', 'admin');  // write-through → FactStore
+await kb.flush();                         // await durable writes
+
+// DB-level atomicity: fn's writes go into ONE transaction (commit/rollback).
+await kb.transaction(async () => {
+  await kb.tell('a', 'balance', '300');
+  await kb.tell('b', 'balance', '200');
+});
+```
+
+- **Hydration**: `getAll(scope)` → in-memory replay. The KB is the query engine; the FactStore is
+  the durable truth (*cache + write-through* pattern).
+- **Write-through**: every mutation is mirrored (serial queue, `flush()` to await).
+- **Transaction**: `TransactionLedger` uses it automatically (atomic `transfer` at the DB when the
+  KB is durable); otherwise in-memory compensation, unchanged. **Opt-in, zero regression.**
+
 ## Scaling path
 
 | Step | Tech | What you write |

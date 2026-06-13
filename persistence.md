@@ -86,6 +86,33 @@ await facts.tx(async (t) => {
 
 Tout adaptateur durable (Postgres…) doit se comporter **comme** ces références.
 
+## KB durable (`DurableKnowledgeBase`)
+
+Sous-classe **opt-in** du `KnowledgeBase` qui l'adosse à un `FactStore` (le noyau reste
+zéro-persistance). C'est ce qui rend durable TOUT ce qui s'appuie sur la KB — faits, et la
+[couche d'accès](/access-layer) (secrets, permissions) et le [grand livre](/transaction-ledger).
+
+```ts
+import { DurableKnowledgeBase } from '@damba/libxn';
+
+const kb = new DurableKnowledgeBase(grid, factStore, scope);
+await kb.hydrate();                       // rejoue les faits durables en mémoire (au démarrage)
+await kb.tell('alice', 'role', 'admin');  // write-through → FactStore
+await kb.flush();                         // attend les écritures durables
+
+// Atomicité côté base : les écritures de fn entrent dans UNE transaction (commit/rollback).
+await kb.transaction(async () => {
+  await kb.tell('a', 'solde', '300');
+  await kb.tell('b', 'solde', '200');
+});
+```
+
+- **Hydratation** : `getAll(scope)` → rejeu en mémoire. La KB est le moteur de requête ; le
+  FactStore est la vérité durable (pattern *cache + write-through*).
+- **Write-through** : chaque mutation est répercutée (file sérielle, `flush()` pour attendre).
+- **Transaction** : `TransactionLedger` l'utilise automatiquement (`transfer` atomique côté base
+  si le KB est durable) ; sinon, compensation en mémoire inchangée. **Opt-in, zéro régression.**
+
 ## Plan de montée en charge
 
 | Étape | Techno | Ce qu'on écrit |
