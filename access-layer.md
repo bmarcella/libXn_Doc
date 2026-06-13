@@ -246,6 +246,9 @@ ports injectés (AES, scrypt), pas du noyau.
 - **Normalisation transparente** : le Vault ré-encode la valeur chiffrée avant de la stocker, donc
   un secret survit intact (casse, symboles, Unicode) quel que soit le `CipherPort` — vous n'avez
   aucune contrainte de format sur la sortie de votre chiffrement.
+- **Durabilité** : construite sur une [`DurableKnowledgeBase`](/persistence#kb-durable-durableknowledgebase),
+  toute la couche d'accès (secrets, permissions, audit) est **persistée** dans Postgres et survit au
+  redémarrage — sans changer le code. Les faits systématiques deviennent un journal d'audit durable.
 
 > ⚠️ Un fait secret rattaché à un **groupe d'accès** (`FactAccessControl`) est renvoyé par
 > `factsInGroup` / `read` sous sa forme **chiffrée** : l'ACL régit l'appartenance au groupe, le

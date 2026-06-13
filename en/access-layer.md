@@ -246,6 +246,9 @@ the core.
 - **Transparent normalization**: the Vault re-encodes the ciphertext before storing it, so a
   secret survives intact (case, symbols, Unicode) regardless of the `CipherPort` — you have no
   format constraint on your cipher's output.
+- **Durability**: built on a [`DurableKnowledgeBase`](/en/persistence#durable-kb-durableknowledgebase),
+  the whole access layer (secrets, permissions, audit) is **persisted** to Postgres and survives a
+  restart — without changing the code. The systematic facts become a durable audit log.
 
 > ⚠️ A secret fact attached to an **access group** (`FactAccessControl`) is returned by
 > `factsInGroup` / `read` in its **encrypted** form: the ACL governs group membership, while

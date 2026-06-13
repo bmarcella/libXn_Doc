@@ -128,3 +128,21 @@ ledger.movementById('mv:cli_bob:withdraw:200:1700000000000'); // direct lookup, 
 > same account) or a machine crash between the two writes remains the host's responsibility: for
 > real value, back this model with a transactional system of record. QPath models the ledger; it
 > does not replace a banking core.
+
+### Durability & ACID (durable KB)
+
+Build the ledger on a [`DurableKnowledgeBase`](/en/persistence#durable-kb-durableknowledgebase)
+(backed by a Postgres `FactStore`) and it becomes **persistent and transactional** without changing
+a line of your ledger code:
+
+- movements are **write-through** to the database (they survive a restart — on reload, `hydrate()`
+  replays the history and balances are identical);
+- `transfer` runs both legs in **one database transaction** (commit/rollback) → the "guarantee
+  boundary" above is lifted: real store-level atomicity.
+
+```ts
+const kb = new DurableKnowledgeBase(grid, factStore, `ledger:${userId}`);
+await kb.hydrate();
+const ledger = new TransactionLedger(kb);   // unchanged — durability comes from the KB
+await ledger.transfer('a', 'b', 200);        // atomic at the DB when the KB is durable
+```
