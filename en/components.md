@@ -109,6 +109,34 @@ comp.retractOwner(f);      // retracts the fact + its cascade companions
 > Identity-coherent: merging two entities (`mergeEntities`) keeps **one** profile (reads follow
 > aliases), and splitting a fact (`splitEntity`) **rebinds** its companions to the new id.
 
+**Advanced use-cases**
+
+```ts
+// 1) Bank KYC — TWO lifecycles under the same owner
+const client = { entity: 'bigvai' };
+await comp.attach(client, 'bigvai', 'address', 'port-au-prince');                 // survives (non-cascade)
+await comp.attach(client, 'bigvai', 'id_document', 'cin-4421', { cascade: true }); // perishable
+// → purging the KYC file removes the ID, KEEPS the address.
+
+// 2) Metadata of an ingested document (owner = a precise fact)
+const doc = { fact: { s: 'doc_42', p: 'is', o: 'document' } };
+await comp.attach(doc, 'doc_42', 'sha256', 'a1b2…', { cascade: true });
+await comp.attach(doc, 'doc_42', 'ingested_on', '2026-06-13', { cascade: true });
+comp.retractOwner(doc);   // purges the document AND all its metadata at once
+
+// 3) The profile SURVIVES an identity merge
+await kb.mergeEntities('bob', 'robert');
+comp.profileOf({ entity: 'robert' });   // returns bob's profile — a single one, nothing re-tagged
+```
+
+- **Two lifecycles side by side**: mark `cascade` what must die with the owner (IDs, technical
+  metadata), leave the rest independent (address, preferences).
+- **Companion = ordinary fact**: still queryable (`ask`, `compute`, `matchFacts`) and can be
+  **secret** (`FactVault.setSecret` then `comp.tag`) or attached to an **access group** —
+  `profileOf` then only reveals what the session allows.
+- **Entity-owner vs fact-owner**: the **entity** for a durable profile of a person/thing; the
+  **fact** for metadata of a precise statement (provenance, score, timestamp).
+
 
 ### NaturalParser — from language to facts
 

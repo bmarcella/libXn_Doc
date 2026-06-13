@@ -129,6 +129,38 @@ kb.matchCount({ p: 'email' }, '@gmail');   // combien d'objets contiennent une s
 | `longest` / `shortest(filtre)` | `string` | par longueur de chaîne |
 | `matchCount(filtre, sous-chaîne)` | `number` | combien contiennent un motif (insensible à la casse) |
 
+## Symboles développeur — réagir à l'écriture
+
+Tu peux **« réclamer » un token** (sujet, prédicat ou objet) et y brancher une logique déclenchée
+**à l'écriture** — sans namespace réservé, sans toucher au reste de la base.
+
+```ts
+kb.defineSymbols({
+  predicates: [{
+    name: 'solde',
+    validate: (c) => /^\d+$/.test(c.o) || 'le solde doit être un nombre',  // VÉTO avant écriture
+  }],
+  subjects: [{
+    name: 'commande',
+    onWrite: (c) => { void c.kb.tell(c.s, 'statut', 'reçue'); },            // EFFET après écriture
+  }],
+});
+
+await kb.fact('compte', 'solde', 'abc').save();  // ❌ SymbolValidationError — rien posé
+await kb.fact('compte', 'solde', '100').save();  // ✅
+```
+
+| Hook | Quand | Rôle |
+|---|---|---|
+| `validate(ctx)` | **avant** écriture | `true` accepte ; `false` ou une raison (`string`) **refuse** (lève `SymbolValidationError`) |
+| `onWrite(ctx)` | **après** écriture | effet de bord : dériver un fait, auditer, indexer… |
+
+`ctx = { role, token, s, p, o, source, kb }`. Introspection : `kb.symbolOf(role, token)`,
+`kb.isDeveloperSymbol(role, token)`.
+
+> Pas de réécriture silencieuse du triplet (incohérente avec la persistance) : pour **normaliser**,
+> refuse l'entrée non conforme, ou dérive la forme corrigée dans `onWrite`.
+
 ## En une phrase
 
 Un seul type (le triplet), deux axes (**6 drapeaux** × **7 provenances**), **4 faits spéciaux** de

@@ -109,6 +109,34 @@ comp.retractOwner(f);      // rétracte le fait + ses compagnons cascade
 > Cohérent avec l'identité : fusionner deux entités (`mergeEntities`) garde **un seul** profil (les
 > lectures suivent les alias), et scinder un fait (`splitEntity`) **re-lie** ses compagnons au nouvel id.
 
+**Cas d'usage avancés**
+
+```ts
+// 1) KYC bancaire — DEUX cycles de vie sous le même propriétaire
+const client = { entity: 'bigvai' };
+await comp.attach(client, 'bigvai', 'adresse', 'port-au-prince');                      // survit (non cascade)
+await comp.attach(client, 'bigvai', 'pièce_identité', 'cin-4421', { cascade: true });  // périssable
+// → purger le dossier KYC retire la pièce, GARDE l'adresse.
+
+// 2) Métadonnées d'un document ingéré (propriétaire = un fait précis)
+const doc = { fact: { s: 'doc_42', p: 'est', o: 'document' } };
+await comp.attach(doc, 'doc_42', 'sha256', 'a1b2…', { cascade: true });
+await comp.attach(doc, 'doc_42', 'ingéré_le', '2026-06-13', { cascade: true });
+comp.retractOwner(doc);   // purge le document ET toutes ses métadonnées d'un coup
+
+// 3) Le profil SURVIT à une fusion d'identités
+await kb.mergeEntities('bob', 'robert');
+comp.profileOf({ entity: 'robert' });   // renvoie le profil de bob — un seul, sans rien re-taguer
+```
+
+- **Deux cycles de vie côte à côte** : marque `cascade` ce qui doit mourir avec le propriétaire
+  (pièces, métadonnées techniques), laisse le reste indépendant (adresse, préférences).
+- **Compagnon = fait ordinaire** : il reste interrogeable (`ask`, `compute`, `matchFacts`) et peut
+  être **secret** (`FactVault.setSecret` puis `comp.tag`) ou rattaché à un **groupe d'accès** —
+  `profileOf` ne révèle alors que ce que la session autorise.
+- **Propriétaire-entité vs propriétaire-fait** : l'**entité** pour un profil durable d'une
+  personne/chose ; le **fait** pour les métadonnées d'un énoncé précis (provenance, score, horodatage).
+
 
 ### NaturalParser — du langage aux faits
 

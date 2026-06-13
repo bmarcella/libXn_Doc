@@ -129,6 +129,38 @@ kb.matchCount({ p: 'email' }, '@gmail');    // how many objects contain a substr
 | `longest` / `shortest(filter)` | `string` | by string length |
 | `matchCount(filter, substring)` | `number` | how many contain a pattern (case-insensitive) |
 
+## Developer symbols — react on write
+
+You can **"claim" a token** (subject, predicate or object) and wire logic that fires **on write** —
+no reserved namespace, nothing else in the base to touch.
+
+```ts
+kb.defineSymbols({
+  predicates: [{
+    name: 'balance',
+    validate: (c) => /^\d+$/.test(c.o) || 'balance must be a number',  // VETO before write
+  }],
+  subjects: [{
+    name: 'order',
+    onWrite: (c) => { void c.kb.tell(c.s, 'status', 'received'); },     // EFFECT after write
+  }],
+});
+
+await kb.fact('account', 'balance', 'abc').save();  // ❌ SymbolValidationError — nothing stored
+await kb.fact('account', 'balance', '100').save();  // ✅
+```
+
+| Hook | When | Role |
+|---|---|---|
+| `validate(ctx)` | **before** write | `true` accepts; `false` or a reason (`string`) **rejects** (throws `SymbolValidationError`) |
+| `onWrite(ctx)` | **after** write | side effect: derive a fact, audit, index… |
+
+`ctx = { role, token, s, p, o, source, kb }`. Introspection: `kb.symbolOf(role, token)`,
+`kb.isDeveloperSymbol(role, token)`.
+
+> No silent triplet rewrite (it would break persistence): to **normalize**, reject non-conforming
+> input, or derive the corrected form in `onWrite`.
+
 ## In one sentence
 
 One type (the triplet), two axes (**6 flags** × **7 provenances**), **4 special** reasoning facts,
