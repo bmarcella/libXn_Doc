@@ -92,6 +92,15 @@ Any durable adapter (Postgres…) must behave **like** these references.
 |---|---|---|
 | **Start** | PostgreSQL + pgvector | `Pg*` adapters (one service: relational + vector) |
 | **Read cache** | Redis | a **decorator** around a port — no caller changed |
+
+The cache decorator already exists (`CachingKbStore`): wiring Redis = replacing its internal `Map`
+with a Redis client, nothing else.
+
+```ts
+import { CachingKbStore } from '@damba/libxn';
+const store = new CachingKbStore(pgKbStore); // cache-first reads, write-through writes
+```
+
 | **Distributed scale** | CockroachDB | subclass of the Postgres adapter (compatible protocol) |
 
 > Persistence lives server-side (Postgres). On the client, memory flows through the backend — there

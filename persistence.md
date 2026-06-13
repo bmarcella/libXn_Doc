@@ -92,6 +92,15 @@ Tout adaptateur durable (Postgres…) doit se comporter **comme** ces référenc
 |---|---|---|
 | **Départ** | PostgreSQL + pgvector | adaptateurs `Pg*` (un seul service : relationnel + vectoriel) |
 | **Cache de lecture** | Redis | un **décorateur** autour d'un port — aucun appelant modifié |
+
+Le décorateur de cache existe déjà (`CachingKbStore`) : brancher Redis = remplacer sa `Map` interne
+par un client Redis, rien d'autre.
+
+```ts
+import { CachingKbStore } from '@damba/libxn';
+const store = new CachingKbStore(pgKbStore); // lecture cache-first, écriture write-through
+```
+
 | **Échelle distribuée** | CockroachDB | sous-classe de l'adaptateur Postgres (protocole compatible) |
 
 > La persistance vit côté serveur (Postgres). Côté client, la mémoire transite par le backend — il
