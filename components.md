@@ -220,16 +220,18 @@ result.conclusion;   // réponse ancrée ; result.transcript = l'échange comple
 
 ## Persistance & recherche
 
-### QdrantVectorStore — brancher une base vectorielle
+### VectorStore — brancher une base vectorielle (recherche par similarité)
 
-L'**adaptateur** (paquet `@damba/libxn-qdrant`) qui connecte QPath à une base vectorielle **Qdrant** :
-pour persister durablement et faire de la **recherche par similarité** (par chemin ou par sens).
+Le port `VectorStore` connecte QPath à une base vectorielle pour la **recherche par similarité**
+(par chemin ou par sens). Adaptateurs : `InMemoryVectorStore` (noyau, référence/hors-ligne),
+`QdrantVectorStore` (`@damba/libxn-qdrant`), **pgvector** (backend Damba).
 
-**À quoi ça sert :** sauvegarder/recharger une mémoire QPath au-delà de la session, et retrouver les
-éléments **les plus proches** d'une requête — au-delà de la correspondance exacte.
+**À quoi ça sert :** retrouver les éléments **les plus proches** d'une requête — au-delà de la
+correspondance exacte (recommandation, « éléments similaires », rapprochement).
 
-**Quand l'utiliser :** dès qu'il faut de la **persistance durable** ou de la **recherche floue/sémantique**
-à grande échelle (recommandation, « éléments similaires », rapprochement).
+> Pour la **persistance durable des faits**, c'est la couche dédiée qui s'en charge
+> (`KbStore` / `FactStore` / `DurableKnowledgeBase`) — voir [Persistance](/persistence). La base
+> vectorielle, elle, sert la recherche sémantique ; les deux sont orthogonales.
 
 ```ts
 import { VectorGridStore } from '@damba/libxn';
@@ -252,13 +254,16 @@ const hits = await store.searchSimilarPaths('ma-kb', queryPath, 5);
                  BinaryConverter         ChainResolver / RuleEngine
               (prépare les données)        (raisonnent sur les faits)
                        │                            │
-   texte libre ─▶ NaturalParser ─▶ KnowledgeBase ─▶ XNeuroneGrid ─▶ QdrantVectorStore
-                 (langage→fait)    (faits & requêtes)  (le graphe, socle)   (persistance & recherche)
+   texte libre ─▶ NaturalParser ─▶ KnowledgeBase ─▶ XNeuroneGrid ─▶ VectorStore
+                 (langage→fait)    (faits & requêtes)  (le graphe, socle)   (recherche similarité)
+                                          │
+                                   KbStore / FactStore (persistance durable — cf. Persistance)
 ```
 
 `XNeuroneGrid` est le socle ; `BinaryConverter` y fait entrer les données ; `KnowledgeBase` et
-`NaturalParser` y ajoutent le sens ; `ChainResolver` et `RuleEngine` raisonnent par-dessus ;
-`QdrantVectorStore` assure la persistance durable et la recherche par similarité.
+`NaturalParser` y ajoutent le sens ; `ChainResolver` et `RuleEngine` raisonnent par-dessus ; un
+adaptateur `VectorStore` (pgvector, Qdrant…) assure la recherche par similarité, et la couche
+[Persistance](/persistence) (`DurableKnowledgeBase`) la durabilité des faits.
 
 ::: tip
 Le fonctionnement interne de ces composants (encodage, indexation, algorithme) n'est pas documenté

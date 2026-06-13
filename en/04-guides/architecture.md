@@ -22,7 +22,8 @@ service. Its only runtime footprint is **none** (`dependencies: {}`).
 | Lot | Modules | Why outside the core |
 |---|---|---|
 | Visualization **✅ extracted** | `XNeuroneVisualizerForGrid` → `@damba/libxn-visualization` | Three.js + DOM |
-| Vector DB **✅ extracted** | Qdrant adapter → `@damba/libxn-qdrant` (the `VectorStore` port + `VectorGridStore` are **in the core**) | REST/`fetch` client |
+| Vector DB **✅ extracted** | Qdrant adapter → `@damba/libxn-qdrant`; **pgvector** on the Damba backend (the `VectorStore` port + `VectorGridStore` + `InMemoryVectorStore` are **in the core**) | REST / SQL client |
+| Persistence **✅ ports in the core** | `KbStore` / `FactStore` / `SchemaMigrator` (+ `DurableKnowledgeBase`, `InMemory*`, `CachingKbStore`); Postgres adapters on the backend | Postgres / pgvector — see [Persistence](/en/persistence) |
 | Embeddings | `SemanticVectorizer`, `embedding.worker` | `@huggingface/transformers`, Web Worker |
 | Perceptual encoders | `PerceptualEncoder`, `AudioEncoder` | canvas DOM |
 | Agents & LLM | `Agent`, `*Agent`, `LLMOrchestrator` | LLM API |

@@ -24,8 +24,8 @@ zéro service applicatif. Sa seule dépendance runtime est `rxjs`.
 | Visualisation **✅ extrait** | `XNeuroneVisualizerForGrid` → paquet `@damba/libxn-visualization` | Three.js + DOM |
 | Embeddings | `SemanticVectorizer`, `embedding.worker` | `@huggingface/transformers`, Web Worker |
 | Encodeurs perceptuels | `PerceptualEncoder`, `AudioEncoder` | canvas DOM |
-| Base vectorielle **✅ extrait** | adaptateur Qdrant → paquet `@damba/libxn-qdrant` (le port `VectorStore` + `VectorGridStore` sont, eux, **dans le noyau**) | client REST/`fetch` |
-| Persistance locale | `GridStorage` | IndexedDB |
+| Base vectorielle **✅ extrait** | adaptateur Qdrant → paquet `@damba/libxn-qdrant` ; **pgvector** côté backend Damba (le port `VectorStore` + `VectorGridStore` + `InMemoryVectorStore` sont, eux, **dans le noyau**) | client REST / SQL |
+| Persistance **✅ ports dans le noyau** | `KbStore` / `FactStore` / `SchemaMigrator` (+ `DurableKnowledgeBase`, `InMemory*`, `CachingKbStore`) ; adaptateurs Postgres côté backend | Postgres / pgvector — voir [Persistance](/persistence) |
 | Récupération | `Retriever`, `WebSearcher` | services externes |
 | Agents & LLM | `Agent`, `*Agent`, `LLMOrchestrator`, `LLMExtractor`, `QPathDSL` | API LLM |
 | Entrées | `PdfReader`, `SpeechListener` | pdfjs / Web Speech API |

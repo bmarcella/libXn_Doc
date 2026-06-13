@@ -64,7 +64,9 @@ await initLibxnSchema(myMigrator);
 
 `LIBXN_SCHEMA` déclare le snapshot (`libxn_kb_snapshot`), les faits row-level
 (`libxn_fact` / `libxn_fact_source`, avec archive temporelle), le grand livre append-only
-(`libxn_ledger_movement`) et l'index vectoriel (`libxn_embedding`, colonne `vector` + index HNSW).
+(`libxn_ledger_movement`) et la table vectorielle générique (`libxn_vector` : `collection`, `id`,
+colonne `vector` à **dimension libre**, `payload`). La recherche est cosinus exacte ; un index HNSW
+(qui exige une dimension fixe) est une optimisation future réservée aux collections à taille fixe.
 
 ## Implémentations de référence (en mémoire)
 
@@ -72,7 +74,7 @@ Le noyau fournit des adaptateurs **en mémoire**, zéro dépendance : double de 
 et **spécification exécutable** du comportement attendu — notamment l'ACID de `tx()`.
 
 Trois références, une par port : `InMemoryKbStore`, `InMemoryFactStore`, `InMemoryVectorStore`
-(recherche cosinus exacte — le comportement que pgvector reproduit à l'échelle via HNSW).
+(recherche cosinus exacte — le même comportement que l'adaptateur pgvector).
 
 ```ts
 import { InMemoryKbStore, InMemoryFactStore } from '@damba/libxn';
@@ -112,6 +114,74 @@ await kb.transaction(async () => {
 - **Write-through** : chaque mutation est répercutée (file sérielle, `flush()` pour attendre).
 - **Transaction** : `TransactionLedger` l'utilise automatiquement (`transfer` atomique côté base
   si le KB est durable) ; sinon, compensation en mémoire inchangée. **Opt-in, zéro régression.**
+
+## En profondeur
+
+### Le modèle à deux niveaux
+
+QPath sépare le **modèle de travail** (le graphe en mémoire, rapide) de la **vérité durable** (le
+store). La KB répond aux requêtes et raisonne ; le store garde les faits au-delà du process.
+
+```
+        écriture                              lecture (au démarrage)
+  app ──tell──▶ KB en mémoire ──write-through──▶ FactStore ──hydrate()──▶ KB en mémoire
+                (requêtes, raisonnement)         (Postgres, vérité)        (reconstruit)
+```
+
+Deux granularités, deux usages :
+
+| | `KbStore` (snapshot) | `FactStore` (row-level) |
+|---|---|---|
+| Forme | un blob JSONB par scope (grille + provenance) | une ligne par fait + sa provenance |
+| Pour | mémoire symbolique générale, RAG, raisonnement | couche d'accès : argent, secrets, permissions |
+| Atouts | simple, une photo cohérente | requêtable en SQL, **transactionnel (ACID)** |
+
+### Le modèle de données
+
+| Table | Contenu |
+|---|---|
+| `libxn_kb_snapshot` | snapshot par scope : `grid` (jsonb) + `provenance` (jsonb) + `updated_at` |
+| `libxn_fact` | un fait : `scope, id, s, p, o, flags, created_at` + archive (`retracted_at/_reason`) |
+| `libxn_fact_source` | provenance : 1 fait → N sources (`kind, ref, at, confidence, display`) |
+| `libxn_ledger_movement` | mouvements **append-only** (jamais d'`UPDATE`/`DELETE`) |
+| `libxn_vector` | vecteurs : `collection, id, v` (dimension libre), `payload` |
+
+L'`id` du fait est le hash déterministe du triplet normalisé (`factId`) ; deux assertions
+identiques convergent sur la même ligne (déduplication).
+
+### Chemin d'écriture (write-through)
+
+Chaque mutation alimente une **file sérielle** d'écritures durables (l'ordre est préservé) :
+
+- `tell` (asynchrone) attend la mise en file puis rend la main ; `flush()` attend que la file
+  soit vidée. La durabilité est donc **éventuelle** jusqu'au `flush()` — une erreur de base est
+  relevée *au flush*, pas à l'écriture.
+- Pour une durabilité **stricte** après une opération critique : `await kb.flush()` (c'est ce que
+  fait `LedgerService` après chaque dépôt/retrait/virement).
+
+### Chemin de lecture (hydratation)
+
+Au démarrage, `getAll(scope)` rejoue les faits durables dans la KB. Ensuite, **toutes les lectures
+sont en mémoire** (le store n'est plus sollicité). Coût : O(faits du scope) au premier accès — d'où
+des scopes de taille raisonnable (par utilisateur / organisation / conversation).
+
+### Transactions & garanties
+
+- `transaction(fn)` regroupe les écritures **asynchrones** (`tell`) de `fn` dans une transaction du
+  FactStore (commit/rollback). Les mutations **synchrones** (`retract`/`setFlags`) faites pendant
+  `fn` ne sont **pas** dans la transaction — elles passent par la file normale.
+- En cas de rollback, le FactStore est restauré ; la cohérence **en mémoire** reste au caller
+  (compensation, ou re-hydratation). Le `TransactionLedger` couvre ce cas (compensation in-memory).
+
+### Limites à connaître
+
+- **Durabilité éventuelle** par défaut (utiliser `flush()` pour la certitude).
+- **Snapshot blob** plafonné (10 Mo côté backend) : pour de gros volumes, préférer le row-level
+  `FactStore`, et à terme un **journal incrémental** (`KbStore.append`, write-model à venir).
+- **Concurrence** : un seul process écrit en mémoire pour un scope donné ; pas conçu pour des
+  écritures concurrentes multi-process sur le même scope sans coordination externe.
+- **Policy non persistée** : certaines configs *en mémoire* (ex. limites de vélocité du ledger) ne
+  vivent pas dans le store ; solde, plancher/plafond, devise et mouvements, eux, sont durables.
 
 ## Plan de montée en charge
 

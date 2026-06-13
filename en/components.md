@@ -218,16 +218,18 @@ result.conclusion;   // grounded answer ; result.transcript = the full exchange
 
 ## Persistence & search
 
-### QdrantVectorStore — plugging in a vector database
+### VectorStore — plugging in a vector database (similarity search)
 
-The **adapter** (package `@damba/libxn-qdrant`) that connects QPath to a **Qdrant** vector database: to
-persist durably and do **similarity search** (by path or by meaning).
+The `VectorStore` port connects QPath to a vector database for **similarity search** (by path or by
+meaning). Adapters: `InMemoryVectorStore` (core, reference/offline), `QdrantVectorStore`
+(`@damba/libxn-qdrant`), **pgvector** (Damba backend).
 
-**What it's for:** save/reload a QPath memory beyond the session, and retrieve the items **closest** to a
-query — beyond exact matching.
-
-**When to use it:** whenever you need **durable persistence** or **fuzzy/semantic search** at scale
+**What it's for:** retrieve the items **closest** to a query — beyond exact matching
 (recommendation, "similar items", record matching).
+
+> For **durable fact persistence**, the dedicated layer handles it (`KbStore` / `FactStore` /
+> `DurableKnowledgeBase`) — see [Persistence](/en/persistence). The vector database serves semantic
+> search; the two are orthogonal.
 
 ```ts
 import { VectorGridStore } from '@damba/libxn';
@@ -250,13 +252,16 @@ const hits = await store.searchSimilarPaths('my-kb', queryPath, 5);
                  BinaryConverter         ChainResolver / RuleEngine
                  (prepares data)           (reason over the facts)
                        │                            │
-   free text ─▶ NaturalParser ─▶ KnowledgeBase ─▶ XNeuroneGrid ─▶ QdrantVectorStore
-                (language→fact)    (facts & queries)  (the graph, foundation)  (persistence & search)
+   free text ─▶ NaturalParser ─▶ KnowledgeBase ─▶ XNeuroneGrid ─▶ VectorStore
+                (language→fact)    (facts & queries)  (the graph, foundation)  (similarity search)
+                                          │
+                                   KbStore / FactStore (durable persistence — see Persistence)
 ```
 
 `XNeuroneGrid` is the foundation; `BinaryConverter` lets data in; `KnowledgeBase` and `NaturalParser` add
-meaning; `ChainResolver` and `RuleEngine` reason on top; `QdrantVectorStore` provides durable persistence
-and similarity search.
+meaning; `ChainResolver` and `RuleEngine` reason on top; a `VectorStore` adapter (pgvector, Qdrant…)
+provides similarity search, and the [Persistence](/en/persistence) layer (`DurableKnowledgeBase`)
+provides durable facts.
 
 ::: tip
 The internals of these components (encoding, indexing, algorithm) are not documented publicly. For
