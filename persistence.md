@@ -132,8 +132,19 @@ const store = new CachingKbStore(pgKbStore);   // lecture cache-first, écriture
 
 ## Le `FactStore` en production (Postgres)
 
-Voici l'adaptateur **complet** — tu l'écris **une seule fois**, tu ne le touches plus. C'est ce que
-Damba utilise (vérifié en production sur Neon). Pour MySQL / SQLite : même interface, autre client.
+> 📦 **Le plus simple** : installe le paquet prêt à l'emploi `@damba/libxn-postgres` (miroir de
+> `@damba/libxn-qdrant`). Il fournit `pgSchemaMigrator` / `pgKbStore` / `pgFactStore` /
+> `pgVectorStore` (+ `makeSql`) sur un client `postgres` — rien à écrire.
+>
+> ```ts
+> import { makeSql, pgSchemaMigrator, pgFactStore } from '@damba/libxn-postgres';
+> const sql = makeSql(process.env.DATABASE_URL!);
+> await initLibxnSchema(pgSchemaMigrator(sql));
+> const factStore = pgFactStore(sql);
+> ```
+
+Si tu préfères **comprendre / adapter** (autre base : MySQL, SQLite…), voici l'adaptateur **complet**
+que ce paquet contient — tu l'écris une seule fois. C'est ce que Damba utilise (vérifié sur Neon).
 
 **Les tables** que LibXN déclare (créées par `initLibxnSchema`) : `libxn_fact` (le fait :
 `scope, id, s, p, o, flags, created_at`, + archive `retracted_at`) et `libxn_fact_source` (sa
