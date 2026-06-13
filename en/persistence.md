@@ -11,13 +11,20 @@ built on it — facts, [ledger](/en/transaction-ledger), [access layer](/en/acce
 permissions) — becomes persistent **without touching the rest of your code**.
 
 ```ts
-import { DurableKnowledgeBase } from '@damba/libxn';
+import { DurableKnowledgeBase, InMemoryFactStore, XNeuroneGrid } from '@damba/libxn';
 
+const grid = new XNeuroneGrid(undefined, { headless: true }); // the graph = working memory
+const factStore = new InMemoryFactStore();                    // WHERE to persist (see "Create a store")
 const kb = new DurableKnowledgeBase(grid, factStore, `user:${userId}`);
+
 await kb.hydrate();                        // at startup: reload durable state
 await kb.tell('alice', 'role', 'admin');  // persisted automatically (write-through)
 await kb.flush();                         // ensure it's written before moving on
 ```
+
+The three arguments: the **grid** (the in-memory QPath graph), the **`factStore`** (where facts are
+actually persisted — see just below), and the **scope** (the key that isolates this memory, e.g.
+`user:42`).
 
 And an **atomic transfer** (commit if all succeeds, rollback otherwise):
 
@@ -49,31 +56,50 @@ await store.clear(scope);                      // erase
 | **`FactStore`** | access layer: money, secrets, permissions | **transactional (ACID)** via `tx()` |
 | **`VectorStore`** | similarity search (semantic, paths) | orthogonal — see [Components](/en/components) |
 
-## Setting it up
+## Create a store
 
-**In tests or offline** — in-memory adapters, zero config:
+A **store** is the object that actually persists data; it's what you pass to `DurableKnowledgeBase`
+(the `factStore`) or use on its own (a `KbStore`). The core only defines the *interfaces*
+(`FactStore`, `KbStore`); the implementation depends on where you want to store.
+
+**In tests or offline — shipped by the core, zero config:**
 
 ```ts
-import { InMemoryKbStore, InMemoryFactStore } from '@damba/libxn';
-const facts = new InMemoryFactStore();   // behaves like production
+import { InMemoryFactStore, InMemoryKbStore } from '@damba/libxn';
+
+const factStore = new InMemoryFactStore();   // all in RAM, behaves like production
 ```
 
-**In production** — Postgres (+ pgvector) adapters on the backend. Tables **create themselves** at
-startup: LibXN owns its schema and materializes it.
+**In production — a durable adapter.** The core **carries no database dependency**: the Postgres
+adapter lives in your backend (it holds the connection). On the Damba side it's `PgFactStore`,
+provided by dependency injection — you receive it and use it as-is:
+
+```ts
+// in a backend service (NestJS): the durable adapter is injected
+constructor(private readonly factStore: PgFactStore) {}
+```
+
+To plug in **your** own database, implement the `FactStore` interface
+(`get` / `getAll` / `put` / `retract` / `setFlags` / `tx`) — nothing else changes.
+
+**Tables create themselves.** LibXN owns its schema and materializes it at init (idempotent):
 
 ```ts
 import { initLibxnSchema } from '@damba/libxn';
-await initLibxnSchema(myMigrator); // idempotent — at server init
+await initLibxnSchema(myMigrator);   // at server startup
 ```
 
 **With a cache** (Redis later) — wrap any store, no caller changes:
 
 ```ts
 import { CachingKbStore } from '@damba/libxn';
-const store = new CachingKbStore(pgKbStore); // cache-first reads, write-through writes
+const store = new CachingKbStore(pgKbStore);   // cache-first reads, write-through writes
 ```
 
 ## Use cases
+
+> In these examples, `grid` and `factStore` are created as in the **Create a store** section
+> (in tests, `new XNeuroneGrid(undefined, { headless: true })` and `new InMemoryFactStore()` are enough).
 
 ### 1. An assistant that remembers (durable per-user memory)
 
