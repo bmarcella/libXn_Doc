@@ -67,6 +67,70 @@ const result = await new PingPongReasoner(kb, llm, { tools }).run('What is the w
 result.factsLearned;   // [{ s: 'paris', p: 'weather_of', o: 'rain' }]
 ```
 
+## Reading the KB: the LLM queries the memory
+
+Every tool above *brings in* external data. But a tool can do the opposite: **read the deterministic
+memory** so the LLM answers **from the facts**, never from guesswork. The `run` queries the
+`KnowledgeBase` (`ask`, `askInverse`, `compute`, `askInherited`…) and returns the answer — **without
+memorizing anything** (it's a read: `ephemeral: true`).
+
+```ts
+import { Tool, ToolResult, KnowledgeBase, type AggregateFn } from '@damba/libxn';
+
+/** A READ tool: the LLM queries the conversation memory (no fact written). */
+class KbQueryTool implements Tool {
+  name = 'kb_query';
+  description = 'Query the memory. Args: subject=<s> predicate=<p> (known values), '
+    + 'predicate=<p> object=<o> (subjects), or compute=<p>:<fn> (avg|sum|count|min|max).';
+  ephemeral = true;                       // pure read: nothing to memorize
+
+  constructor(private kb: KnowledgeBase) {}
+
+  async run(input: Record<string, unknown>): Promise<ToolResult> {
+    const s = String(input['subject'] ?? '').trim();
+    const p = String(input['predicate'] ?? '').trim();
+    const o = String(input['object'] ?? '').trim();
+    const compute = String(input['compute'] ?? '').trim();   // e.g. age:avg
+
+    if (compute) {
+      const [pred, fn] = compute.split(':');
+      const v = this.kb.compute({ p: pred }, fn as AggregateFn);
+      return { value: v, text: v === undefined ? '∅' : String(v) };
+    }
+    if (s && p) { const r = this.kb.ask(s, p);        return { value: r, text: r.join(', ') || '∅' }; }
+    if (p && o) { const r = this.kb.askInverse(p, o); return { value: r, text: r.join(', ') || '∅' }; }
+    return { text: 'args: subject=/predicate=/object= or compute=<p>:<fn>' };
+  }
+}
+```
+
+Wire it like any tool; the LLM calls it via a `TOOL` move in PingPong:
+
+```ts
+import { ToolRegistry, PingPongReasoner } from '@damba/libxn';
+
+const tools = new ToolRegistry().register(new KbQueryTool(kb));
+await new PingPongReasoner(kb, llm, { tools }).run('What is the average age of the clients?');
+// The LLM plays: TOOL kb_query | compute=age:avg → the KB computes → grounded answer, zero-token math
+```
+
+> **Read vs bring in**: a **read** tool returns `value`/`text` (nothing is memorized); a tool that
+> **fills a gap** returns `facts` (memorized). You can scope the read by **permissions**
+> (`FactVault` / `FactAccessControl`) so the LLM only sees the session's authorized facts — secrets
+> decrypted only if the session allows it.
+
+### Use-cases
+
+| Assistant | The LLM calls | The KB answers |
+|---|---|---|
+| **Damba Bank** | `kb_query \| subject=account-42 predicate=balance` | the **real** balance (never invented); `compute=deposit:sum` → total deposited |
+| **Law firm** | `kb_query \| subject=case-17 predicate=clause` | the case's clauses — the LLM drafts **from** them |
+| **Doctor** | `kb_query \| subject=patient-9 predicate=allergy` | the real history — no clinical hallucination |
+| **Team memory** | `org_memory \| subject=alice predicate=role` | the organization's **shared** memory (server-side) |
+
+The LLM **understands** the question and **picks** the tool; QPath **executes** and **proves**. The
+answer stays grounded on verifiable facts.
+
 ## Dynamic (volatile) responses
 
 Some responses must **not** be memorized: weather, stock price, time, server status… Writing them into
