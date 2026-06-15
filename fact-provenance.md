@@ -86,6 +86,23 @@ kb.historyOf('marcella');
 l'histoire de ses propres faits — précieux partout où l'historisation compte (santé, juridique,
 finance, conformité).
 
+### Interroger le passé : `factAsOf` / `valueAsOf`
+
+Éditer une valeur (`kb.editFact(s, p, oldO, newO)`) **archive l'ancienne** (avec sa période) et écrit la
+nouvelle — donc chaque version successive est conservée. On interroge alors n'importe quel **instant** :
+
+```ts
+kb.valueAsOf('paris', 'maire', tEn2020);      // → ['x']  (ce qui était vrai à cette date)
+kb.ask('paris', 'maire');                      // → ['y']  (la vérité actuelle)
+
+kb.factAsOf('paris', 'maire', tEn2020);
+// → { asOf: ['x'], current: ['y'], changed: true }
+```
+
+`valueAsOf` combine le **courant** (s'il était déjà vrai à `at`) et l'**archive** (faits dont `[from, to)`
+contient `at`). `factAsOf` ajoute la valeur **actuelle** et un drapeau `changed` — de quoi répondre
+« à l'époque c'était **X** (mais aujourd'hui c'est **Y**) » sans jamais réécrire l'histoire.
+
 ## Les drapeaux : statut épistémique et saillance
 
 Au-delà de la provenance, chaque fait porte deux axes ORTHOGONAUX, posés par l'humain

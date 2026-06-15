@@ -177,6 +177,33 @@ NaturalParser.parseAll('Alice est la mère de Bob. Bob est le père de Carl');
 > even without "?") and from a **reply** ("I think that…") — which it does not store. When in doubt,
 > it prefers to assert nothing rather than invent.
 
+### NaturalRuleParser — from language to rules
+
+The rule counterpart of `NaturalParser`: it turns a conditional sentence into a **rule DSL** ready for
+`RuleEngine.addRuleFromText` (via `RuleFactory.refine`).
+
+**What it's for:** let a human write a rule in plain language, without knowing the `=>` syntax.
+
+**When to use it:** in a knowledge-entry flow, to propose a rule for the human to **validate**.
+
+```ts
+import { NaturalRuleParser } from '@damba/libxn';
+
+NaturalRuleParser.parse('If someone is human then they are mortal');
+// → { dsl: 'X is human => X are mortal', conditions:[…], conclusions:[…] }
+
+NaturalRuleParser.parse('Tout humain a deux jambes');   // universal
+// → { dsl: 'X est humain => X a deux_jambes', … }
+```
+
+Recognizes "**if … then …**" / "si … alors …", the **arrow** (`=>`/`⇒`/`→`) and the **universal**
+"every/all/tout ‹class› …". Handles FR/EN, **negation** (`ne … pas` → `not_*`), **relations**
+("la mère de X" → `mère_de`) and **pronoun coreference** (he/she/they/il/elle → the variable `X`).
+
+> **Conservative**: returns `null` when the structure is ambiguous or there is **no shared variable**
+> between conditions and conclusion (then it isn't a real general rule). Like `NaturalParser`, it
+> prefers to propose nothing rather than invent — the final call goes to `RuleFactory`, then the human.
+
 ---
 
 ## Reasoning
