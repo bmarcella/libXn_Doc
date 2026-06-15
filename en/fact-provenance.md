@@ -86,6 +86,23 @@ kb.historyOf('marcella');
 history of its own facts — invaluable wherever historization matters (healthcare, legal,
 finance, compliance).
 
+### Querying the past: `factAsOf` / `valueAsOf`
+
+Editing a value (`kb.editFact(s, p, oldO, newO)`) **archives the old one** (with its period) and
+writes the new — so every successive version is kept. You can then query any **instant**:
+
+```ts
+kb.valueAsOf('paris', 'mayor', tIn2020);      // → ['x']  (what was true at that date)
+kb.ask('paris', 'mayor');                      // → ['y']  (today's truth)
+
+kb.factAsOf('paris', 'mayor', tIn2020);
+// → { asOf: ['x'], current: ['y'], changed: true }
+```
+
+`valueAsOf` combines the **current** value (if it was already true at `at`) with the **archive**
+(facts whose `[from, to)` contains `at`). `factAsOf` adds the **current** value and a `changed` flag —
+enough to answer "back then it was **X** (but today it's **Y**)" without ever rewriting history.
+
 ## Flags: epistemic status and salience
 
 Beyond provenance, every fact carries two ORTHOGONAL axes, set by a human (never

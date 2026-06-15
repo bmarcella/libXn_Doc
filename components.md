@@ -188,6 +188,34 @@ NaturalParser.parseAll('Alice est la mère de Bob. Bob est le père de Carl');
 > même sans « ? ») et d'une **réplique** (« je pense que… ») — qu'il ne mémorise pas. En cas de
 > doute, il préfère ne rien affirmer plutôt qu'inventer.
 
+### NaturalRuleParser — du langage aux règles
+
+Le pendant de `NaturalParser` pour les **règles** : il transforme une phrase conditionnelle en
+**DSL de règle** prêt pour `RuleEngine.addRuleFromText` (via `RuleFactory.refine`).
+
+**À quoi ça sert :** laisser un humain écrire une règle en clair, sans connaître la syntaxe `=>`.
+
+**Quand l'utiliser :** dans une saisie de connaissances, pour proposer une règle à **valider**.
+
+```ts
+import { NaturalRuleParser } from '@damba/libxn';
+
+NaturalRuleParser.parse('Si une personne est majeure alors elle peut voter');
+// → { dsl: 'X est majeure => X peut voter', conditions:[…], conclusions:[…] }
+
+NaturalRuleParser.parse('Tout humain a deux jambes');   // universelle
+// → { dsl: 'X est humain => X a deux_jambes', … }
+```
+
+Reconnaît « **si … alors …** » / « if … then … », la **flèche** (`=>`/`⇒`/`→`) et l'**universelle**
+« tout/chaque ‹classe› … ». Gère FR/EN, la **négation** (`ne … pas` → `not_*`), les **relations**
+(« la mère de X » → `mère_de`) et la **coréférence pronominale** (il/elle/they → la variable `X`).
+
+> **Conservateur** : renvoie `null` si la structure est ambiguë ou s'il n'y a **pas de variable
+> partagée** condition↔conclusion (ce n'est alors pas une vraie règle générale). Comme le
+> `NaturalParser`, il préfère ne rien proposer plutôt que d'inventer — la décision finale revient à
+> `RuleFactory` puis à l'humain qui valide.
+
 ---
 
 ## Le raisonnement
