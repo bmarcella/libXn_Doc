@@ -137,6 +137,17 @@ comp.profileOf({ entity: 'robert' });   // renvoie le profil de bob — un seul,
 - **Propriétaire-entité vs propriétaire-fait** : l'**entité** pour un profil durable d'une
   personne/chose ; le **fait** pour les métadonnées d'un énoncé précis (provenance, score, horodatage).
 
+> **Pattern produit (Damba)** — toute **ingestion de document** (upload + extraction IA, dossier de
+> connaissances, synthèse de recherche) rattache chaque fait extrait au document, propriétaire-entité
+> `document:<nom>`, en `cascade: true` :
+> ```ts
+> const comp = new CompanionFacts(kb);
+> comp.tag({ entity: 'document:cv.pdf' }, 'bigvai', 'ville', 'paris', { cascade: true });
+> comp.companionsOf({ entity: 'document:cv.pdf' }); // tous les faits de CE document = une « section »
+> ```
+> Résultat : les faits d'un document forment une **section interrogeable** et **cascadent** si le
+> document est rétracté — sans cesser d'être des faits ordinaires (interrogeables, agrégeables).
+
 
 ### NaturalParser — du langage aux faits
 
