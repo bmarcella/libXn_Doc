@@ -407,6 +407,10 @@ dev : add/adjust facts → run → check the trace
    └ promote (release) → prod      ·      revert the release → back to the previous state
 ```
 
+> **A flow can be managed as a unit.** You can promote or revert **a single flow** (`promoteFlow`) or
+> delete a whole one (`deleteFlow`) — not just the entire overlay: a flow's facts are grouped as
+> companions of `flow:<name>`.
+
 ## Evolving the app by a prompt — safely
 
 Since the flow is **facts**, it can be **written by an LLM** from a natural-language request — as long

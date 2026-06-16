@@ -409,6 +409,10 @@ dev : ajouter/ajuster des faits → exécuter → vérifier la trace
    └ promouvoir (release) → prod      ·      annuler la release → retour à l'état précédent
 ```
 
+> **Un flux est gérable comme une unité.** On peut promouvoir ou annuler **un flux précis**
+> (`promoteFlow`) ou en supprimer un entier (`deleteFlow`) — pas seulement toute la surcouche : les
+> faits d'un flux se groupent en compagnons de `flow:<nom>`.
+
 ## Faire évoluer l'app par un prompt — en sûreté
 
 Le flux étant des **faits**, on peut le faire **écrire par un LLM** à partir d'une demande en langage
