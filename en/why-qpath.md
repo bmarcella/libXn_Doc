@@ -54,15 +54,23 @@ capabilities a hash has no native answer for:
 - **Prefix query** — all keys under a given prefix (a range query).
 - **Position-wise similarity** — tolerates a difference **in the middle** of the key (`alice` vs `alike`),
   reusing the same path representation as the exact search.
+- **Model-free deduplication / blocking** — grouping keys by path prefix forms "blocks" of near-candidates.
+  To find the near-duplicates in a dataset you no longer compare every pair (a cost that explodes
+  quadratically) but only **within each block** — a near-linear cost, **with no training and no
+  embeddings**. This is a notion of "roughly the same" a plain hash lacks: it can only do an exact lookup.
 
 On scoped keys (`user:<id>:<field>`), compared to scanning a plain map, the prefix search measures a
 speedup that **grows with size**: ~1.8× at 1,000 keys, ~7× at 10,000, ~292× at 100,000 — a QPath query's
-cost stays roughly flat where the scan grows linearly.
+cost stays roughly flat where the scan grows linearly. Likewise, on blocking-based deduplication, the
+speedup over comparing every pair **grows with size** (e.g. ~12× on 20,000 records), while every
+near-duplicate is still recovered.
 
 > Honest framing: this is the advantage of **any** path-preserving structure over a hash, not a
 > mathematical impossibility elsewhere. What makes it a coherent asset is the **uniform** use of the same
 > QPath path representation across the whole system. Position-wise similarity, for its part, scans the key
-> set (linear cost): reserve it for reasonable sets, or as a second stage after a prefix filter.
+> set (linear cost): reserve it for reasonable sets, or as a second stage after a prefix filter. And
+> blocking only brings together keys that share the **start** of the path: a variation right at the
+> beginning lands in a different block (you then combine several blocking keys).
 
 ## What QPath brings, domain by domain
 

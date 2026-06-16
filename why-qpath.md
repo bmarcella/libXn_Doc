@@ -55,16 +55,24 @@ système, on obtient « gratuitement » des capacités de **recall flou** qu'un 
 - **Requête de préfixe** — toutes les clés sous un préfixe donné (requête de plage).
 - **Similarité par position** — tolère une différence **au milieu** de la clé (`alice` vs `alike`), en
   réutilisant la même représentation de chemin que la recherche exacte.
+- **Déduplication / blocking sans modèle** — regrouper les clés par préfixe de chemin forme des « blocs »
+  de quasi-candidats. Pour trouver les quasi-doublons d'un jeu de données, on ne compare plus toutes les
+  paires (coût qui explose quadratiquement) mais seulement **à l'intérieur de chaque bloc** — un coût
+  quasi linéaire, **sans entraînement ni embeddings**. C'est une notion d'« à peu près pareil » qu'un
+  hash classique n'a pas : il ne sait faire qu'un lookup exact.
 
 Sur des clés scopées (`user:<id>:<champ>`), comparée au balayage d'une table classique, la recherche par
 préfixe mesure une accélération qui **croît avec la taille** : ~1,8× à 1 000 clés, ~7× à 10 000, ~292× à
-100 000 — le coût d'une requête QPath reste à peu près plat là où le balayage croît linéairement.
+100 000 — le coût d'une requête QPath reste à peu près plat là où le balayage croît linéairement. De même,
+sur la déduplication par blocking, l'accélération face à la comparaison de toutes les paires **croît avec
+la taille** (par ex. ~12× sur 20 000 enregistrements), tous les quasi-doublons étant retrouvés.
 
 > Cadrage honnête : c'est l'avantage de **toute** structure qui préserve les chemins face à un hash, pas
 > une impossibilité mathématique ailleurs. Ce qui en fait un atout cohérent, c'est l'usage **uniforme** de
 > la même représentation de chemin QPath dans tout le système. La similarité par position, elle, balaie le
 > jeu de clés (coût linéaire) : à réserver aux ensembles raisonnables, ou en second étage après un filtrage
-> par préfixe.
+> par préfixe. Et le blocking ne rapproche que les clés qui partagent le **début** du chemin : une variation
+> tout au début passe dans un autre bloc (on combine alors plusieurs clés de blocking).
 
 ## Ce que QPath apporte, domaine par domaine
 
