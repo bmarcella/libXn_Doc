@@ -4,11 +4,14 @@ Un mode où **le comportement de l'application vit dans des faits**, pas dans du
 de contrôle — conditions, aiguillages, boucles, actions — est stocké comme des faits ordinaires, et
 un exécuteur les parcourt. **Ajouter un fait = changer le comportement, sans redéployer.**
 
+Les mots-clés de flux sont en **anglais** (universels) : `entry`, `if` / `then` / `else`,
+`switch` / `case.` / `default`, `for_each` / `body` / `max_iter`, `action` / `arg.` / `next`.
+
 ```
-accueil entree verif
-verif si "user est premium"
-verif alors message_premium
-verif sinon message_basique
+accueil entry verif
+verif if "user est premium"
+verif then message_premium
+verif else message_basique
 message_premium action notifier
 message_premium arg.texte "Bienvenue, membre premium."
 ```
@@ -20,10 +23,10 @@ vers la branche premium. Le tout **déterministe, tracé, à 0 token**.
 
 | Construct | Rôle | Exemple |
 |-----------|------|---------|
-| **Condition** | brancher selon un fait | `si "user est premium"` → `alors` / `sinon` |
-| **Condition numérique** | comparer une valeur | `si "user age >= 18"` |
-| **Aiguillage** (switch) | router selon une valeur | `switch "user plan"` → `cas.gold` / `défaut` |
-| **Boucle bornée** | itérer sur une collection | `pour_chaque "panier article"`, `max_iter 50` |
+| **Condition** | brancher selon un fait | `if "user est premium"` → `then` / `else` |
+| **Condition numérique** | comparer une valeur | `if "user age >= 18"` |
+| **Aiguillage** (switch) | router selon une valeur | `switch "user plan"` → `case.gold` / `default` |
+| **Boucle bornée** | itérer sur une collection | `for_each "panier article"`, `max_iter 50` |
 | **Action** | déclencher une capacité | `action notifier` + arguments |
 
 Chaque exécution rend sa **trace complète** — quelle étape, déclenchée par quel fait — comme tout
@@ -33,11 +36,11 @@ le reste de la mémoire : auditable.
 
 Tout est triplet ordinaire ; seuls les **prédicats** sont conventionnels :
 
-- `entree` — le point de départ d'un flux ;
-- `si` / `alors` / `sinon` — la condition (évaluée par une **lecture de la mémoire**, donc 0 token) ;
-- `switch` / `cas.<valeur>` / `défaut` — l'aiguillage ;
-- `pour_chaque` / `corps` / `max_iter` — la boucle (toujours **bornée**) ;
-- `action` / `arg.<clé>` / `puis` — l'action et la suite.
+- `entry` — le point de départ d'un flux ;
+- `if` / `then` / `else` — la condition (évaluée par une **lecture de la mémoire**, donc 0 token) ;
+- `switch` / `case.<valeur>` / `default` — l'aiguillage ;
+- `for_each` / `body` / `max_iter` — la boucle (toujours **bornée**) ;
+- `action` / `arg.<clé>` / `next` — l'action et la suite.
 
 Les **actions** sont la seule brique à effet de bord : elles déclenchent un **outil** déclaré
 (recherche, calcul, envoi…). Ajouter une étape recompose des capacités existantes ; elle n'en
@@ -64,10 +67,10 @@ const tools = new ToolRegistry().register({
 
 // 2. La PROD : le flux vit dans des faits (condition → action)
 const prod = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
-await prod.tell('accueil', 'entree', 'verif');
-await prod.tell('verif', 'si', 'user est premium');
-await prod.tell('verif', 'alors', 'msg_premium');
-await prod.tell('verif', 'sinon', 'msg_basique');
+await prod.tell('accueil', 'entry', 'verif');
+await prod.tell('verif', 'if', 'user est premium');
+await prod.tell('verif', 'then', 'msg_premium');
+await prod.tell('verif', 'else', 'msg_basique');
 await prod.tell('msg_premium', 'action', 'log');
 await prod.tell('msg_premium', 'arg.msg', 'Bienvenue, membre premium.');
 await prod.tell('msg_basique', 'action', 'log');
@@ -99,7 +102,7 @@ Chaque pas de la trace porte son **déclencheur** (le fait qui l'a routé) ; l'e
 Pour chaque construct : un **problème concret**, le **code TypeScript** qui le résout, et le
 **résultat**. (Les imports du premier exemple valent pour les suivants.)
 
-### 1. Séquence — enchaîner des étapes (`puis`)
+### 1. Séquence — enchaîner des étapes (`next`)
 
 **Problème.** À l'inscription : créer le compte, envoyer l'email de bienvenue, puis journaliser —
 dans cet ordre. Et pouvoir **insérer une étape** (un essai gratuit) sans toucher au code.
@@ -114,28 +117,28 @@ const tools = new ToolRegistry()
   .register({ name: 'log',   description: 'Journalise',      run: async (i) => ({ text: String(i['msg']) }) });
 
 // la séquence, en faits
-await kb.tell('inscription', 'entree', 'creer');
-await kb.tell('creer', 'action', 'db');        await kb.tell('creer', 'puis', 'bienvenue');
+await kb.tell('inscription', 'entry', 'creer');
+await kb.tell('creer', 'action', 'db');        await kb.tell('creer', 'next', 'bienvenue');
 await kb.tell('bienvenue', 'action', 'email'); await kb.tell('bienvenue', 'arg.modele', 'welcome');
-await kb.tell('bienvenue', 'puis', 'journal');
+await kb.tell('bienvenue', 'next', 'journal');
 await kb.tell('journal', 'action', 'log');     await kb.tell('journal', 'arg.msg', 'Nouvel inscrit');
 
 await new FlowRunner(kb, tools).run('inscription');
 // → db → email:welcome → log("Nouvel inscrit")
 
 // INSÉRER "essai_gratuit" entre creer et bienvenue, sans toucher au code :
-kb.retract('creer', 'puis', 'bienvenue');          // on débranche l'ancien lien
-await kb.tell('creer', 'puis', 'essai_gratuit');
-await kb.tell('essai_gratuit', 'action', 'db');    await kb.tell('essai_gratuit', 'puis', 'bienvenue');
+kb.retract('creer', 'next', 'bienvenue');          // on débranche l'ancien lien
+await kb.tell('creer', 'next', 'essai_gratuit');
+await kb.tell('essai_gratuit', 'action', 'db');    await kb.tell('essai_gratuit', 'next', 'bienvenue');
 
 await new FlowRunner(kb, tools).run('inscription');
 // → db → db(essai) → email:welcome → log(...)   ← une étape ajoutée par 3 faits
 ```
 
-**Résultat.** L'ordre vit dans les faits `puis` ; insérer ou retirer une étape, c'est quelques
+**Résultat.** L'ordre vit dans les faits `next` ; insérer ou retirer une étape, c'est quelques
 `tell` / `retract`, jamais un redéploiement.
 
-### 2. Condition — brancher sur un fait (`si` / `alors` / `sinon`)
+### 2. Condition — brancher sur un fait (`if` / `then` / `else`)
 
 **Problème.** Réserver le panneau admin aux admins (sinon une 403), et pouvoir **donner ou retirer
 le droit à chaud**.
@@ -147,9 +150,9 @@ const ui = new ToolRegistry().register({
   name: 'afficher', description: 'Rend une vue', run: async (i) => ({ text: `vue:${i['vue']}` }),
 });
 
-await kb.tell('acces', 'entree', 'porte');
-await kb.tell('porte', 'si', 'user role admin');
-await kb.tell('porte', 'alors', 'admin'); await kb.tell('porte', 'sinon', 'refus');
+await kb.tell('acces', 'entry', 'porte');
+await kb.tell('porte', 'if', 'user role admin');
+await kb.tell('porte', 'then', 'admin'); await kb.tell('porte', 'else', 'refus');
 await kb.tell('admin', 'action', 'afficher'); await kb.tell('admin', 'arg.vue', 'admin');
 await kb.tell('refus', 'action', 'afficher'); await kb.tell('refus', 'arg.vue', '403');
 
@@ -160,13 +163,13 @@ kb.retract('user', 'role', 'admin');         // on le RETIRE
 await new FlowRunner(kb, ui).run('acces');   // → vue:403
 ```
 
-**Résultat.** `si "user role admin"` lit la mémoire (0 token) ; l'accès s'ouvre ou se coupe en
-posant ou rétractant un fait. Forme courte `si "user actif"` = vrai si `(user, actif)` a une valeur.
+**Résultat.** `if "user role admin"` lit la mémoire (0 token) ; l'accès s'ouvre ou se coupe en
+posant ou rétractant un fait. Forme courte `if "user actif"` = vrai si `(user, actif)` a une valeur.
 
-#### Variante « sinon si » (else-if) — chaîner les conditions
+#### Variante « else-if » — chaîner les conditions
 
 **Problème.** Remise par paliers : or → 20 %, sinon argent → 10 %, sinon plein tarif. Pas de mot-clé
-dédié : le `sinon` **pointe vers une autre condition**.
+dédié : le `else` **pointe vers une autre condition**.
 
 ```ts
 const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
@@ -174,11 +177,11 @@ const tools = new ToolRegistry().register({
   name: 'remise', description: 'Applique une remise', run: async (i) => ({ text: `-${i['taux']}%` }),
 });
 
-await kb.tell('prix', 'entree', 'or');
-await kb.tell('or', 'si', 'user niveau or');
-await kb.tell('or', 'alors', 'r20'); await kb.tell('or', 'sinon', 'argent');     // sinon → AUTRE condition
-await kb.tell('argent', 'si', 'user niveau argent');
-await kb.tell('argent', 'alors', 'r10'); await kb.tell('argent', 'sinon', 'plein');
+await kb.tell('prix', 'entry', 'or');
+await kb.tell('or', 'if', 'user niveau or');
+await kb.tell('or', 'then', 'r20'); await kb.tell('or', 'else', 'argent');     // else → AUTRE condition
+await kb.tell('argent', 'if', 'user niveau argent');
+await kb.tell('argent', 'then', 'r10'); await kb.tell('argent', 'else', 'plein');
 await kb.tell('r20', 'action', 'remise');   await kb.tell('r20', 'arg.taux', '20');
 await kb.tell('r10', 'action', 'remise');   await kb.tell('r10', 'arg.taux', '10');
 await kb.tell('plein', 'action', 'remise'); await kb.tell('plein', 'arg.taux', '0');
@@ -187,10 +190,10 @@ await kb.tell('user', 'niveau', 'argent');
 await new FlowRunner(kb, tools).run('prix');   // or ? non → argent ? oui → -10%
 ```
 
-**Résultat.** « si or … sinon si argent … sinon plein tarif » par simple chaînage. Règle de choix :
-`switch` quand on teste la **même valeur** ; sinon-si quand les conditions **diffèrent**.
+**Résultat.** « if or … else-if argent … else plein tarif » par simple chaînage. Règle de choix :
+`switch` quand on teste la **même valeur** ; else-if quand les conditions **diffèrent**.
 
-### 3. Condition numérique — comparer une valeur (`si "s p OP n"`)
+### 3. Condition numérique — comparer une valeur (`if "s p OP n"`)
 
 **Problème.** Livraison gratuite au-delà de 50 € ; le **seuil** doit pouvoir changer sans redéploy.
 
@@ -200,25 +203,25 @@ const tools = new ToolRegistry().register({
   name: 'frais', description: 'Applique des frais', run: async (i) => ({ text: `${i['montant']} €` }),
 });
 
-await kb.tell('checkout', 'entree', 'seuil');
+await kb.tell('checkout', 'entry', 'seuil');
 await kb.tell('panier', 'total', '64');
-await kb.tell('seuil', 'si', 'panier total >= 50');     // le seuil vit DANS un fait
-await kb.tell('seuil', 'alors', 'gratuit'); await kb.tell('seuil', 'sinon', 'payant');
+await kb.tell('seuil', 'if', 'panier total >= 50');     // le seuil vit DANS un fait
+await kb.tell('seuil', 'then', 'gratuit'); await kb.tell('seuil', 'else', 'payant');
 await kb.tell('gratuit', 'action', 'frais'); await kb.tell('gratuit', 'arg.montant', '0');
 await kb.tell('payant', 'action', 'frais');  await kb.tell('payant', 'arg.montant', '5.90');
 
 await new FlowRunner(kb, tools).run('checkout');   // 64 >= 50 → 0 € (gratuit)
 
 // changer le SEUIL sans redéploy : on remplace le fait condition
-kb.retract('seuil', 'si', 'panier total >= 50');
-await kb.tell('seuil', 'si', 'panier total >= 75');
+kb.retract('seuil', 'if', 'panier total >= 50');
+await kb.tell('seuil', 'if', 'panier total >= 75');
 await new FlowRunner(kb, tools).run('checkout');   // 64 >= 75 ? non → 5.90 € (payant)
 ```
 
 **Résultat.** Opérateurs `>` `>=` `<` `<=` `=` `!=`. Le seuil est une **donnée** → un gestionnaire
-l'ajuste à chaud. Autres cas : `si "user age >= 18"`, `si "stock quantite < 5"`.
+l'ajuste à chaud. Autres cas : `if "user age >= 18"`, `if "stock quantite < 5"`.
 
-### 4. Aiguillage — router sur une valeur (`switch` / `cas.<v>` / `défaut`)
+### 4. Aiguillage — router sur une valeur (`switch` / `case.<v>` / `default`)
 
 **Problème.** Aiguiller un ticket vers la bonne file selon sa priorité, et **ajouter une catégorie**
 sans toucher l'exécuteur.
@@ -229,11 +232,11 @@ const tools = new ToolRegistry().register({
   name: 'affecter', description: 'Affecte à une équipe', run: async (i) => ({ text: `→ ${i['equipe']}` }),
 });
 
-await kb.tell('support', 'entree', 'triage');
+await kb.tell('support', 'entry', 'triage');
 await kb.tell('ticket', 'priorite', 'haute');
 await kb.tell('triage', 'switch', 'ticket priorite');
-await kb.tell('triage', 'cas.haute', 'urgent'); await kb.tell('triage', 'cas.basse', 'differe');
-await kb.tell('triage', 'défaut', 'n1');
+await kb.tell('triage', 'case.haute', 'urgent'); await kb.tell('triage', 'case.basse', 'differe');
+await kb.tell('triage', 'default', 'n1');
 await kb.tell('urgent', 'action', 'affecter');  await kb.tell('urgent', 'arg.equipe', 'astreinte');
 await kb.tell('differe', 'action', 'affecter'); await kb.tell('differe', 'arg.equipe', 'backlog');
 await kb.tell('n1', 'action', 'affecter');      await kb.tell('n1', 'arg.equipe', 'support_n1');
@@ -241,16 +244,16 @@ await kb.tell('n1', 'action', 'affecter');      await kb.tell('n1', 'arg.equipe'
 await new FlowRunner(kb, tools).run('support');   // priorite=haute → astreinte
 
 // AJOUTER une catégorie "critique", sans toucher l'exécuteur :
-await kb.tell('triage', 'cas.critique', 'escalade');
+await kb.tell('triage', 'case.critique', 'escalade');
 await kb.tell('escalade', 'action', 'affecter'); await kb.tell('escalade', 'arg.equipe', 'direction');
 kb.retract('ticket', 'priorite', 'haute'); await kb.tell('ticket', 'priorite', 'critique');
 await new FlowRunner(kb, tools).run('support');   // priorite=critique → direction
 ```
 
-**Résultat.** La valeur choisit `cas.<valeur>` ; sans correspondance → `défaut`. Une nouvelle
+**Résultat.** La valeur choisit `case.<valeur>` ; sans correspondance → `default`. Une nouvelle
 catégorie = deux faits, zéro code.
 
-### 5. Boucle bornée — itérer sur une collection (`pour_chaque` / `corps` / `max_iter`)
+### 5. Boucle bornée — itérer sur une collection (`for_each` / `body` / `max_iter`)
 
 **Problème.** Envoyer une campagne à une liste, mais **plafonner** pour éviter tout sur-envoi
 (anti-emballement).
@@ -263,10 +266,10 @@ const tools = new ToolRegistry().register({
   run: async (i) => { sent.push(String(i['a'])); return { text: `→ ${i['a']}` }; },
 });
 
-await kb.tell('campagne', 'entree', 'diffuser');
+await kb.tell('campagne', 'entry', 'diffuser');
 for (const d of ['alice', 'bob', 'carol']) { await kb.tell('liste', 'destinataire', d); }
-await kb.tell('diffuser', 'pour_chaque', 'liste destinataire');
-await kb.tell('diffuser', 'corps', 'envoyer');
+await kb.tell('diffuser', 'for_each', 'liste destinataire');
+await kb.tell('diffuser', 'body', 'envoyer');
 await kb.tell('diffuser', 'max_iter', '2');          // PLAFOND : 2 au maximum
 await kb.tell('envoyer', 'action', 'email'); await kb.tell('envoyer', 'arg.a', '$item');
 
@@ -274,7 +277,7 @@ await new FlowRunner(kb, tools).run('campagne');
 console.log(sent);   // ['alice', 'bob']  ← 2 sur 3, jamais d'emballement
 ```
 
-**Résultat.** `pour_chaque` itère sur `(liste, destinataire)`, `$item` = l'élément courant,
+**Résultat.** `for_each` itère sur `(liste, destinataire)`, `$item` = l'élément courant,
 `max_iter` **borne** → arrêt garanti. Cas voisins : relancer les paniers abandonnés, vider une file.
 
 ### 6. Action — déclencher une capacité (`action` + `arg.*`)
@@ -292,7 +295,7 @@ const tools = new ToolRegistry().register({
   },
 });
 
-await kb.tell('commande_payee', 'entree', 'notifier');
+await kb.tell('commande_payee', 'entry', 'notifier');
 await kb.tell('notifier', 'action', 'http_post');
 await kb.tell('notifier', 'arg.url', 'https://erp.interne/commandes');
 await kb.tell('notifier', 'arg.corps', 'commande #4187 payée');
@@ -321,16 +324,16 @@ await kb.tell('commande', 'moyen_paiement', 'carte');
 await kb.tell('commande', 'article', 'sku-001'); await kb.tell('commande', 'article', 'sku-002');
 
 // le flux
-await kb.tell('cmd', 'entree', 'verif');
-await kb.tell('verif', 'si', 'stock disponible oui');
-await kb.tell('verif', 'alors', 'paiement'); await kb.tell('verif', 'sinon', 'rupture');
+await kb.tell('cmd', 'entry', 'verif');
+await kb.tell('verif', 'if', 'stock disponible oui');
+await kb.tell('verif', 'then', 'paiement'); await kb.tell('verif', 'else', 'rupture');
 await kb.tell('paiement', 'switch', 'commande moyen_paiement');
-await kb.tell('paiement', 'cas.carte', 'capture'); await kb.tell('paiement', 'défaut', 'capture');
+await kb.tell('paiement', 'case.carte', 'capture'); await kb.tell('paiement', 'default', 'capture');
 await kb.tell('capture', 'action', 'payer'); await kb.tell('capture', 'arg.fournisseur', 'stripe');
-await kb.tell('capture', 'puis', 'reserver');
-await kb.tell('reserver', 'pour_chaque', 'commande article');
-await kb.tell('reserver', 'corps', 'dec'); await kb.tell('reserver', 'max_iter', '200');
-await kb.tell('reserver', 'puis', 'confirmer');
+await kb.tell('capture', 'next', 'reserver');
+await kb.tell('reserver', 'for_each', 'commande article');
+await kb.tell('reserver', 'body', 'dec'); await kb.tell('reserver', 'max_iter', '200');
+await kb.tell('reserver', 'next', 'confirmer');
 await kb.tell('dec', 'action', 'stock_moins'); await kb.tell('dec', 'arg.sku', '$item');
 await kb.tell('confirmer', 'action', 'email'); await kb.tell('confirmer', 'arg.modele', 'confirmation');
 await kb.tell('rupture', 'action', 'email');   await kb.tell('rupture', 'arg.modele', 'rupture_stock');
@@ -345,11 +348,11 @@ const trace = await new FlowRunner(kb, tools).run('cmd');
 
 | Besoin | Construct | Prédicats |
 |--------|-----------|-----------|
-| Enchaîner des étapes | Séquence | `puis` |
-| Décider selon un fait présent | Condition | `si "s p o"` · `alors` · `sinon` |
-| Décider selon un seuil chiffré | Condition numérique | `si "s p >= n"` |
-| Router parmi plusieurs cas | Aiguillage | `switch` · `cas.<v>` · `défaut` |
-| Répéter sur une liste (plafonné) | Boucle bornée | `pour_chaque` · `corps` · `max_iter` |
+| Enchaîner des étapes | Séquence | `next` |
+| Décider selon un fait présent | Condition | `if "s p o"` · `then` · `else` |
+| Décider selon un seuil chiffré | Condition numérique | `if "s p >= n"` |
+| Router parmi plusieurs cas | Aiguillage | `switch` · `case.<v>` · `default` |
+| Répéter sur une liste (plafonné) | Boucle bornée | `for_each` · `body` · `max_iter` |
 | Agir sur le monde | Action | `action` · `arg.<k>` |
 
 ## Tester sans risque : dev / prod
