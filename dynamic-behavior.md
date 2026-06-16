@@ -96,167 +96,250 @@ Chaque pas de la trace porte son **déclencheur** (le fait qui l'a routé) ; l'e
 
 ## Exemples détaillés par flot de contrôle
 
-Pour chaque construct : un **cas d'usage réel**, les **faits** qui le définissent (un triplet par
-ligne), et le **comportement** obtenu.
+Pour chaque construct : un **problème concret**, le **code TypeScript** qui le résout, et le
+**résultat**. (Les imports du premier exemple valent pour les suivants.)
 
 ### 1. Séquence — enchaîner des étapes (`puis`)
 
-**Cas d'usage : inscription d'un utilisateur.** Trois étapes qui s'enchaînent.
+**Problème.** À l'inscription : créer le compte, envoyer l'email de bienvenue, puis journaliser —
+dans cet ordre. Et pouvoir **insérer une étape** (un essai gratuit) sans toucher au code.
 
-```
-inscription entree creer_compte
-creer_compte action db_inserer
-creer_compte arg.table "users"
-creer_compte puis envoyer_bienvenue
-envoyer_bienvenue action email
-envoyer_bienvenue arg.modele "welcome"
-envoyer_bienvenue puis journaliser
-journaliser action log
-journaliser arg.msg "Nouvel inscrit"
+```ts
+import { XNeuroneGrid, KnowledgeBase, FlowRunner, ToolRegistry } from '@damba/libxn';
+
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const tools = new ToolRegistry()
+  .register({ name: 'db',    description: 'Écrit en base',   run: async () => ({ text: 'compte créé' }) })
+  .register({ name: 'email', description: 'Envoie un email', run: async (i) => ({ text: `email:${i['modele']}` }) })
+  .register({ name: 'log',   description: 'Journalise',      run: async (i) => ({ text: String(i['msg']) }) });
+
+// la séquence, en faits
+await kb.tell('inscription', 'entree', 'creer');
+await kb.tell('creer', 'action', 'db');        await kb.tell('creer', 'puis', 'bienvenue');
+await kb.tell('bienvenue', 'action', 'email'); await kb.tell('bienvenue', 'arg.modele', 'welcome');
+await kb.tell('bienvenue', 'puis', 'journal');
+await kb.tell('journal', 'action', 'log');     await kb.tell('journal', 'arg.msg', 'Nouvel inscrit');
+
+await new FlowRunner(kb, tools).run('inscription');
+// → db → email:welcome → log("Nouvel inscrit")
+
+// INSÉRER "essai_gratuit" entre creer et bienvenue, sans toucher au code :
+kb.retract('creer', 'puis', 'bienvenue');          // on débranche l'ancien lien
+await kb.tell('creer', 'puis', 'essai_gratuit');
+await kb.tell('essai_gratuit', 'action', 'db');    await kb.tell('essai_gratuit', 'puis', 'bienvenue');
+
+await new FlowRunner(kb, tools).run('inscription');
+// → db → db(essai) → email:welcome → log(...)   ← une étape ajoutée par 3 faits
 ```
 
-→ `db_inserer` puis `email` puis `log`. Insérer une étape (ex. `creer_essai_gratuit`) entre deux,
-c'est ajouter un fait `puis` — sans toucher au code.
+**Résultat.** L'ordre vit dans les faits `puis` ; insérer ou retirer une étape, c'est quelques
+`tell` / `retract`, jamais un redéploiement.
 
 ### 2. Condition — brancher sur un fait (`si` / `alors` / `sinon`)
 
-**Cas d'usage : accès à une fonctionnalité réservée.** « L'utilisateur est-il admin ? »
+**Problème.** Réserver le panneau admin aux admins (sinon une 403), et pouvoir **donner ou retirer
+le droit à chaud**.
 
-```
-verif_acces entree porte
-porte si "user role admin"
-porte alors panneau_admin
-porte sinon refus
-panneau_admin action afficher
-panneau_admin arg.vue "admin"
-refus action afficher
-refus arg.vue "403"
+```ts
+// (mêmes imports qu'au-dessus)
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const ui = new ToolRegistry().register({
+  name: 'afficher', description: 'Rend une vue', run: async (i) => ({ text: `vue:${i['vue']}` }),
+});
+
+await kb.tell('acces', 'entree', 'porte');
+await kb.tell('porte', 'si', 'user role admin');
+await kb.tell('porte', 'alors', 'admin'); await kb.tell('porte', 'sinon', 'refus');
+await kb.tell('admin', 'action', 'afficher'); await kb.tell('admin', 'arg.vue', 'admin');
+await kb.tell('refus', 'action', 'afficher'); await kb.tell('refus', 'arg.vue', '403');
+
+await new FlowRunner(kb, ui).run('acces');   // → vue:403   (pas admin)
+await kb.tell('user', 'role', 'admin');      // on DONNE le droit, à chaud
+await new FlowRunner(kb, ui).run('acces');   // → vue:admin
+kb.retract('user', 'role', 'admin');         // on le RETIRE
+await new FlowRunner(kb, ui).run('acces');   // → vue:403
 ```
 
-→ `si "user role admin"` est vrai si la mémoire contient le fait `user role admin`. Donner ou retirer
-ce fait ouvre ou coupe l'accès **à chaud**. Forme courte `si "user actif"` = vrai si `(user, actif)`
-a au moins une valeur.
+**Résultat.** `si "user role admin"` lit la mémoire (0 token) ; l'accès s'ouvre ou se coupe en
+posant ou rétractant un fait. Forme courte `si "user actif"` = vrai si `(user, actif)` a une valeur.
+
+#### Variante « sinon si » (else-if) — chaîner les conditions
+
+**Problème.** Remise par paliers : or → 20 %, sinon argent → 10 %, sinon plein tarif. Pas de mot-clé
+dédié : le `sinon` **pointe vers une autre condition**.
+
+```ts
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const tools = new ToolRegistry().register({
+  name: 'remise', description: 'Applique une remise', run: async (i) => ({ text: `-${i['taux']}%` }),
+});
+
+await kb.tell('prix', 'entree', 'or');
+await kb.tell('or', 'si', 'user niveau or');
+await kb.tell('or', 'alors', 'r20'); await kb.tell('or', 'sinon', 'argent');     // sinon → AUTRE condition
+await kb.tell('argent', 'si', 'user niveau argent');
+await kb.tell('argent', 'alors', 'r10'); await kb.tell('argent', 'sinon', 'plein');
+await kb.tell('r20', 'action', 'remise');   await kb.tell('r20', 'arg.taux', '20');
+await kb.tell('r10', 'action', 'remise');   await kb.tell('r10', 'arg.taux', '10');
+await kb.tell('plein', 'action', 'remise'); await kb.tell('plein', 'arg.taux', '0');
+
+await kb.tell('user', 'niveau', 'argent');
+await new FlowRunner(kb, tools).run('prix');   // or ? non → argent ? oui → -10%
+```
+
+**Résultat.** « si or … sinon si argent … sinon plein tarif » par simple chaînage. Règle de choix :
+`switch` quand on teste la **même valeur** ; sinon-si quand les conditions **diffèrent**.
 
 ### 3. Condition numérique — comparer une valeur (`si "s p OP n"`)
 
-**Cas d'usage : règle métier — livraison gratuite au-delà d'un seuil.**
+**Problème.** Livraison gratuite au-delà de 50 € ; le **seuil** doit pouvoir changer sans redéploy.
 
-```
-checkout entree seuil_livraison
-panier total 64
-seuil_livraison si "panier total >= 50"
-seuil_livraison alors livraison_gratuite
-seuil_livraison sinon livraison_payante
-livraison_gratuite action appliquer_frais
-livraison_gratuite arg.montant "0"
-livraison_payante action appliquer_frais
-livraison_payante arg.montant "5.90"
+```ts
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const tools = new ToolRegistry().register({
+  name: 'frais', description: 'Applique des frais', run: async (i) => ({ text: `${i['montant']} €` }),
+});
+
+await kb.tell('checkout', 'entree', 'seuil');
+await kb.tell('panier', 'total', '64');
+await kb.tell('seuil', 'si', 'panier total >= 50');     // le seuil vit DANS un fait
+await kb.tell('seuil', 'alors', 'gratuit'); await kb.tell('seuil', 'sinon', 'payant');
+await kb.tell('gratuit', 'action', 'frais'); await kb.tell('gratuit', 'arg.montant', '0');
+await kb.tell('payant', 'action', 'frais');  await kb.tell('payant', 'arg.montant', '5.90');
+
+await new FlowRunner(kb, tools).run('checkout');   // 64 >= 50 → 0 € (gratuit)
+
+// changer le SEUIL sans redéploy : on remplace le fait condition
+kb.retract('seuil', 'si', 'panier total >= 50');
+await kb.tell('seuil', 'si', 'panier total >= 75');
+await new FlowRunner(kb, tools).run('checkout');   // 64 >= 75 ? non → 5.90 € (payant)
 ```
 
-→ Opérateurs disponibles : `>` `>=` `<` `<=` `=` `!=`. Le seuil (`50`) vit dans un fait : un
-gestionnaire le change sans redéploy. Autres exemples : `si "user age >= 18"`, `si "stock quantite < 5"`.
+**Résultat.** Opérateurs `>` `>=` `<` `<=` `=` `!=`. Le seuil est une **donnée** → un gestionnaire
+l'ajuste à chaud. Autres cas : `si "user age >= 18"`, `si "stock quantite < 5"`.
 
 ### 4. Aiguillage — router sur une valeur (`switch` / `cas.<v>` / `défaut`)
 
-**Cas d'usage : triage d'un ticket support par priorité.**
+**Problème.** Aiguiller un ticket vers la bonne file selon sa priorité, et **ajouter une catégorie**
+sans toucher l'exécuteur.
 
-```
-support entree triage
-ticket priorite haute
-triage switch "ticket priorite"
-triage cas.haute file_urgente
-triage cas.moyenne file_standard
-triage cas.basse file_differee
-triage défaut file_standard
-file_urgente action affecter
-file_urgente arg.equipe "astreinte"
-file_standard action affecter
-file_standard arg.equipe "support_n1"
-file_differee action affecter
-file_differee arg.equipe "backlog"
+```ts
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const tools = new ToolRegistry().register({
+  name: 'affecter', description: 'Affecte à une équipe', run: async (i) => ({ text: `→ ${i['equipe']}` }),
+});
+
+await kb.tell('support', 'entree', 'triage');
+await kb.tell('ticket', 'priorite', 'haute');
+await kb.tell('triage', 'switch', 'ticket priorite');
+await kb.tell('triage', 'cas.haute', 'urgent'); await kb.tell('triage', 'cas.basse', 'differe');
+await kb.tell('triage', 'défaut', 'n1');
+await kb.tell('urgent', 'action', 'affecter');  await kb.tell('urgent', 'arg.equipe', 'astreinte');
+await kb.tell('differe', 'action', 'affecter'); await kb.tell('differe', 'arg.equipe', 'backlog');
+await kb.tell('n1', 'action', 'affecter');      await kb.tell('n1', 'arg.equipe', 'support_n1');
+
+await new FlowRunner(kb, tools).run('support');   // priorite=haute → astreinte
+
+// AJOUTER une catégorie "critique", sans toucher l'exécuteur :
+await kb.tell('triage', 'cas.critique', 'escalade');
+await kb.tell('escalade', 'action', 'affecter'); await kb.tell('escalade', 'arg.equipe', 'direction');
+kb.retract('ticket', 'priorite', 'haute'); await kb.tell('ticket', 'priorite', 'critique');
+await new FlowRunner(kb, tools).run('support');   // priorite=critique → direction
 ```
 
-→ La valeur de `(ticket, priorite)` choisit la branche `cas.<valeur>` ; sans correspondance, on
-retombe sur `défaut`. Ajouter une catégorie = ajouter un fait `cas.critique …`, sans toucher l'exécuteur.
+**Résultat.** La valeur choisit `cas.<valeur>` ; sans correspondance → `défaut`. Une nouvelle
+catégorie = deux faits, zéro code.
 
 ### 5. Boucle bornée — itérer sur une collection (`pour_chaque` / `corps` / `max_iter`)
 
-**Cas d'usage : diffuser une campagne, plafonnée pour éviter tout emballement.**
+**Problème.** Envoyer une campagne à une liste, mais **plafonner** pour éviter tout sur-envoi
+(anti-emballement).
 
-```
-campagne entree diffuser
-liste destinataire alice
-liste destinataire bob
-liste destinataire carol
-diffuser pour_chaque "liste destinataire"
-diffuser corps envoyer
-diffuser max_iter 100
-diffuser puis bilan
-envoyer action email
-envoyer arg.a "$item"
-envoyer arg.modele "promo"
-bilan action log
-bilan arg.msg "Campagne terminée"
+```ts
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const sent: string[] = [];
+const tools = new ToolRegistry().register({
+  name: 'email', description: 'Envoie un email',
+  run: async (i) => { sent.push(String(i['a'])); return { text: `→ ${i['a']}` }; },
+});
+
+await kb.tell('campagne', 'entree', 'diffuser');
+for (const d of ['alice', 'bob', 'carol']) { await kb.tell('liste', 'destinataire', d); }
+await kb.tell('diffuser', 'pour_chaque', 'liste destinataire');
+await kb.tell('diffuser', 'corps', 'envoyer');
+await kb.tell('diffuser', 'max_iter', '2');          // PLAFOND : 2 au maximum
+await kb.tell('envoyer', 'action', 'email'); await kb.tell('envoyer', 'arg.a', '$item');
+
+await new FlowRunner(kb, tools).run('campagne');
+console.log(sent);   // ['alice', 'bob']  ← 2 sur 3, jamais d'emballement
 ```
 
-→ `pour_chaque "liste destinataire"` itère sur les objets de `(liste, destinataire)`. Dans le corps,
-`$item` est remplacé par le destinataire courant (`alice`, puis `bob`, puis `carol`). `max_iter 100`
-**borne** la boucle → arrêt garanti, jamais d'emballement. Cas voisins : relancer les paniers
-abandonnés, traiter une file de tâches.
+**Résultat.** `pour_chaque` itère sur `(liste, destinataire)`, `$item` = l'élément courant,
+`max_iter` **borne** → arrêt garanti. Cas voisins : relancer les paniers abandonnés, vider une file.
 
 ### 6. Action — déclencher une capacité (`action` + `arg.*`)
 
-**Cas d'usage : notifier un système externe (webhook).**
+**Problème.** Quand une commande est payée, **notifier l'ERP** par webhook — sans coder ce point
+d'intégration en dur dans le flux.
 
-```
-commande_payee entree notifier_erp
-notifier_erp action http_post
-notifier_erp arg.url "https://erp.interne/commandes"
-notifier_erp arg.corps "commande #4187 payée"
+```ts
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const tools = new ToolRegistry().register({
+  name: 'http_post', description: 'POST HTTP',
+  run: async (i) => {
+    // await fetch(String(i['url']), { method: 'POST', body: String(i['corps']) });
+    return { text: `POST ${i['url']}` };
+  },
+});
+
+await kb.tell('commande_payee', 'entree', 'notifier');
+await kb.tell('notifier', 'action', 'http_post');
+await kb.tell('notifier', 'arg.url', 'https://erp.interne/commandes');
+await kb.tell('notifier', 'arg.corps', 'commande #4187 payée');
+
+await new FlowRunner(kb, tools).run('commande_payee');   // POST https://erp.interne/commandes
 ```
 
-→ L'`action` appelle un **outil déclaré** (`http_post`, `email`, `db_inserer`, `calcul`…) et les
-`arg.*` sont ses paramètres. Un outil = une vraie capacité branchée par l'équipe ; le flux ne fait
-que les **orchestrer**.
+**Résultat.** L'`action` appelle l'**outil** déclaré (`http_post`, `email`, `db`…) et les `arg.*`
+sont ses paramètres. L'outil = la vraie capacité ; le flux ne fait que l'**orchestrer**.
 
 ### Un flux complet — tunnel de commande
 
-Les constructs combinés : vérifier le stock (condition), router selon le paiement (aiguillage),
-réserver chaque article (boucle), confirmer (action).
+**Problème.** Un tunnel de bout en bout : vérifier le stock (condition), router selon le paiement
+(aiguillage), réserver chaque article (boucle), confirmer (action) — entièrement piloté par faits.
 
-```
-commande entree verif_stock
-stock disponible oui
-commande moyen_paiement carte
-commande article sku-001
-commande article sku-002
-verif_stock si "stock disponible oui"
-verif_stock alors paiement
-verif_stock sinon rupture
-paiement switch "commande moyen_paiement"
-paiement cas.carte capture_carte
-paiement cas.paypal capture_paypal
-paiement défaut capture_carte
-capture_carte action payer
-capture_carte arg.fournisseur "stripe"
-capture_carte puis reserver_articles
-capture_paypal action payer
-capture_paypal arg.fournisseur "paypal"
-capture_paypal puis reserver_articles
-reserver_articles pour_chaque "commande article"
-reserver_articles corps decrementer
-reserver_articles max_iter 200
-reserver_articles puis confirmer
-decrementer action stock_moins
-decrementer arg.sku "$item"
-confirmer action email
-confirmer arg.modele "confirmation"
-rupture action email
-rupture arg.modele "rupture_stock"
+```ts
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const tools = new ToolRegistry()
+  .register({ name: 'payer',       description: 'Capture le paiement', run: async (i) => ({ text: `payé via ${i['fournisseur']}` }) })
+  .register({ name: 'stock_moins', description: 'Décrémente le stock', run: async (i) => ({ text: `-1 ${i['sku']}` }) })
+  .register({ name: 'email',       description: 'Email',               run: async (i) => ({ text: `mail:${i['modele']}` }) });
+
+// données de la commande
+await kb.tell('stock', 'disponible', 'oui');
+await kb.tell('commande', 'moyen_paiement', 'carte');
+await kb.tell('commande', 'article', 'sku-001'); await kb.tell('commande', 'article', 'sku-002');
+
+// le flux
+await kb.tell('cmd', 'entree', 'verif');
+await kb.tell('verif', 'si', 'stock disponible oui');
+await kb.tell('verif', 'alors', 'paiement'); await kb.tell('verif', 'sinon', 'rupture');
+await kb.tell('paiement', 'switch', 'commande moyen_paiement');
+await kb.tell('paiement', 'cas.carte', 'capture'); await kb.tell('paiement', 'défaut', 'capture');
+await kb.tell('capture', 'action', 'payer'); await kb.tell('capture', 'arg.fournisseur', 'stripe');
+await kb.tell('capture', 'puis', 'reserver');
+await kb.tell('reserver', 'pour_chaque', 'commande article');
+await kb.tell('reserver', 'corps', 'dec'); await kb.tell('reserver', 'max_iter', '200');
+await kb.tell('reserver', 'puis', 'confirmer');
+await kb.tell('dec', 'action', 'stock_moins'); await kb.tell('dec', 'arg.sku', '$item');
+await kb.tell('confirmer', 'action', 'email'); await kb.tell('confirmer', 'arg.modele', 'confirmation');
+await kb.tell('rupture', 'action', 'email');   await kb.tell('rupture', 'arg.modele', 'rupture_stock');
+
+const trace = await new FlowRunner(kb, tools).run('cmd');
+// stock oui → switch carte → payer(stripe) → dec sku-001, dec sku-002 → mail:confirmation
 ```
 
-→ Trace : stock disponible → `paiement` → moyen = carte → `capture_carte` (payer via stripe) →
-`reserver_articles` qui décrémente `sku-001` puis `sku-002` → `confirmer` (email de confirmation).
+**Résultat.** Les six constructs orchestrés par des faits, dans une seule trace déterministe.
 
 ### Récapitulatif — quel construct pour quel besoin
 
@@ -274,7 +357,7 @@ rupture arg.modele "rupture_stock"
 La mémoire se travaille en **couches** : la prod tourne en lecture seule, et une **surcouche dev**
 reçoit les nouveaux faits. On y teste un changement de comportement **sans toucher la prod**, on
 visualise la trace, puis on **promeut** les faits validés vers la prod — une **release** taguée,
-**annulable** d'un geste (les faits rétractés sont archivés, jamais perdus).
+**annulable** d'un geste (les faits rétractés sont archivés, jamais perdus). Voir [Sous-couches](layers).
 
 ```
 dev : ajouter/ajuster des faits → exécuter → vérifier la trace
