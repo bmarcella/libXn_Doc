@@ -354,6 +354,47 @@ const trace = await new FlowRunner(kb, tools).run('cmd');
 | Repeat over a list (capped) | Bounded loop | `for_each` · `body` · `max_iter` |
 | Act on the world | Action | `action` · `arg.<k>` |
 
+## Keyword reference
+
+Each keyword is a **reserved predicate**. A node (the triple's subject) carries one or more of them
+to describe a flow step.
+
+| Keyword | Carried by | What it does | How to use it |
+|---------|-----------|--------------|---------------|
+| `entry` | the **flow** | designates the start step | `(myFlow, entry, step0)` |
+| `if` | a step | declares a **condition** read from memory (0 tokens) | `(e, if, "subject predicate object")` or `"s p OP n"` |
+| `then` | an `if` step | next step if the condition is **true** | `(e, then, stepA)` |
+| `else` | an `if` step | next step if **false**; may point to **another condition** (= else-if) | `(e, else, stepB)` |
+| `switch` | a step | **routes** on a fact's value | `(e, switch, "subject predicate")` |
+| `case.<v>` | a `switch` step | branch chosen when the value equals `<v>` | `(e, case.gold, stepG)` |
+| `default` | a `switch` step | branch if no `case.` matches | `(e, default, stepD)` |
+| `for_each` | a step | **iterates** over the objects of a fact | `(e, for_each, "subject predicate")` |
+| `body` | a `for_each` step | the step run for each element (`$item`) | `(e, body, step)` |
+| `max_iter` | a `for_each` step | iteration **cap** — guarantees halting | `(e, max_iter, "100")` |
+| `action` | a step | runs a declared **tool** (the only side-effecting brick) | `(e, action, toolName)` |
+| `arg.<key>` | an `action` step | a **parameter** passed to the tool (`$item` substituted in a loop) | `(e, arg.msg, "Hello")` |
+| `next` | a step (action / loop) | the next step in **sequence** | `(e, next, nextStep)` |
+
+**Node evaluation order**: `if` → `switch` → `for_each` → `action` → `next`. A node is of a **single
+type** (condition, switch, loop, or action); you don't mix `if` and `switch` on the same node. Objects
+are normalized (lowercase); the display case of `arg.*` is preserved.
+
+### Why facts, and not an `ifFact().else()` builder?
+
+The flow **is** facts — deliberately, and that's what gives it its value:
+
+- **stored and queryable** like everything else in the memory;
+- **layered** (dev/prod), **promotable** and **reversible** (release / rollback);
+- **persistent** and **hot-editable** (add / retract a fact);
+- **traceable** (each step carries the fact that triggered it).
+
+A per-construct facade (`ifFact()`, `switchFact()`…) would reintroduce **classes** where the design
+states that "fact types" are **not classes** but triple conventions; and if the facade became the
+executed representation, you'd **lose** all those properties (a second execution path would diverge
+from the facts). A fluent **builder** is still welcome — but only as **sugar that emits facts**, never
+as a parallel runtime. Several authoring surfaces (raw triples, builder, natural language, visual
+editor) converge on **a single source of truth: the facts**.
+
 ## Testing safely: dev / prod
 
 The memory is worked in **layers**: prod runs read-only, and a **dev overlay** receives new facts.
