@@ -137,6 +137,32 @@ refus arg.vue "403"
 ce fait ouvre ou coupe l'accès **à chaud**. Forme courte `si "user actif"` = vrai si `(user, actif)`
 a au moins une valeur.
 
+**« Sinon si » (else-if) — chaîner les conditions.** Il n'y a pas de mot-clé dédié : le `sinon`
+d'une condition **pointe vers une autre condition**. On enchaîne ainsi autant de cas que voulu.
+
+**Cas d'usage : remise selon le niveau de fidélité** (or → 20 %, sinon argent → 10 %, sinon plein tarif).
+
+```
+prix entree niv_or
+niv_or si "user niveau or"
+niv_or alors remise_20
+niv_or sinon niv_argent
+niv_argent si "user niveau argent"
+niv_argent alors remise_10
+niv_argent sinon plein_tarif
+remise_20 action appliquer
+remise_20 arg.taux "20"
+remise_10 action appliquer
+remise_10 arg.taux "10"
+plein_tarif action appliquer
+plein_tarif arg.taux "0"
+```
+
+→ Se lit « si or → 20 % ; **sinon si** argent → 10 % ; sinon → plein tarif ». Le `sinon` de `niv_or`
+mène à la condition `niv_argent`, et ainsi de suite. Règle de choix : un **aiguillage** (`switch`)
+quand on teste la **même valeur** sur plusieurs cas ; un **sinon si** chaîné quand les conditions sont
+**différentes** (seuils distincts, sujets différents…).
+
 ### 3. Condition numérique — comparer une valeur (`si "s p OP n"`)
 
 **Cas d'usage : règle métier — livraison gratuite au-delà d'un seuil.**

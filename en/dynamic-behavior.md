@@ -139,6 +139,32 @@ refus arg.vue "403"
 removing that fact opens or cuts access **hot**. Short form `si "user actif"` = true if `(user, actif)`
 has at least one value.
 
+**"Else-if" (`sinon si`) — chain conditions.** There is no dedicated keyword: a condition's `sinon`
+**points to another condition**. You chain as many cases as needed.
+
+**Use case: discount by loyalty tier** (gold → 20%, else silver → 10%, else full price).
+
+```
+prix entree niv_or
+niv_or si "user niveau or"
+niv_or alors remise_20
+niv_or sinon niv_argent
+niv_argent si "user niveau argent"
+niv_argent alors remise_10
+niv_argent sinon plein_tarif
+remise_20 action appliquer
+remise_20 arg.taux "20"
+remise_10 action appliquer
+remise_10 arg.taux "10"
+plein_tarif action appliquer
+plein_tarif arg.taux "0"
+```
+
+→ Reads as "if gold → 20%; **else if** silver → 10%; else → full price". The `sinon` of `niv_or`
+leads to the `niv_argent` condition, and so on. Rule of thumb: use a **switch** when testing the
+**same value** across cases; use a chained **else-if** when the conditions **differ** (distinct
+thresholds, different subjects…).
+
 ### 3. Numeric condition — compare a value (`si "s p OP n"`)
 
 **Use case: business rule — free shipping above a threshold.**
