@@ -109,6 +109,20 @@ comp.retractOwner(f);      // rétracte le fait + ses compagnons cascade
 > Cohérent avec l'identité : fusionner deux entités (`mergeEntities`) garde **un seul** profil (les
 > lectures suivent les alias), et scinder un fait (`splitEntity`) **re-lie** ses compagnons au nouvel id.
 
+**Imbrication & suppression d'arbre.** Un compagnon peut **lui-même** être propriétaire d'autres
+compagnons (tout fait est un propriétaire valide) → des **arbres** de compagnons, profondeur illimitée.
+`retractOwner` ne cascade que d'**un niveau** ; **`retractTree`** descend **tout l'arbre** — en ne
+suivant que les compagnons `cascade` (un compagnon non-`cascade` ancre une branche conservée).
+
+```ts
+const owner = { entity: 'doc' };
+await comp.attach(owner, 'doc', 'page', '3', { cascade: true });                       // P, compagnon de doc
+await comp.attach({ fact: { s: 'doc', p: 'page', o: '3' } }, 'note', 'txt', '…', { cascade: true }); // compagnon de P
+
+comp.retractOwner(owner);   // compagnons DIRECTS seulement (un niveau) → 'note' reste orpheline
+comp.retractTree(owner);    // tout l'arbre : compagnon d'un compagnon, etc.
+```
+
 **Cas d'usage avancés**
 
 ```ts
