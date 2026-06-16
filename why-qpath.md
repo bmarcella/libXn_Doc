@@ -60,6 +60,12 @@ système, on obtient « gratuitement » des capacités de **recall flou** qu'un 
   paires (coût qui explose quadratiquement) mais seulement **à l'intérieur de chaque bloc** — un coût
   quasi linéaire, **sans entraînement ni embeddings**. C'est une notion d'« à peu près pareil » qu'un
   hash classique n'a pas : il ne sait faire qu'un lookup exact.
+- **Analogie structurelle** — la géométrie ne fait pas que *stocker* la structure, elle la **transforme**.
+  En capturant la transformation d'une clé `A → B` (préfixe commun, milieu qui change, suffixe commun) puis
+  en la rejouant sur une clé `C`, on répond à « A:B :: C:? » de façon **déterministe et sans modèle** :
+  `user:42:profile : user:42:prefs :: user:99:profile → user:99:prefs`, ou `v1/users : v2/users ::
+  v1/orders → v2/orders`. Limite assumée : c'est **structurel, pas sémantique** — « king:queen::man »
+  n'a aucune structure partagée et ne donne rien.
 
 Sur des clés scopées (`user:<id>:<champ>`), comparée au balayage d'une table classique, la recherche par
 préfixe mesure une accélération qui **croît avec la taille** : ~1,8× à 1 000 clés, ~7× à 10 000, ~292× à

@@ -58,6 +58,11 @@ capabilities a hash has no native answer for:
   To find the near-duplicates in a dataset you no longer compare every pair (a cost that explodes
   quadratically) but only **within each block** — a near-linear cost, **with no training and no
   embeddings**. This is a notion of "roughly the same" a plain hash lacks: it can only do an exact lookup.
+- **Structural analogy** — the geometry doesn't just *store* structure, it **transforms** it. By capturing
+  the transformation of a key `A → B` (shared prefix, changing middle, shared suffix) then replaying it on
+  a key `C`, you answer "A:B :: C:?" **deterministically and model-free**: `user:42:profile : user:42:prefs
+  :: user:99:profile → user:99:prefs`, or `v1/users : v2/users :: v1/orders → v2/orders`. Honest limit:
+  it is **structural, not semantic** — "king:queen::man" shares no structure and yields nothing.
 
 On scoped keys (`user:<id>:<field>`), compared to scanning a plain map, the prefix search measures a
 speedup that **grows with size**: ~1.8× at 1,000 keys, ~7× at 10,000, ~292× at 100,000 — a QPath query's
