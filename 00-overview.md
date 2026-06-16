@@ -3,6 +3,11 @@
 QPath est une **mémoire symbolique adressable par contenu** : une seule structure de graphe qui stocke,
 indexe, récupère et raisonne — sans modèle de langage pour le cœur, de façon **déterministe et à 0 token**.
 
+> **La thèse Damba.** Au-delà de la mémoire : **le comportement de l'application EST des faits**
+> gouvernés — flots, règles, limites, anti-fraude vivent dans des faits qu'on interroge, gouverne et
+> fait évoluer **à chaud, sans redéployer**, de façon déterministe et traçable. Voir le **[comportement
+> dynamique](dynamic-behavior)** et la vitrine **[grand livre](transaction-ledger)** (`npm run example:ledger`).
+
 ::: info LibXN & QPath
 **QPath** est le primitif : la structure de graphe et son raisonnement. **LibXN** est la librairie qui
 l'implémente et l'entoure d'un écosystème (visualisation, persistance vectorielle, ponts LLM). En bref :

@@ -21,8 +21,13 @@ hero:
     - theme: alt
       text: Overview
       link: /en/00-overview
+    - theme: alt
+      text: Dynamic behavior
+      link: /en/dynamic-behavior
 
 features:
+  - title: Behavior = governed facts
+    details: Not just memory — the app's LOGIC (flows, rules, limits, fraud checks) lives in facts you query, govern and evolve AT RUNTIME, without redeploying. Deterministic and traceable. Showcase&#58; npm run example:ledger.
   - title: Content-addressable
     details: A datum's location is fully determined by its content — exact, deterministic retrieval with no external index.
   - title: Symbolic & deterministic
