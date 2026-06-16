@@ -4,7 +4,8 @@ Sauvegarder des **médias** (image, audio) **avec** des faits et du texte : une 
 produit, une note vocale à un message, un visuel à un dossier. Le média est stocké, **décrit**, et
 **interrogeable** — et il se supprime avec ce à quoi il est rattaché.
 
-> v1 : **image et audio**. La vidéo viendra (keyframes + transcription).
+> **Image, audio et vidéo.** La vidéo est stockée, décrite et recherchée comme les autres ; sa
+> recherche par contenu passe par des **images-clés** (voir plus bas).
 
 ## Le principe : référence + métadonnées en faits, octets dans un store
 
@@ -53,6 +54,22 @@ media.similar(codeRequete, 5);   // [{ ref, sharedDepth }, …]  les plus proche
 L'encodage vient de [`@damba/libxn-encoders`](04-guides/architecture) : `PerceptualEncoder`
 (image → empreinte perceptuelle multi-résolution) et `AudioEncoder` (audio → spectrogramme →
 empreinte). Le cœur reste **sans canvas** : l'appli calcule l'encodage, la mémoire l'indexe.
+
+### Vidéo : similarité par images-clés
+
+Une vidéo n'a pas un code unique mais une suite d'**images-clés** (keyframes). Côté navigateur,
+`VideoEncoder.captureKeyframes(video, n)` échantillonne `n` keyframes ; on les indexe toutes vers la
+même vidéo, qui devient alors retrouvable dès qu'**une** image-clé ressemble à la requête.
+
+```ts
+const { codes, thumbnail } = await VideoEncoder.captureKeyframes(videoEl, 8);
+const att = await media.attach({ entity: 'incident#9' }, 'video',
+  { bytes, mime: 'video/mp4' }, { transcript: 'la porte s\'ouvre' });
+media.indexFrames(att.ref, codes);          // chaque keyframe → pointe la vidéo
+
+media.similar(uneImageCle);                  // retrouve la vidéo si une keyframe ressemble
+media.searchMedia({ kind: 'video', text: 'porte' });   // ou par les faits (type + transcription)
+```
 
 ## La limite honnête
 

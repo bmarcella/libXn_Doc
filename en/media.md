@@ -4,7 +4,8 @@ Save **media** (image, audio) **with** facts and text: a photo attached to a pro
 message, a visual to a case file. The media is stored, **described**, and **queryable** — and it is
 deleted together with whatever it's attached to.
 
-> v1: **image and audio**. Video will follow (keyframes + transcription).
+> **Image, audio and video.** Video is stored, described and searched like the rest; its
+> content-based search goes through **keyframes** (see below).
 
 ## The principle: reference + metadata as facts, bytes in a store
 
@@ -52,6 +53,22 @@ media.similar(queryCode, 5);   // [{ ref, sharedDepth }, …]  closest first
 The encoding comes from [`@damba/libxn-encoders`](04-guides/architecture): `PerceptualEncoder`
 (image → multi-resolution perceptual fingerprint) and `AudioEncoder` (audio → spectrogram →
 fingerprint). The core stays **canvas-free**: the app computes the encoding, the memory indexes it.
+
+### Video: similarity by keyframes
+
+A video has no single code but a sequence of **keyframes**. Browser-side, `VideoEncoder.captureKeyframes(video, n)`
+samples `n` keyframes; they're all indexed onto the same video, which then becomes findable as soon as
+**one** keyframe resembles the query.
+
+```ts
+const { codes, thumbnail } = await VideoEncoder.captureKeyframes(videoEl, 8);
+const att = await media.attach({ entity: 'incident#9' }, 'video',
+  { bytes, mime: 'video/mp4' }, { transcript: 'the door opens' });
+media.indexFrames(att.ref, codes);          // each keyframe → points to the video
+
+media.similar(aKeyframe);                     // finds the video if a keyframe resembles
+media.searchMedia({ kind: 'video', text: 'door' });   // or via facts (kind + transcript)
+```
 
 ## The honest boundary
 
