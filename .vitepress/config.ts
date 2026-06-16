@@ -52,6 +52,7 @@ export default defineConfig({
           { text: 'Mémoire & outils', items: [
             { text: 'Composants', link: '/components' },
             { text: 'Types de faits', link: '/fact-types' },
+            { text: 'Sous-couches', link: '/layers' },
             { text: 'Provenance', link: '/fact-provenance' },
             { text: 'Persistance', link: '/persistence' },
             { text: 'Outils', link: '/tools' },
@@ -81,6 +82,7 @@ export default defineConfig({
               { text: 'Code dynamique', link: '/dynamic-behavior' },
               { text: 'Access layer', link: '/access-layer' },
               { text: 'Transaction ledger', link: '/transaction-ledger' },
+              { text: 'Sous-couches (mémoire en couches)', link: '/layers' },
               { text: 'Outils (Tools)', link: '/tools' },
               { text: 'Provenance & revérification', link: '/fact-provenance' },
               { text: 'Persistance', link: '/persistence' },
@@ -117,6 +119,7 @@ export default defineConfig({
           { text: 'Memory & tools', items: [
             { text: 'Components', link: '/en/components' },
             { text: 'Fact types', link: '/en/fact-types' },
+            { text: 'Layers', link: '/en/layers' },
             { text: 'Provenance', link: '/en/fact-provenance' },
             { text: 'Persistence', link: '/en/persistence' },
             { text: 'Tools', link: '/en/tools' },
@@ -146,6 +149,7 @@ export default defineConfig({
               { text: 'Dynamic behavior', link: '/en/dynamic-behavior' },
               { text: 'Access layer', link: '/en/access-layer' },
               { text: 'Transaction ledger', link: '/en/transaction-ledger' },
+              { text: 'Layers (layered memory)', link: '/en/layers' },
               { text: 'Tools', link: '/en/tools' },
               { text: 'Provenance & re-verification', link: '/en/fact-provenance' },
               { text: 'Persistence', link: '/en/persistence' },
