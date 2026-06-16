@@ -447,6 +447,103 @@ Deux invariants rendent cela sûr :
 > (il faudrait enregistrer un outil). L'app **se reconfigure** par les faits — elle ne se programme
 > pas depuis zéro.
 
+## Deux sortes de faits : structure et données
+
+Dans la KB d'une app, deux familles de faits cohabitent :
+
+- **Faits de structure** (le « code ») : `entry`, `if`, `then`, `action`, `arg.`… — la **forme** du
+  flux. On les change par **authoring → validation → promotion** (rarement, de façon gardée).
+- **Faits de données** (l'état) : `(user, role, admin)`, `(panier, total, 64)`,
+  `(app, mode, maintenance)`… — ils changent **en cours de route**, écrits par une **action** (un
+  outil peut renvoyer des faits), par un autre flux, ou par l'utilisateur. Les conditions les **lisent**
+  à l'exécution.
+
+→ Un flux **structurel stable** lit un **état dynamique** : ajouter ou retirer un fait de **données**
+reconfigure le comportement **sans toucher au flux**.
+
+**L'ordre d'insertion** ne compte qu'à deux endroits précis (ailleurs, l'adressage par contenu le rend
+indifférent) :
+
+1. **Un prédicat de contrôle ne doit porter qu'UNE valeur.** `FlowRunner` prend la **première**
+   (`ask(s,p)[0]`). Pour **changer** une branche (`then`, `next`, `entry`…), il faut `retract` l'ancien
+   fait **puis** `tell` le nouveau — un simple `tell` ajoute une 2ᵉ valeur, et le **premier inséré gagne**.
+2. **L'ordre d'une boucle** = l'ordre d'insertion de la collection : `for_each "panier article"` itère
+   les articles dans l'ordre où ils ont été ajoutés.
+
+## Exemple : une app Express qui se reconfigure à chaud
+
+Le squelette Express est déployé **une seule fois**. Le comportement des routes vit dans des **faits** ;
+on le change en ajoutant/modifiant des faits — **sans redémarrer ni redéployer**.
+
+```ts
+import express from 'express';
+import {
+  XNeuroneGrid, KnowledgeBase, LayeredKnowledgeBase,
+  FlowRunner, ToolRegistry, promoteFlowIfValid,
+} from '@damba/libxn';
+
+// ── 1. Le SQUELETTE — déployé UNE seule fois ──────────────────────────────
+const prod = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const ALLOWED = ['json', 'status'];   // outils que la reconfiguration peut invoquer
+
+// Outils liés à LA réponse de la requête courante (un registre par requête → sûr en concurrence).
+function toolsFor(res: express.Response) {
+  return new ToolRegistry()
+    .register({ name: 'json',   description: 'Répond en JSON', run: async (i) => { res.json(JSON.parse(String(i['body'] ?? '{}'))); return { text: 'ok' }; } })
+    .register({ name: 'status', description: 'Code HTTP',      run: async (i) => { res.status(Number(i['code'])); return { text: '' }; } });
+}
+
+// Comportement INITIAL de GET /home — posé en FAITS, pas en code Express :
+await prod.tell('GET /home', 'entry', 'gate');
+await prod.tell('gate', 'if', 'app mode maintenance');           // condition = fait de DONNÉES
+await prod.tell('gate', 'then', 'maint'); await prod.tell('gate', 'else', 'welcome');
+await prod.tell('maint', 'action', 'status'); await prod.tell('maint', 'arg.code', '503'); await prod.tell('maint', 'next', 'maintMsg');
+await prod.tell('maintMsg', 'action', 'json'); await prod.tell('maintMsg', 'arg.body', '{"error":"maintenance"}');
+await prod.tell('welcome', 'action', 'json'); await prod.tell('welcome', 'arg.body', '{"message":"Bienvenue"}');
+
+const app = express();
+app.use(express.json());
+
+// ── 2. UNE route générique : elle EXÉCUTE le flux nommé d'après la requête ──
+app.all('*', async (req, res) => {
+  const flow = `${req.method} ${req.path}`;                       // ex. "GET /home"
+  if (prod.ask(flow, 'entry').length === 0) { res.status(404).json({ error: 'route inconnue' }); return; }
+  await new FlowRunner(prod, toolsFor(res)).run(flow);           // le comportement vient des FAITS
+});
+
+// ── 3a. Basculer un fait de DONNÉES (aucune structure modifiée) ───────────
+app.post('/admin/maintenance/:on', async (req, res) => {
+  if (req.params.on === 'true') { await prod.tell('app', 'mode', 'maintenance'); }
+  else { prod.retract('app', 'mode', 'maintenance'); }
+  res.json({ ok: true });   // le prochain GET /home change de comportement, sans redéploiement
+});
+
+// ── 3b. Ajouter / changer une STRUCTURE, validée puis promue ──────────────
+app.post('/admin/facts', async (req, res) => {
+  const facts: [string, string, string][] = req.body.facts;      // (ou un prompt → FlowAuthor)
+  const overlay = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+  const dev = new LayeredKnowledgeBase(overlay, [prod]);
+  for (const [s, p, o] of facts) { await dev.tell(s, p, o, { kind: 'user' }); }
+  const flow = facts.find(([, p]) => p === 'entry')?.[0] ?? req.body.flow;
+  const r = await promoteFlowIfValid(dev, prod, flow, `rel-${Date.now()}`, { tools: toolsFor(res), allowedTools: ALLOWED });
+  res.json({ promoted: r.promoted, errors: r.validation.errors });  // refusé si invalide → prod intacte
+});
+
+app.listen(3000);
+```
+
+**Reconfiguration à chaud, sans redéployer** :
+
+| Action | Effet immédiat | Concept |
+|--------|----------------|---------|
+| `GET /home` | `{"message":"Bienvenue"}` (branche `else`) | exécution depuis les faits |
+| `POST /admin/maintenance/true` | le prochain `GET /home` → `503 {"error":"maintenance"}` | **fait de données** ajouté en cours de route |
+| `POST /admin/facts` (faits d'une nouvelle route `GET /ping`) | `GET /ping` répond aussitôt | **structure** ajoutée, validée + promue |
+| Re-pointer une branche existante | `retract` l'ancien `then`/`next` **puis** `tell` le nouveau | l'ordre/`retract` |
+
+Express n'a **jamais redémarré**. Le code source de l'app n'a **pas changé** : seul son **comportement
+en faits** a évolué, sous validation et gate.
+
 ## Les garanties
 
 - **Déterministe** : à mémoire et outils donnés, le même flux donne toujours la même trace.
