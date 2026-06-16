@@ -45,6 +45,57 @@ Everything is an ordinary triplet; only the **predicates** are conventional:
 send…). Adding a step recomposes existing capabilities; it does not invent a new one — for that,
 you register a new tool.
 
+## In practice
+
+A flow lives in **facts**; an executor walks them. You wire a memory, declare the tools (the
+side-effecting capabilities), set the flow's facts, then run it — the output is a deterministic
+**trace**, with no LLM.
+
+```ts
+import {
+  XNeuroneGrid, KnowledgeBase, LayeredKnowledgeBase,
+  FlowRunner, ToolRegistry, promoteFacts, rollbackRelease,
+} from '@damba/libxn';
+
+// 1. A tool = a real capability (here a simple "log"; wire email, http, db…)
+const tools = new ToolRegistry().register({
+  name: 'log',
+  description: 'Prints a message',
+  run: async (input) => ({ text: String(input['msg'] ?? '') }),
+});
+
+// 2. PROD: the flow lives in facts (condition → action)
+const prod = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+await prod.tell('accueil', 'entree', 'verif');
+await prod.tell('verif', 'si', 'user est premium');
+await prod.tell('verif', 'alors', 'msg_premium');
+await prod.tell('verif', 'sinon', 'msg_basique');
+await prod.tell('msg_premium', 'action', 'log');
+await prod.tell('msg_premium', 'arg.msg', 'Welcome, premium member.');
+await prod.tell('msg_basique', 'action', 'log');
+await prod.tell('msg_basique', 'arg.msg', 'Welcome.');
+
+// 3. Run it: you get the trace (deterministic, traced, 0 LLM)
+const trace = await new FlowRunner(prod, tools).run('accueil');
+console.log(trace);  // → "msg_basique" branch (no premium fact in memory)
+
+// 4. DEV: an overlay on top of PROD. ONE added fact reroutes the flow,
+//    the running PROD is NOT touched.
+const dev = new LayeredKnowledgeBase(
+  new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true })),
+  [prod],
+);
+await dev.tell('user', 'est', 'premium');
+await new FlowRunner(dev, tools).run('accueil');  // → "msg_premium" branch
+
+// 5. Promote the validated DEV → PROD fact (tagged release), reversible.
+await promoteFacts(dev.primary, prod, 'v1');  // PROD switches to premium
+rollbackRelease(prod, 'v1');                  // back to the previous (archived) state
+```
+
+Each trace step carries its **trigger** (the fact that routed it); execution is bounded (step budget
++ `max_iter`) and **replayable**.
+
 ## Detailed examples per control-flow construct
 
 For each construct: a **real use case**, the **facts** that define it (one triplet per line), and the

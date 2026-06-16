@@ -43,6 +43,57 @@ Les **actions** sont la seule brique à effet de bord : elles déclenchent un **
 (recherche, calcul, envoi…). Ajouter une étape recompose des capacités existantes ; elle n'en
 invente pas de nouvelle — pour ça, on enregistre un nouvel outil.
 
+## En pratique
+
+Un flux vit dans des **faits** ; un exécuteur les parcourt. On câble une mémoire, on déclare les
+outils (les capacités à effet de bord), on pose les faits du flux, puis on l'exécute — la sortie est
+une **trace** déterministe, sans LLM.
+
+```ts
+import {
+  XNeuroneGrid, KnowledgeBase, LayeredKnowledgeBase,
+  FlowRunner, ToolRegistry, promoteFacts, rollbackRelease,
+} from '@damba/libxn';
+
+// 1. Un outil = une vraie capacité (ici un simple "log" ; brancher email, http, db…)
+const tools = new ToolRegistry().register({
+  name: 'log',
+  description: 'Affiche un message',
+  run: async (input) => ({ text: String(input['msg'] ?? '') }),
+});
+
+// 2. La PROD : le flux vit dans des faits (condition → action)
+const prod = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+await prod.tell('accueil', 'entree', 'verif');
+await prod.tell('verif', 'si', 'user est premium');
+await prod.tell('verif', 'alors', 'msg_premium');
+await prod.tell('verif', 'sinon', 'msg_basique');
+await prod.tell('msg_premium', 'action', 'log');
+await prod.tell('msg_premium', 'arg.msg', 'Bienvenue, membre premium.');
+await prod.tell('msg_basique', 'action', 'log');
+await prod.tell('msg_basique', 'arg.msg', 'Bienvenue.');
+
+// 3. Exécuter : on récupère la trace (déterministe, tracée, 0 LLM)
+const trace = await new FlowRunner(prod, tools).run('accueil');
+console.log(trace);  // → branche "msg_basique" (aucun fait premium en mémoire)
+
+// 4. DEV : une surcouche par-dessus PROD. UN fait ajouté reroute le flux,
+//    la PROD en cours n'est PAS touchée.
+const dev = new LayeredKnowledgeBase(
+  new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true })),
+  [prod],
+);
+await dev.tell('user', 'est', 'premium');
+await new FlowRunner(dev, tools).run('accueil');  // → branche "msg_premium"
+
+// 5. Promouvoir le fait validé DEV → PROD (release taguée), annulable.
+await promoteFacts(dev.primary, prod, 'v1');  // la PROD bascule premium
+rollbackRelease(prod, 'v1');                  // retour à l'état précédent (archivé)
+```
+
+Chaque pas de la trace porte son **déclencheur** (le fait qui l'a routé) ; l'exécution est bornée
+(budget de pas + `max_iter`) et **rejouable**.
+
 ## Exemples détaillés par flot de contrôle
 
 Pour chaque construct : un **cas d'usage réel**, les **faits** qui le définissent (un triplet par
