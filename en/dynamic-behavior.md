@@ -407,6 +407,44 @@ dev : add/adjust facts → run → check the trace
    └ promote (release) → prod      ·      revert the release → back to the previous state
 ```
 
+## Evolving the app by a prompt — safely
+
+Since the flow is **facts**, it can be **written by an LLM** from a natural-language request — as long
+as the LLM stays an **author**, never an executor, and the result is **validated** before prod.
+
+```ts
+import { FlowAuthor, promoteFlowIfValid, formatFlowIssues } from '@damba/libxn';
+
+const ALLOWED = ['log', 'email'];   // what the LLM is allowed to invoke (tool allowlist)
+
+// 1) The LLM PROPOSES facts (port LlmPort: Claude via backend, or a mock in tests).
+const author = new FlowAuthor(myLLM);
+const p = await author.propose(
+  'when a customer becomes premium, send them a welcome email',
+  { prod, tools, allowedTools: ALLOWED },
+);
+
+// 2) VALIDATION already decided (well-formed? bounded? tools allowed? dangling links?).
+if (!p.validation.ok) {
+  console.error(formatFlowIssues(p.validation));   // refused — prod is NOT touched
+} else {
+  // 3) GATE: promote only if valid (tagged release, reversible).
+  await promoteFlowIfValid(p.dev, prod, p.flow!, 'v2', { tools, allowedTools: ALLOWED });
+}
+```
+
+Two invariants make this safe:
+
+- **The LLM is an author, not an executor.** It produces facts; `FlowRunner` executes, deterministically
+  and traced. The LLM's nondeterminism is **confined to authoring**, which is validated.
+- **No unsafe fact reaches prod.** `validateFlow` rejects an **unbounded** loop, a **dangling link**, an
+  incomplete condition, or a **forbidden tool** (per-environment allowlist); the **gate** promotes only
+  if everything is green; `rollbackRelease` reverts a release.
+
+> Acknowledged boundary: the LLM **recombines** existing tools; it does not invent a new capability
+> (that needs a registered tool). The app **reconfigures** itself through facts — it does not program
+> itself from scratch.
+
 ## Guarantees
 
 - **Deterministic**: given the memory and tools, the same flow always yields the same trace.

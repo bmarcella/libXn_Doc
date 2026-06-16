@@ -409,6 +409,44 @@ dev : ajouter/ajuster des faits → exécuter → vérifier la trace
    └ promouvoir (release) → prod      ·      annuler la release → retour à l'état précédent
 ```
 
+## Faire évoluer l'app par un prompt — en sûreté
+
+Le flux étant des **faits**, on peut le faire **écrire par un LLM** à partir d'une demande en langage
+naturel — à condition de garder le LLM **auteur**, jamais exécuteur, et de **valider** avant la prod.
+
+```ts
+import { FlowAuthor, promoteFlowIfValid, formatFlowIssues } from '@damba/libxn';
+
+const ALLOWED = ['log', 'email'];   // ce que le LLM a le droit d'invoquer (allowlist d'outils)
+
+// 1) Le LLM PROPOSE des faits (port LlmPort : Claude via backend, ou un mock en test).
+const author = new FlowAuthor(monLLM);
+const p = await author.propose(
+  'quand un client devient premium, envoie-lui un email de bienvenue',
+  { prod, tools, allowedTools: ALLOWED },
+);
+
+// 2) La VALIDATION a déjà tranché (bien formé ? borné ? outils permis ? liens morts ?).
+if (!p.validation.ok) {
+  console.error(formatFlowIssues(p.validation));   // refusé — la prod n'est PAS touchée
+} else {
+  // 3) GATE : promotion seulement si valide (release taguée, annulable).
+  await promoteFlowIfValid(p.dev, prod, p.flow!, 'v2', { tools, allowedTools: ALLOWED });
+}
+```
+
+Deux invariants rendent cela sûr :
+
+- **Le LLM est auteur, pas exécuteur.** Il produit des faits ; c'est `FlowRunner` qui exécute, de
+  façon déterministe et tracée. Le non-déterminisme du LLM est **confiné à l'écriture**, qui est validée.
+- **Aucun fait non sûr n'atteint la prod.** `validateFlow` refuse une boucle **non bornée**, un
+  **lien mort**, une condition incomplète, ou un **outil interdit** (allowlist par environnement) ;
+  le **gate** ne promeut que si tout est vert ; `rollbackRelease` annule une release.
+
+> Limite assumée : le LLM **recombine** des outils existants ; il n'invente pas de capacité nouvelle
+> (il faudrait enregistrer un outil). L'app **se reconfigure** par les faits — elle ne se programme
+> pas depuis zéro.
+
 ## Les garanties
 
 - **Déterministe** : à mémoire et outils donnés, le même flux donne toujours la même trace.
