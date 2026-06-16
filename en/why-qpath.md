@@ -40,6 +40,30 @@ being re-paid. *(See [Flash reasoning](flash-reasoning).)*
 
 > In one sentence: **the LLM makes QPath eloquent; QPath makes the LLM reliable.**
 
+## Key geometry preserves structure
+
+A hash table **destroys** the structure of keys: the hash scatters them, so it can only do an **exact
+lookup**. QPath instead encodes each key as a **path** (bit pairs → directions). Two keys that share a byte
+prefix — `alice`/`alicia`, or a scoped identifier `user:42:…` — then share a **path prefix**. Because that
+**same** path representation is used everywhere in the system, you get "for free" the **fuzzy recall**
+capabilities a hash has no native answer for:
+
+- **Nearest neighbors** — the keys with the longest shared prefix, from closest to least close, **without
+  scanning** the whole set (cost stays nearly flat as the number of keys grows). Useful for approximate
+  resolution: variants, typos, scoped keys.
+- **Prefix query** — all keys under a given prefix (a range query).
+- **Position-wise similarity** — tolerates a difference **in the middle** of the key (`alice` vs `alike`),
+  reusing the same path representation as the exact search.
+
+On scoped keys (`user:<id>:<field>`), compared to scanning a plain map, the prefix search measures a
+speedup that **grows with size**: ~1.8× at 1,000 keys, ~7× at 10,000, ~292× at 100,000 — a QPath query's
+cost stays roughly flat where the scan grows linearly.
+
+> Honest framing: this is the advantage of **any** path-preserving structure over a hash, not a
+> mathematical impossibility elsewhere. What makes it a coherent asset is the **uniform** use of the same
+> QPath path representation across the whole system. Position-wise similarity, for its part, scans the key
+> set (linear cost): reserve it for reasonable sets, or as a second stage after a prefix filter.
+
 ## What QPath brings, domain by domain
 
 ### Healthcare & life sciences

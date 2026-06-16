@@ -79,6 +79,29 @@ kb.askInverse('likes', 'chocolate');  // ['marc']
 
 > **Reliable, deterministic** reads; **editable and auditable** memory.
 
+### QPathKeyIndex — fuzzy prefix recall
+
+A **fuzzy recall** index over keys (the KnowledgeBase subjects): where a hash table can only do an
+**exact** lookup, this index leverages the fact that QPath encodes each key as a **path**, so two keys
+sharing a byte prefix share a path prefix.
+
+**What it's for:** find **nearby** keys without scanning everything — neighbors by longest shared prefix,
+a prefix range query, or position-wise similarity.
+
+**When to use it:** approximate name resolution (variant, typo), navigating scoped keys
+(`user:<id>:<field>`), suggestions — whenever exact match isn't enough. Wired into the `KnowledgeBase`
+via `nearestSubjects` / `subjectsWithPrefix`.
+
+```ts
+kb.nearestSubjects('alicia');     // known subjects by longest shared prefix, closest first
+kb.subjectsWithPrefix('user:42'); // all scoped keys under this prefix (range query)
+```
+
+> The same path representation serves both exact and approximate search. A prefix search's cost stays
+> nearly flat as the number of keys grows (sub-linear), where a scan grows linearly. Position-wise
+> similarity (tolerating a difference in the middle of the key), however, scans the key set: reserve it for
+> reasonable sets or as a second stage after a prefix filter.
+
 ### CompanionFacts — facts that accompany another
 
 Attach to an **owner** a block of facts that describe it: a person's **profile** around their
