@@ -407,6 +407,10 @@ dev : add/adjust facts → run → check the trace
    └ promote (release) → prod      ·      revert the release → back to the previous state
 ```
 
+> **A flow can be managed as a unit.** You can promote or revert **a single flow** (`promoteFlow`) or
+> delete a whole one (`deleteFlow`) — not just the entire overlay: a flow's facts are grouped as
+> companions of `flow:<name>`.
+
 ## Evolving the app by a prompt — safely
 
 Since the flow is **facts**, it can be **written by an LLM** from a natural-language request — as long
@@ -444,6 +448,102 @@ Two invariants make this safe:
 > Acknowledged boundary: the LLM **recombines** existing tools; it does not invent a new capability
 > (that needs a registered tool). The app **reconfigures** itself through facts — it does not program
 > itself from scratch.
+
+## Two kinds of facts: structure and data
+
+In an app's KB, two families of facts coexist:
+
+- **Structure facts** (the "code"): `entry`, `if`, `then`, `action`, `arg.`… — the **shape** of the
+  flow. You change them via **authoring → validation → promotion** (rarely, gated).
+- **Data facts** (the state): `(user, role, admin)`, `(panier, total, 64)`, `(app, mode, maintenance)`…
+  — they change **along the way**, written by an **action** (a tool can return facts), by another flow,
+  or by the user. Conditions **read** them at execution time.
+
+→ A **stable structural** flow reads a **dynamic state**: adding or removing a **data** fact reconfigures
+behavior **without touching the flow**.
+
+**Insertion order** only matters in two precise places (elsewhere, content-addressing makes it
+irrelevant):
+
+1. **A control predicate must carry exactly ONE value.** `FlowRunner` takes the **first** (`ask(s,p)[0]`).
+   To **change** a branch (`then`, `next`, `entry`…), you must `retract` the old fact **then** `tell` the
+   new one — a plain `tell` adds a 2nd value, and the **first inserted wins**.
+2. **A loop's order** = the collection's insertion order: `for_each "panier article"` iterates items in
+   the order they were added.
+
+## Example: an Express app that reconfigures hot
+
+The Express skeleton is deployed **once**. Route behavior lives in **facts**; you change it by
+adding/modifying facts — **without restarting or redeploying**.
+
+```ts
+import express from 'express';
+import {
+  XNeuroneGrid, KnowledgeBase, LayeredKnowledgeBase,
+  FlowRunner, ToolRegistry, promoteFlowIfValid,
+} from '@damba/libxn';
+
+// ── 1. The SKELETON — deployed once ───────────────────────────────────────
+const prod = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+const ALLOWED = ['json', 'status'];   // tools the reconfiguration may invoke
+
+// Tools bound to THE current request's response (one registry per request → concurrency-safe).
+function toolsFor(res: express.Response) {
+  return new ToolRegistry()
+    .register({ name: 'json',   description: 'Replies JSON', run: async (i) => { res.json(JSON.parse(String(i['body'] ?? '{}'))); return { text: 'ok' }; } })
+    .register({ name: 'status', description: 'HTTP code',    run: async (i) => { res.status(Number(i['code'])); return { text: '' }; } });
+}
+
+// INITIAL behavior of GET /home — set as FACTS, not as Express code:
+await prod.tell('GET /home', 'entry', 'gate');
+await prod.tell('gate', 'if', 'app mode maintenance');           // condition = a DATA fact
+await prod.tell('gate', 'then', 'maint'); await prod.tell('gate', 'else', 'welcome');
+await prod.tell('maint', 'action', 'status'); await prod.tell('maint', 'arg.code', '503'); await prod.tell('maint', 'next', 'maintMsg');
+await prod.tell('maintMsg', 'action', 'json'); await prod.tell('maintMsg', 'arg.body', '{"error":"maintenance"}');
+await prod.tell('welcome', 'action', 'json'); await prod.tell('welcome', 'arg.body', '{"message":"Welcome"}');
+
+const app = express();
+app.use(express.json());
+
+// ── 2. ONE generic route: it RUNS the flow named after the request ────────
+app.all('*', async (req, res) => {
+  const flow = `${req.method} ${req.path}`;                       // e.g. "GET /home"
+  if (prod.ask(flow, 'entry').length === 0) { res.status(404).json({ error: 'unknown route' }); return; }
+  await new FlowRunner(prod, toolsFor(res)).run(flow);           // behavior comes from FACTS
+});
+
+// ── 3a. Flip a DATA fact (no structure changed) ───────────────────────────
+app.post('/admin/maintenance/:on', async (req, res) => {
+  if (req.params.on === 'true') { await prod.tell('app', 'mode', 'maintenance'); }
+  else { prod.retract('app', 'mode', 'maintenance'); }
+  res.json({ ok: true });   // next GET /home changes behavior, with no redeploy
+});
+
+// ── 3b. Add / change STRUCTURE, validated then promoted ───────────────────
+app.post('/admin/facts', async (req, res) => {
+  const facts: [string, string, string][] = req.body.facts;      // (or a prompt → FlowAuthor)
+  const overlay = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+  const dev = new LayeredKnowledgeBase(overlay, [prod]);
+  for (const [s, p, o] of facts) { await dev.tell(s, p, o, { kind: 'user' }); }
+  const flow = facts.find(([, p]) => p === 'entry')?.[0] ?? req.body.flow;
+  const r = await promoteFlowIfValid(dev, prod, flow, `rel-${Date.now()}`, { tools: toolsFor(res), allowedTools: ALLOWED });
+  res.json({ promoted: r.promoted, errors: r.validation.errors });  // refused if invalid → prod intact
+});
+
+app.listen(3000);
+```
+
+**Hot reconfiguration, no redeploy**:
+
+| Action | Immediate effect | Concept |
+|--------|------------------|---------|
+| `GET /home` | `{"message":"Welcome"}` (`else` branch) | execution from facts |
+| `POST /admin/maintenance/true` | next `GET /home` → `503 {"error":"maintenance"}` | **data fact** added along the way |
+| `POST /admin/facts` (facts of a new route `GET /ping`) | `GET /ping` answers at once | **structure** added, validated + promoted |
+| Re-point an existing branch | `retract` the old `then`/`next` **then** `tell` the new one | order/`retract` |
+
+Express **never restarted**. The app's source code did **not change**: only its **behavior, in facts**,
+evolved — under validation and the gate.
 
 ## Guarantees
 
