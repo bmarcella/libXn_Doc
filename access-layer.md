@@ -251,6 +251,10 @@ ports injectés (AES, scrypt), pas du noyau.
 - **Normalisation transparente** : le Vault ré-encode la valeur chiffrée avant de la stocker, donc
   un secret survit intact (casse, symboles, Unicode) quel que soit le `CipherPort` — vous n'avez
   aucune contrainte de format sur la sortie de votre chiffrement.
+- **Revérification sûre** : quand un fait est revérifié dans le temps (la réalité a pu changer), la
+  vérification **n'écrase jamais** un secret ni une décision **close** — un secret revérifié n'est
+  jamais réécrit en clair, et un fait clos n'est pas déclassé. Une réécriture légitime **préserve**
+  le drapeau structurant (`major`), pour que l'ossature ontologique reste prioritaire.
 - **Durabilité** : construite sur une [`DurableKnowledgeBase`](/persistence#kb-durable-durableknowledgebase),
   toute la couche d'accès (secrets, permissions, audit) est **persistée** dans Postgres et survit au
   redémarrage — sans changer le code. Les faits systématiques deviennent un journal d'audit durable.

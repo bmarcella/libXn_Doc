@@ -26,6 +26,9 @@ await ledger.open('12345_c', {
 Une limite borne le **montant** (`maxAmount`) et/ou le **nombre** (`maxCount`) de mouvements d'un
 sens dans la fenêtre. On en empile autant que le domaine l'exige.
 
+> `open()` est **idempotent** et **reconfigurable** : ré-ouvrir un compte avec un autre plancher
+> ou plafond **remplace** l'ancienne valeur (la nouvelle gagne), sans empiler de doublon.
+
 ### Types de transaction PRÉ-CONFIGURÉS
 
 Les types sont déclarés à la construction. **Dès qu'au moins un type est configuré, il devient
@@ -123,6 +126,10 @@ ledger.movementById('mv:cli_bob:withdraw:200:1700000000000'); // lookup direct, 
 > c'est le point de commit. Un mouvement à moitié écrit n'est jamais compté — chaque écriture est
 > donc atomique pour le solde, et un virement qui échoue à mi-chemin **rétracte** (compensation,
 > saga) ce qui a été commité, restaurant les soldes (`reason: 'rolled-back'`).
+>
+> **Chaque mouvement est unique.** Deux mouvements identiques (même compte, même sens, même montant)
+> à la **même milliseconde** ne se confondent plus : chacun porte un identifiant propre et compte
+> séparément dans le solde — finie la perte silencieuse du second.
 >
 > **Limite de garantie.** La consistance forte sous CONCURRENCE (deux virements simultanés sur le
 > même compte) ou crash machine entre les deux écritures reste du ressort de l'hôte : pour de la

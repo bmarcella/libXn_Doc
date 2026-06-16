@@ -84,7 +84,9 @@ kb.historyOf('marcella');
 
 "Marcella works at Acme" becomes "**true from June 2024 to June 2026**". Memory knows the
 history of its own facts — invaluable wherever historization matters (healthcare, legal,
-finance, compliance).
+finance, compliance). And that history is **restorable**: backed by durable storage it
+**survives a restart** (see [Persistence](/en/persistence)), so "back then it was X" answers stay
+available after a restart.
 
 ### Querying the past: `factAsOf` / `valueAsOf`
 
@@ -113,6 +115,10 @@ automatically) — every fact is born *open + minor*:
 | **⭐ major** | LOAD-BEARING fact (salience) | guaranteed into the answer context window · prioritized in proactive alerts and migration |
 | **🔒 closed** | DECIDED fact (epistemic status) | leaves the re-verification loop · confidence floor in reasoning chains · **wins by default** against a contestation (recorded and traced, but the decision is only overturned by reopening the fact) |
 | **🔑 secret** | CONFIDENTIAL fact | hidden from normal reads (`allFacts`, RAG, admin view); encrypted value; reachable only via authenticated access — see [Access layer](access-layer) |
+
+A fact can be recorded **with its flags in a single write** (atomic). This matters for a persisted
+secret fact: the value is never stored durably **without** its `secret` marking — no window where the
+ciphertext would be visible.
 
 A fact's default state is **open** (revisable) and **minor** (peripheral); major, closed and
 secret are explicit decisions. Closing a fact is an **act of curation**: it is what separates a

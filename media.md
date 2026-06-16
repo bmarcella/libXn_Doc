@@ -51,6 +51,11 @@ cherchable par **similarité** : des images ou des sons proches se ressemblent d
 media.similar(codeRequete, 5);   // [{ ref, sharedDepth }, …]  les plus proches d'abord
 ```
 
+Le classement est **déterministe** et **« plus proche d'abord »** : à préfixe perceptuel partagé égal,
+les correspondances les plus exactes ressortent en premier — ce qui compte quand on limite le nombre de
+résultats. Indexer deux fois le même média ne crée pas de doublon, et **supprimer un média le retire
+aussi de l'index** (plus de média « fantôme » qui continuerait d'apparaître).
+
 L'encodage vient de [`@damba/libxn-encoders`](04-guides/architecture) : `PerceptualEncoder`
 (image → empreinte perceptuelle multi-résolution) et `AudioEncoder` (audio → spectrogramme →
 empreinte). Le cœur reste **sans canvas** : l'appli calcule l'encodage, la mémoire l'indexe.
@@ -70,6 +75,10 @@ media.indexFrames(att.ref, codes);          // chaque keyframe → pointe la vid
 media.similar(uneImageCle);                  // retrouve la vidéo si une keyframe ressemble
 media.searchMedia({ kind: 'video', text: 'porte' });   // ou par les faits (type + transcription)
 ```
+
+La recherche par **type** (image / audio / vidéo) reste fiable même pour un média **partagé** entre
+plusieurs propriétaires ou rattaché sous plusieurs types : le type vient du **lien de rattachement**,
+pas d'une métadonnée écrite une seule fois.
 
 ## La limite honnête
 

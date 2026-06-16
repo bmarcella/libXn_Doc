@@ -8,7 +8,7 @@ user to what they haven't seen. Deterministic, at 0 tokens.
 
 | Insight | What it detects | Example |
 |---------|-----------------|---------|
-| **contradiction** | two opposite facts coexist | "x likes tea" AND "x does not like tea" |
+| **contradiction** | two opposite facts coexist — **both sides** are shown (what is asserted vs what is denied), not reduced to their intersection alone | "x likes tea" AND "x does not like tea" |
 | **violated near-rule** | a strong regularity with ONE counterexample | "everyone living in France speaks French — except e. Missing data or exception?" |
 | **missing data** | a class member lacking the attribute the others have | "Diana is the only employee without a salary" |
 | **incoherent plot** | a cause proven to come after its effect | "the evacuation would cause the alarm, yet the alarm precedes the evacuation" |

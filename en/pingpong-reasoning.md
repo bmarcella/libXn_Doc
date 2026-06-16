@@ -22,7 +22,9 @@ Each exchange, the LLM plays **a single move**; QPath answers with a **determini
 Three safeguards:
 
 - **Grounding** — the LLM cannot push a false fact through: if QPath knows a different value, it
-  **refutes**. No silent hallucination.
+  **refutes**. No silent hallucination. The `grounded` flag stays **honest**: it is true only if
+  **no** QPath-unverified fact was written to memory — if an external tool added unchecked facts, the
+  answer is marked as **not fully grounded**.
 - **Growing memory** — a **verified** hypothesis is fed back into memory: next time, QPath answers on its
   own, at zero token.
 - **Short exchange** — bounded (a few rounds); it stops as soon as QPath confirms a conclusion, the LLM
@@ -33,6 +35,8 @@ Three safeguards:
 
 - ASK / HYPOTHESIS / TOOL moves are **single-line**; the `CONCLUDE` answer may be **multi-line**
   (lists, paragraphs) — everything after the keyword belongs to the answer.
+- The exchange handles **values containing a comma** better (composite objects like "New York, USA"):
+  with the canonical `s | p | o` format, the object is no longer truncated at the comma.
 - The game rules are exported (`PINGPONG_SYSTEM_RULES`) so the host can **compose them with its own
   product identity** (`systemPrompt: identity + rules`) instead of replacing it — otherwise the LLM
   loses its identity during the exchange.
@@ -82,11 +86,12 @@ const result = await new PingPongReasoner(kb, llm).run(
 
 console.log(result.conclusion);   // answer grounded on the verified facts
 console.log(result.transcript);   // the full exchange, round by round
-console.log(result.grounded);     // true: no LLM claim bypassed QPath
+console.log(result.grounded);     // true: no QPath-unverified fact was written to memory
 ```
 
 The result holds the **conclusion**, the **transcript** (each move + QPath verdict), the **learned facts**
-(fed back), and `grounded` (every LLM claim was checked against QPath).
+(fed back), and `grounded` — true only if **no** QPath-unverified fact was written to memory (an external
+tool adding unchecked facts flips it to `false`).
 
 ::: tip
 The protocol's internals are not documented publicly. For technical access or a partnership, contact the

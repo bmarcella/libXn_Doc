@@ -106,6 +106,10 @@ ChainResolver.format(chain!);
 await verbalize(`Explique ce raisonnement en une phrase : ${ChainResolver.format(chain!)}`);
 ```
 
+> **Confiance honnête, même à contre-sens.** Quand une chaîne emprunte une relation dans le sens
+> **inverse**, sa confiance reflète celle du fait sous-jacent réel — pas une certitude supposée. Une
+> conclusion tirée d'un maillon inverse incertain n'est donc plus artificiellement sur-confiante.
+
 ## 5. Quand le raisonnement dépasse QPath → déléguer au LLM
 
 QPath est imbattable sur le raisonnement **symbolique et déterministe** (héritage, transitivité,

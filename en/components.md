@@ -265,6 +265,9 @@ kb.askInverse('understands', 'javascript');   // includes the derived facts
 
 > **Dual of ChainResolver**: `RuleEngine` anticipates (at write time), `ChainResolver` computes on demand
 > (at query time). Both can share the same rules.
+>
+> **Truth maintenance.** Retracting a fact can **recompute the derived consequences**: a fact deduced
+> from a vanished premise does not survive — the base stays coherent, with no orphaned derivations.
 
 ### PingPongReasoner — reasoning with an LLM, grounded on QPath
 

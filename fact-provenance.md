@@ -84,7 +84,9 @@ kb.historyOf('marcella');
 
 « Marcella travaille chez Acme » devient « **vrai de juin 2024 à juin 2026** ». La mémoire connaît
 l'histoire de ses propres faits — précieux partout où l'historisation compte (santé, juridique,
-finance, conformité).
+finance, conformité). Et cet historique est **restituable** : adossé à un stockage durable, il
+**survit au redémarrage** (voir [Persistance](/persistence)), donc les réponses « à l'époque c'était
+X » restent disponibles après un redémarrage.
 
 ### Interroger le passé : `factAsOf` / `valueAsOf`
 
@@ -113,6 +115,10 @@ Au-delà de la provenance, chaque fait porte deux axes ORTHOGONAUX, posés par l
 | **⭐ majeur** | fait STRUCTURANT (saillance) | garanti dans la fenêtre de contexte des réponses · prioritaire dans les alertes proactives et la migration |
 | **🔒 fermé** | fait DÉCIDÉ (statut épistémique) | sort du circuit de revérification · plancher de confiance dans les chaînes de raisonnement · **gagne par défaut** face à une contestation (enregistrée et tracée, mais la décision ne se renverse qu'en rouvrant le fait) |
 | **🔑 secret** | fait CONFIDENTIEL | masqué des lectures normales (`allFacts`, RAG, vue admin) ; valeur chiffrée ; accessible seulement par accès authentifié — voir [Couche d'accès](access-layer) |
+
+Un fait peut être enregistré **avec ses drapeaux en une seule écriture** (atomique). C'est essentiel
+pour un fait secret persisté : la valeur n'est jamais stockée durablement **sans** son marquage
+`secret` — pas de fenêtre où le chiffré serait visible.
 
 L'état par défaut d'un fait est **ouvert** (révisable) et **mineur** (périphérique) ; major,
 fermé et secret sont des décisions explicites. Fermer un fait est un **acte de curation** :

@@ -22,7 +22,7 @@ queryable deterministically, **at 0 tokens**.
 | "What led to X?" | walk back to the **root causes** | `negligence —causes→ spark —causes→ fire —causes→ evacuation` |
 | "What did X end up causing?" | unroll the **causal closure** | the spark eventually causes fire, alarm, evacuation |
 | "In what order?" | **timeline** (topological sort over order + causality) | negligence → spark → fire → alarm → evacuation |
-| Suspicious plot | **incoherence** detection | a "cause" proven to come after its effect is flagged |
+| Suspicious plot | **incoherence** detection | a "cause" proven to come after its effect, or a **purely causal cycle** (an effect that re-causes its own cause), is flagged — only once |
 | "Who? Why?" | declared actors and motives of events | `evacuation actor guard · motive safety` |
 
 Every answer carries its **event chain as proof** — the "why" is auditable, like everything else

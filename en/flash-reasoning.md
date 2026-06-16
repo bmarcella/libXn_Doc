@@ -105,6 +105,10 @@ ChainResolver.format(chain!);
 await verbalize(`Explain this reasoning in one sentence: ${ChainResolver.format(chain!)}`);
 ```
 
+> **Honest confidence, even against the grain.** When a chain follows a relation in the **inverse**
+> direction, its confidence reflects that of the real underlying fact — not an assumed certainty. A
+> conclusion drawn through an uncertain inverse link is therefore no longer artificially over-confident.
+
 ## 5. When reasoning exceeds QPath → delegate to the LLM
 
 QPath is unbeatable at **symbolic, deterministic** reasoning (inheritance, transitivity, declared

@@ -161,7 +161,10 @@ reused at zero token.
 ## Why it's useful
 
 - **The memory grows** — a fact a tool brings back is memorized: you don't fetch it twice.
-- **Grounding** — results become QPath facts, hence **auditable** (not an opaque answer).
+- **Grounding** — results become QPath facts, hence **auditable** (not an opaque answer). Once the
+  durable facts are memorized, the returned response matches **exactly** what is actually queryable in
+  memory — even if the tool had normalized the subject into another form: no gap between what the tool
+  reports and what QPath knows.
 - **Decoupled** — the tool is a **port**: the core depends on no API. The dev plugs in anything (web,
   calculation, internal DB…) without touching QPath.
 

@@ -243,6 +243,10 @@ globex.ask('policy', 'leave');   // [] — Globex sees nothing of Acme's
   (row-level, transactional) as soon as there's sensitive value (money, secrets, rights).
 - **Everything is scoped** (per user / organization / conversation) — isolation comes from the scope
   key.
+- **The temporal archive survives a restart**: a durable store can expose the **retracted** facts,
+  which are re-injected on hydration. So "back then it was **X**" queries
+  ([provenance & re-verification](/en/fact-provenance)) stay available after a restart, not just the
+  latest current state.
 - **Painless scaling**: adding Redis = a decorator; moving to CockroachDB = an adapter subclass
   (Postgres-compatible protocol). No business code touched.
 

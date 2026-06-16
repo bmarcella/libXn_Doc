@@ -32,6 +32,12 @@ par les mêmes primitives, **le raisonnement opère sur la pile entière sans le
 | **Énumérations** (sujets, prédicats…) | **union** de toutes les couches, dédupliquée, priorité au spécifique |
 | **Raisonnement** (`reason`, héritage, Plot, Insight, règles, flux) | opère sur la **pile entière**, de façon transparente |
 
+Et ce n'est pas que les faits bruts : les **drapeaux** (décidé/structurant), les faits **secrets** (Coffre),
+les faits **compagnons** (profils/sections), le **contrôle d'accès par groupe**, les requêtes
+**temporelles** (« à l'époque c'était X ») et les hooks de symboles se propagent **à travers toutes les
+couches** — chacun résolu sur la couche qui porte réellement le fait. Autrement dit, Coffre, compagnons et
+permissions fonctionnent aussi quand on raisonne sur la pile dev/prod, pas seulement sur une base simple.
+
 C'est exactement la philosophie de **l'héritage avec exceptions** : une couche spécifique **masque**
 la base pour les seuls couples qu'elle connaît, et la laisse transparaître partout ailleurs.
 

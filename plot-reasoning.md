@@ -22,7 +22,7 @@ faits ordinaires, interrogeable en déterministe, **à 0 token**.
 | « Qu'est-ce qui a mené à X ? » | remontée aux **causes racines** | `négligence —cause→ étincelle —cause→ incendie —cause→ évacuation` |
 | « Quelles conséquences a eu X ? » | déroulé de la **clôture causale** | l'étincelle finit par provoquer incendie, alarme, évacuation |
 | « Dans quel ordre ? » | **chronologie** (tri topologique ordre + causalité) | négligence → étincelle → incendie → alarme → évacuation |
-| Trame suspecte | détection d'**incohérences** | une « cause » prouvée postérieure à son effet est signalée |
+| Trame suspecte | détection d'**incohérences** | une « cause » prouvée postérieure à son effet, ou un **cycle purement causal** (un effet qui re-cause sa propre cause), est signalé — une seule fois |
 | « Qui ? Pourquoi ? » | acteurs et motifs déclarés des événements | `évacuation acteur gardien · motif sécurité` |
 
 Chaque réponse porte sa **chaîne d'événements en preuve** — le « pourquoi » est auditable, comme
