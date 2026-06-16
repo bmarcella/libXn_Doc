@@ -79,6 +79,29 @@ kb.askInverse('aime', 'chocolat');   // ['marc']
 
 > Lectures **fiables et déterministes**, mémoire **éditable et auditable**.
 
+### QPathKeyIndex — recall flou par préfixe
+
+Un index de **recall flou** sur les clés (les sujets de la KnowledgeBase) : là où une table de hachage ne
+sait faire qu'un lookup **exact**, cet index exploite le fait que QPath encode chaque clé en **chemin**, si
+bien que deux clés au même préfixe d'octets partagent un préfixe de chemin.
+
+**À quoi ça sert :** retrouver des clés **proches** sans tout balayer — voisins au plus long préfixe
+partagé, requête de plage par préfixe, ou similarité par position.
+
+**Quand l'utiliser :** résolution approchée d'un nom (variante, faute de frappe), navigation de clés
+scopées (`user:<id>:<champ>`), suggestions — chaque fois que l'exact ne suffit pas. Câblé dans la
+`KnowledgeBase` via `nearestSubjects` / `subjectsWithPrefix`.
+
+```ts
+kb.nearestSubjects('alicia');     // sujets connus au plus long préfixe partagé, du plus proche au moins
+kb.subjectsWithPrefix('user:42'); // toutes les clés scopées sous ce préfixe (requête de plage)
+```
+
+> La même représentation de chemin sert l'exact ET l'approché. Le coût d'une recherche par préfixe reste
+> quasi plat quand le nombre de clés grandit (sous-linéaire), là où un balayage croît linéairement. La
+> similarité **par position** (tolère une différence au milieu de la clé) balaie en revanche le jeu de
+> clés : à réserver aux ensembles raisonnables ou en second étage après un filtrage par préfixe.
+
 ### CompanionFacts — des faits qui en accompagnent un autre
 
 Rattacher à un **propriétaire** un bloc de faits qui le décrivent : le **profil** d'une personne

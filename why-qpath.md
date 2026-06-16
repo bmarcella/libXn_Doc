@@ -41,6 +41,31 @@ au lieu d'être re-payée. *(Voir [Flash reasoning](flash-reasoning).)*
 
 > En une phrase : **le LLM rend QPath éloquent ; QPath rend le LLM fiable.**
 
+## La géométrie des clés préserve la structure
+
+Une table de hachage **détruit** la structure des clés : le hash les disperse, donc elle ne sait faire
+qu'un **lookup exact**. QPath, lui, encode chaque clé en **chemin** (paires de bits → directions). Deux
+clés qui partagent un préfixe d'octets — `alice`/`alicia`, ou un identifiant scopé `user:42:…` — partagent
+alors un **préfixe de chemin**. Parce que cette **même** représentation de chemin sert partout dans le
+système, on obtient « gratuitement » des capacités de **recall flou** qu'un hash n'a pas nativement :
+
+- **Voisins les plus proches** — les clés au plus long préfixe partagé, du plus proche au moins proche,
+  **sans balayer** tout le jeu (coût quasi plat quand le nombre de clés grandit). Utile pour la résolution
+  approchée : variantes, fautes de frappe, clés scopées.
+- **Requête de préfixe** — toutes les clés sous un préfixe donné (requête de plage).
+- **Similarité par position** — tolère une différence **au milieu** de la clé (`alice` vs `alike`), en
+  réutilisant la même représentation de chemin que la recherche exacte.
+
+Sur des clés scopées (`user:<id>:<champ>`), comparée au balayage d'une table classique, la recherche par
+préfixe mesure une accélération qui **croît avec la taille** : ~1,8× à 1 000 clés, ~7× à 10 000, ~292× à
+100 000 — le coût d'une requête QPath reste à peu près plat là où le balayage croît linéairement.
+
+> Cadrage honnête : c'est l'avantage de **toute** structure qui préserve les chemins face à un hash, pas
+> une impossibilité mathématique ailleurs. Ce qui en fait un atout cohérent, c'est l'usage **uniforme** de
+> la même représentation de chemin QPath dans tout le système. La similarité par position, elle, balaie le
+> jeu de clés (coût linéaire) : à réserver aux ensembles raisonnables, ou en second étage après un filtrage
+> par préfixe.
+
 ## Ce que QPath apporte, domaine par domaine
 
 ### Santé & sciences de la vie
