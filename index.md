@@ -21,8 +21,13 @@ hero:
     - theme: alt
       text: Aperçu
       link: /00-overview
+    - theme: alt
+      text: Comportement dynamique
+      link: /dynamic-behavior
 
 features:
+  - title: Le comportement = des faits gouvernés
+    details: Pas seulement la mémoire — la LOGIQUE de l'app (flots, règles, limites, anti-fraude) vit dans des faits qu'on interroge, gouverne et fait évoluer À CHAUD, sans redéployer. Déterministe et traçable. Vitrine&#58; npm run example:ledger.
   - title: Adressable par contenu
     details: La position d'une donnée est entièrement déterminée par son contenu — récupération exacte, déterministe, sans index externe.
   - title: Symbolique & déterministe
