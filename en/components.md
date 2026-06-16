@@ -109,6 +109,20 @@ comp.retractOwner(f);      // retracts the fact + its cascade companions
 > Identity-coherent: merging two entities (`mergeEntities`) keeps **one** profile (reads follow
 > aliases), and splitting a fact (`splitEntity`) **rebinds** its companions to the new id.
 
+**Nesting & tree deletion.** A companion can **itself** own other companions (any fact is a valid
+owner) → **trees** of companions, unlimited depth. `retractOwner` cascades only **one level**;
+**`retractTree`** walks the **whole tree** — following only `cascade` companions (a non-`cascade` one
+anchors a kept branch).
+
+```ts
+const owner = { entity: 'doc' };
+await comp.attach(owner, 'doc', 'page', '3', { cascade: true });                       // P, companion of doc
+await comp.attach({ fact: { s: 'doc', p: 'page', o: '3' } }, 'note', 'txt', '…', { cascade: true }); // companion of P
+
+comp.retractOwner(owner);   // DIRECT companions only (one level) → 'note' is left orphaned
+comp.retractTree(owner);    // the whole tree: companion of a companion, etc.
+```
+
 **Advanced use-cases**
 
 ```ts
