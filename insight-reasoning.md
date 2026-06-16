@@ -8,7 +8,7 @@ interroge ; celui-ci balaie la mémoire en continu et **anticipe** — il propos
 
 | Aperçu | Ce qu'il détecte | Exemple |
 |--------|------------------|---------|
-| **contradiction** | deux faits opposés coexistent | « x aime thé » ET « x n'aime pas thé » |
+| **contradiction** | deux faits opposés coexistent — les **deux côtés** sont présentés (ce qui est affirmé vs ce qui est nié), pas réduits à leur seule intersection | « x aime thé » ET « x n'aime pas thé » |
 | **presque-règle violée** | une régularité forte avec UN contre-exemple | « tous les habitants de France parlent français — sauf e. Oubli ou exception ? » |
 | **donnée manquante** | un membre d'une classe sans l'attribut que les autres ont | « Diana est la seule employée sans salaire » |
 | **trame incohérente** | une cause prouvée postérieure à son effet | « l'évacuation causerait l'alarme, or l'alarme précède l'évacuation » |

@@ -26,6 +26,9 @@ await ledger.open('12345_c', {
 bounds the **amount** (`maxAmount`) and/or the **count** (`maxCount`) of movements of one kind in
 the window. Stack as many as the domain requires.
 
+> `open()` is **idempotent** and **reconfigurable**: re-opening an account with a different floor
+> or ceiling **replaces** the old value (the new one wins), without stacking a duplicate.
+
 ### PRE-CONFIGURED transaction types
 
 Types are declared at construction. **Once at least one type is configured, it becomes REQUIRED**:
@@ -123,6 +126,10 @@ ledger.movementById('mv:cli_bob:withdraw:200:1700000000000'); // direct lookup, 
 > commit point. A half-written movement is never counted — each write is thus atomic for the
 > balance, and a transfer that fails midway **retracts** (compensation, saga) what was committed,
 > restoring the balances (`reason: 'rolled-back'`).
+>
+> **Every movement is unique.** Two identical movements (same account, same kind, same amount) at
+> the **same millisecond** no longer collapse: each carries its own identifier and counts
+> separately in the balance — no more silent loss of the second one.
 >
 > **Guarantee boundary.** Strong consistency under CONCURRENCY (two simultaneous transfers on the
 > same account) or a machine crash between the two writes remains the host's responsibility: for

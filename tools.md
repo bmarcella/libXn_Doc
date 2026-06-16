@@ -161,6 +161,9 @@ réutilisé à 0 token.
 
 - **La mémoire grandit** — un fait ramené par un outil est mémorisé : on ne le re-cherche pas deux fois.
 - **Ancrage** — les résultats deviennent des faits QPath, donc **auditables** (pas une réponse opaque).
+  Une fois les faits durables mémorisés, la réponse renvoyée correspond **exactement** à ce qui est
+  réellement interrogeable dans la mémoire — même si l'outil avait normalisé le sujet sous une autre
+  forme : aucun écart entre ce que l'outil annonce et ce que QPath sait.
 - **Découplé** — l'outil est un **port** : le noyau ne dépend d'aucune API. Le dev branche ce qu'il veut
   (web, calcul, base interne…) sans toucher à QPath.
 

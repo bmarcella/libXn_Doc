@@ -50,6 +50,11 @@ searchable by **similarity**: close images or sounds resemble each other in the 
 media.similar(queryCode, 5);   // [{ ref, sharedDepth }, …]  closest first
 ```
 
+The ranking is **deterministic** and **"closest first"**: at equal shared perceptual prefix, the most
+exact matches come out first — which matters when you cap the number of results. Indexing the same media
+twice creates no duplicate, and **deleting a media also removes it from the index** (no more "ghost"
+media that would keep showing up).
+
 The encoding comes from [`@damba/libxn-encoders`](04-guides/architecture): `PerceptualEncoder`
 (image → multi-resolution perceptual fingerprint) and `AudioEncoder` (audio → spectrogram →
 fingerprint). The core stays **canvas-free**: the app computes the encoding, the memory indexes it.
@@ -69,6 +74,10 @@ media.indexFrames(att.ref, codes);          // each keyframe → points to the v
 media.similar(aKeyframe);                     // finds the video if a keyframe resembles
 media.searchMedia({ kind: 'video', text: 'door' });   // or via facts (kind + transcript)
 ```
+
+Search by **type** (image / audio / video) stays reliable even for a media **shared** across several
+owners or attached under multiple types: the type comes from the **attachment link**, not from a piece
+of metadata written only once.
 
 ## The honest boundary
 

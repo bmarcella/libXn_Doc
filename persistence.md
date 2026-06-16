@@ -245,6 +245,10 @@ globex.ask('politique', 'congés');   // [] — Globex ne voit rien d'Acme
   (row-level, transactionnel) dès qu'il y a de la valeur sensible (argent, secrets, droits).
 - **Tout est scopé** (par utilisateur / organisation / conversation) — l'isolation est garantie par
   la clé de scope.
+- **L'archive temporelle survit au redémarrage** : un magasin durable peut exposer les faits
+  **rétractés**, réinjectés à l'hydratation. Les requêtes « à l'époque c'était **X** »
+  ([provenance & revérification](/fact-provenance)) restent donc disponibles après un redémarrage,
+  pas seulement le dernier état courant.
 - **Montée en charge sans douleur** : ajouter Redis = un décorateur ; passer à CockroachDB = une
   sous-classe d'adaptateur (protocole Postgres-compatible). Aucun code métier touché.
 

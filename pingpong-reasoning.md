@@ -23,7 +23,9 @@ QPath**.
 Trois garde-fous :
 
 - **Ancrage** — le LLM ne peut pas faire avaler un fait faux : si QPath connaît une autre valeur, il
-  **réfute**. Pas d'hallucination silencieuse.
+  **réfute**. Pas d'hallucination silencieuse. L'indicateur `grounded` reste **honnête** : il n'est
+  vrai que si **aucun** fait non vérifié par QPath n'a été écrit en mémoire — si un outil externe a
+  ajouté des faits non confrontés, la réponse est marquée comme **non entièrement ancrée**.
 - **Mémoire qui grandit** — une hypothèse **vérifiée** est réinjectée dans la mémoire : la prochaine fois,
   QPath répond seul, à 0 token.
 - **Échange court** — borné (quelques rounds) ; l'échange s'arrête dès que QPath confirme une conclusion,
@@ -34,6 +36,8 @@ Trois garde-fous :
 
 - Les coups ASK / HYPOTHESIS / TOOL sont **mono-ligne** ; la conclusion `CONCLUDE` peut être
   **multi-ligne** (listes, paragraphes) — tout ce qui suit le mot-clé appartient à la réponse.
+- Le dialogue tolère mieux les **valeurs contenant une virgule** (objets composites comme
+  « New York, USA ») : avec le format canonique `s | p | o`, l'objet n'est plus tronqué à la virgule.
 - Les règles du jeu sont exportées (`PINGPONG_SYSTEM_RULES`) pour que l'hôte les **compose avec sa
   propre identité produit** (`systemPrompt: identité + règles`) au lieu de les remplacer — sinon le
   LLM perd son identité pendant l'échange.
@@ -83,11 +87,12 @@ const result = await new PingPongReasoner(kb, llm).run(
 
 console.log(result.conclusion);   // réponse ancrée sur les faits vérifiés
 console.log(result.transcript);   // l'échange complet, round par round
-console.log(result.grounded);     // true : aucune affirmation du LLM n'a échappé à QPath
+console.log(result.grounded);     // true : aucun fait non vérifié par QPath n'a été écrit en mémoire
 ```
 
 Le résultat contient la **conclusion**, la **transcription** (chaque coup + verdict QPath), les **faits
-appris** (réinjectés), et `grounded` (toute affirmation du LLM a été confrontée à QPath).
+appris** (réinjectés), et `grounded` — vrai uniquement si **aucun** fait non vérifié par QPath n'a été
+écrit en mémoire (un outil externe ajoutant des faits non confrontés le passe à `false`).
 
 ::: tip
 Le détail interne du protocole n'est pas documenté publiquement. Pour un accès technique ou un

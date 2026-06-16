@@ -31,6 +31,12 @@ same primitives, **reasoning operates over the whole stack without knowing it**.
 | **Enumerations** (subjects, predicates…) | **union** of all layers, deduplicated, priority to the specific |
 | **Reasoning** (`reason`, inheritance, Plot, Insight, rules, flows) | operates over the **whole stack**, transparently |
 
+And it isn't only the raw facts: the **flags** (decided/load-bearing), the **secret** facts (Vault), the
+**companion** facts (profiles/sections), **group access control**, **temporal** queries ("back then it was
+X") and the symbol hooks all propagate **across every layer** — each resolved on the layer that actually
+carries the fact. In other words, Vault, companions and permissions work even when you reason over the
+dev/prod stack, not only over a plain base.
+
 This is exactly the **inheritance-with-exceptions** philosophy: a specific layer **shadows** the base
 for the pairs it knows, and lets it show through everywhere else.
 

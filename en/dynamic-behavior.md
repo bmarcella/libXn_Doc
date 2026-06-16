@@ -441,6 +441,11 @@ Two invariants make this safe:
 
 - **The LLM is an author, not an executor.** It produces facts; `FlowRunner` executes, deterministically
   and traced. The LLM's nondeterminism is **confined to authoring**, which is validated.
+- **The LLM is confined to the flow.** Any fact whose predicate is **not** part of the flow vocabulary
+  (`entry`, `if`/`then`/`else`, `switch`/`case`/`default`, `for_each`/`body`/`max_iter`,
+  `action`/`arg`/`next`) is **rejected up front**: it never enters the environment, hence **cannot be
+  promoted to production**. The LLM cannot slip in arbitrary facts (identity, class, data…) under the
+  guise of writing a flow.
 - **No unsafe fact reaches prod.** `validateFlow` rejects an **unbounded** loop, a **dangling link**, an
   incomplete condition, or a **forbidden tool** (per-environment allowlist); the **gate** promotes only
   if everything is green; `rollbackRelease` reverts a release.
@@ -549,6 +554,8 @@ evolved — under validation and the gate.
 
 - **Deterministic**: given the memory and tools, the same flow always yields the same trace.
 - **Bounded**: global step budget + per-loop `max_iter` → **guaranteed halt**, even on a cycle.
+  A malformed condition or loop expression, or a non-numeric cap, does **not crash** the executor:
+  it falls back to a safe bound and the halt stays guaranteed.
 - **Traced & explainable**: every step carries its trigger; no opaque decision.
 - **0 tokens** for conditions: they are plain memory reads.
 

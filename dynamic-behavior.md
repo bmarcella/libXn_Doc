@@ -443,6 +443,11 @@ Deux invariants rendent cela sûr :
 
 - **Le LLM est auteur, pas exécuteur.** Il produit des faits ; c'est `FlowRunner` qui exécute, de
   façon déterministe et tracée. Le non-déterminisme du LLM est **confiné à l'écriture**, qui est validée.
+- **Le LLM est cantonné au flot.** Tout fait dont le prédicat **n'appartient pas** au vocabulaire de
+  flot (`entry`, `if`/`then`/`else`, `switch`/`case`/`default`, `for_each`/`body`/`max_iter`,
+  `action`/`arg`/`next`) est **rejeté d'emblée** : il n'entre jamais dans l'environnement, ne peut
+  donc **pas être promu en production**. Le LLM ne peut pas glisser des faits arbitraires (identité,
+  classe, données…) sous couvert d'écrire un flux.
 - **Aucun fait non sûr n'atteint la prod.** `validateFlow` refuse une boucle **non bornée**, un
   **lien mort**, une condition incomplète, ou un **outil interdit** (allowlist par environnement) ;
   le **gate** ne promeut que si tout est vert ; `rollbackRelease` annule une release.
@@ -552,6 +557,8 @@ en faits** a évolué, sous validation et gate.
 
 - **Déterministe** : à mémoire et outils donnés, le même flux donne toujours la même trace.
 - **Bornée** : budget de pas global + `max_iter` par boucle → **arrêt garanti**, même sur un cycle.
+  Une expression de condition ou de boucle mal formée, ou un plafond non numérique, ne fait **pas
+  planter** l'exécuteur : il retombe sur une borne sûre et l'arrêt reste garanti.
 - **Tracée & explicable** : chaque pas porte son déclencheur ; aucune décision opaque.
 - **0 token** pour les conditions : elles sont de simples lectures de la mémoire.
 

@@ -277,6 +277,9 @@ kb.askInverse('comprend', 'javascript');   // inclut les faits déduits
 
 > **Dual du ChainResolver** : `RuleEngine` anticipe (à l'écriture), `ChainResolver` calcule à la demande
 > (à la requête). Les deux peuvent partager les mêmes règles.
+>
+> **Maintenance de vérité.** Rétracter un fait peut **recalculer les conséquences dérivées** : un fait
+> déduit d'une prémisse disparue ne subsiste pas — la base reste cohérente, sans dérivés orphelins.
 
 ### PingPongReasoner — raisonner avec un LLM, ancré sur QPath
 

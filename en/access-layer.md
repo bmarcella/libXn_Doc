@@ -24,6 +24,11 @@ vault.read('bigvai#1', 'password');   // [] without a session
 vault.read('bigvai#1', 'password', session); // ['hunter2'] with a valid session
 ```
 
+> **Fail-closed by default.** With no injected `authenticator`, the Vault **refuses** every
+> reveal — a `Session` is just an unsigned object, accepting it unverified would be *fail-open*.
+> For a dev sandbox, the explicit `insecureAllowUnauthenticated: true` lifts the guard (never
+> enable it in production).
+
 ### Authentication (port)
 
 `FactAuthenticator` is the contract you implement with **your** crypto (Argon2id, JWT…):
@@ -246,6 +251,10 @@ the core.
 - **Transparent normalization**: the Vault re-encodes the ciphertext before storing it, so a
   secret survives intact (case, symbols, Unicode) regardless of the `CipherPort` — you have no
   format constraint on your cipher's output.
+- **Safe re-verification**: when a fact is re-checked over time (reality may have moved on), the
+  check **never overwrites** a secret or a **closed** decision — a re-verified secret is never
+  rewritten in clear, and a closed fact is not downgraded. A legitimate rewrite **preserves** the
+  structural flag (`major`), so the ontological backbone stays prioritized.
 - **Durability**: built on a [`DurableKnowledgeBase`](/en/persistence#durable-kb-durableknowledgebase),
   the whole access layer (secrets, permissions, audit) is **persisted** to Postgres and survives a
   restart — without changing the code. The systematic facts become a durable audit log.
