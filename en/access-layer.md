@@ -24,6 +24,11 @@ vault.read('bigvai#1', 'password');   // [] without a session
 vault.read('bigvai#1', 'password', session); // ['hunter2'] with a valid session
 ```
 
+> **Fail-closed by default.** With no injected `authenticator`, the Vault **refuses** every
+> reveal — a `Session` is just an unsigned object, accepting it unverified would be *fail-open*.
+> For a dev sandbox, the explicit `insecureAllowUnauthenticated: true` lifts the guard (never
+> enable it in production).
+
 ### Authentication (port)
 
 `FactAuthenticator` is the contract you implement with **your** crypto (Argon2id, JWT…):
