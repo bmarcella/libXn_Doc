@@ -355,6 +355,48 @@ const trace = await new FlowRunner(kb, tools).run('cmd');
 | Répéter sur une liste (plafonné) | Boucle bornée | `for_each` · `body` · `max_iter` |
 | Agir sur le monde | Action | `action` · `arg.<k>` |
 
+## Référence des mots-clés
+
+Chaque mot-clé est un **prédicat réservé**. Un nœud (le sujet du triplet) en porte un ou plusieurs
+pour décrire une étape du flux.
+
+| Mot-clé | Porté par | Ce qu'il fait | Comment l'utiliser |
+|---------|-----------|---------------|--------------------|
+| `entry` | le **flux** | désigne l'étape de départ | `(monFlux, entry, etape0)` |
+| `if` | une étape | déclare une **condition** lue dans la mémoire (0 token) | `(e, if, "sujet predicat objet")` ou `"s p OP n"` |
+| `then` | une étape `if` | étape suivante si la condition est **vraie** | `(e, then, etapeA)` |
+| `else` | une étape `if` | étape suivante si **fausse** ; peut pointer vers une **autre condition** (= else-if) | `(e, else, etapeB)` |
+| `switch` | une étape | **aiguille** selon la valeur d'un fait | `(e, switch, "sujet predicat")` |
+| `case.<v>` | une étape `switch` | branche choisie quand la valeur vaut `<v>` | `(e, case.gold, etapeG)` |
+| `default` | une étape `switch` | branche si aucun `case.` ne correspond | `(e, default, etapeD)` |
+| `for_each` | une étape | **itère** sur les objets d'un fait | `(e, for_each, "sujet predicat")` |
+| `body` | une étape `for_each` | l'étape exécutée pour chaque élément (`$item`) | `(e, body, etape)` |
+| `max_iter` | une étape `for_each` | **plafond** d'itérations — garantit l'arrêt | `(e, max_iter, "100")` |
+| `action` | une étape | exécute un **outil** déclaré (la seule brique à effet de bord) | `(e, action, nomOutil)` |
+| `arg.<clé>` | une étape `action` | un **paramètre** passé à l'outil (`$item` substitué en boucle) | `(e, arg.msg, "Bonjour")` |
+| `next` | une étape (action / boucle) | l'étape suivante en **séquence** | `(e, next, etapeSuivante)` |
+
+**Ordre d'évaluation d'un nœud** : `if` → `switch` → `for_each` → `action` → `next`. Un nœud est
+d'**un seul type** (condition, switch, boucle ou action) ; on ne mélange pas `if` et `switch` sur le
+même nœud. Les objets sont normalisés (minuscules) ; la casse d'affichage des `arg.*` est préservée.
+
+### Pourquoi des faits, et pas un builder `ifFact().else()` ?
+
+Le flux **est** des faits — c'est volontaire, et c'est ce qui lui donne sa valeur :
+
+- **stocké et interrogeable** comme tout le reste de la mémoire ;
+- **en couches** (dev/prod), **promouvable** et **annulable** (release / rollback) ;
+- **persistant** et **éditable à chaud** (ajouter / rétracter un fait) ;
+- **traçable** (chaque pas porte le fait qui l'a déclenché).
+
+Une facade par construct (`ifFact()`, `switchFact()`…) réintroduirait des **classes** là où le design
+pose que les « fact types » ne sont **pas des classes** mais des conventions de triplets ; et si la
+facade devenait la représentation exécutée, on **perdrait** toutes ces propriétés (un second chemin
+d'exécution divergerait des faits). Un éventuel **builder fluent** reste le bienvenu — mais seulement
+comme **sucre qui émet des faits**, jamais comme runtime parallèle. Plusieurs surfaces d'écriture
+(triplets bruts, builder, langage naturel, éditeur visuel) convergent vers **une seule source de
+vérité : les faits**.
+
 ## Tester sans risque : dev / prod
 
 La mémoire se travaille en **couches** : la prod tourne en lecture seule, et une **surcouche dev**
