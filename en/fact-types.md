@@ -289,8 +289,62 @@ and successive calls add up. Returns: `void`.
 > No silent triplet rewrite (it would break persistence): to **normalize**, reject non-conforming
 > input, or derive the corrected form in `onWrite`.
 
+## Unique facts — uniqueness constraints
+
+By default a `(subject, predicate)` is **multi-valued**: `alice likes tea` then `alice likes coffee`
+coexist. But some predicates are **functional**: an email has one id, a person one birth date. You can
+**declare a uniqueness constraint** on a predicate; it is then checked on **every write**, before the
+fact is stored.
+
+```ts
+kb.declareUnique('has_name',  'leftUnique');                          // 1 object per subject
+kb.declareUnique('has_email', 'rightUnique');                        // 1 subject per object
+kb.declareUnique('has_id',    'fullUnique');                         // bijection (both)
+kb.declareUnique('status',    'leftUnique', { onConflict: 'replace' }); // latest wins
+```
+
+The **three forms** of uniqueness (depending on what acts as the key):
+
+| `kind` | Key | Guarantees | Example |
+|---|---|---|---|
+| `leftUnique` | the **subject** | `(s, p)` has only **one** object (*functional*) | `b@gmail.com has_name Jean` — one email → one name |
+| `rightUnique` | the **object** | `(p, o)` has only **one** subject (*inverse-functional*, ≈ DB `UNIQUE`) | `Jean has_email b@gmail.com` — an email belongs to one person |
+| `fullUnique` | **both** | functional **and** inverse-functional (*bijection / key*) | `b@gmail.com has_id 1234` — one email ↔ one id |
+
+`kb.declareUnique(predicate, kind, opts?)` takes:
+
+| Argument | Role | Default |
+|---|---|---|
+| `predicate` | the constrained predicate (normalized) | — |
+| `kind` | `'leftUnique'` \| `'rightUnique'` \| `'fullUnique'` | — |
+| `opts.onConflict?` | what to do if a **different** value already exists (see below) | `'reject'` |
+
+**Conflict policy** (`onConflict`) — triggered only when a **different** value conflicts:
+
+| Policy | Effect |
+|---|---|
+| `reject` (default) | refuses the write: `tell` **throws `UniquenessError`**, the existing value is kept. Nothing is lost. |
+| `replace` | archives the conflicting old value(s) (retracted → [history](/en/fact-provenance)) then writes the new one. |
+| `report` | writes anyway and **returns a `UniquenessReport`** (`tell` → `{ kind: 'uniqueness', conflicts: [...] }`) for you to decide. |
+
+```ts
+kb.declareUnique('has_email', 'rightUnique');           // default: reject
+await kb.tell('alice', 'has_email', 'a@x.com');         // ✅
+await kb.tell('bob',   'has_email', 'a@x.com');         // ❌ UniquenessError (email already taken)
+await kb.tell('alice', 'has_email', 'a@x.com');         // ✅ idempotent — same fact, not a conflict
+```
+
+Keep in mind:
+
+- **Idempotence**: re-asserting the **same** triplet is never a conflict (it just adds a source).
+- **`closed` wins**: if the existing value is locked (🔒 `closed`), any competing write is **rejected**, even under `replace`.
+- **Backward-compatible**: without `declareUnique`, the predicate stays multi-valued (nothing changes).
+- **`tell` now returns** either a negation contradiction or a uniqueness violation — told apart by `report.kind` (`'negation'` vs `'uniqueness'`).
+- **Declare at startup** (like `defineSymbols`); for **cross-tenant global** uniqueness, the `unique` index on the [persistence](/en/persistence) side handles it (the two compose).
+
 ## In one sentence
 
 One type (the triplet), two axes (**6 flags** × **7 provenances**), **4 special** reasoning facts,
-**9 numeric** computations and **text functions** (distinct, frequencies, mode…) — all via a
-`{ s?, p?, o? }` filter, and manipulable through a single interface, `kb.fact(...)`.
+per-predicate **uniqueness constraints**, **9 numeric** computations and **text functions** (distinct,
+frequencies, mode…) — all via a `{ s?, p?, o? }` filter, and manipulable through a single interface,
+`kb.fact(...)`.

@@ -290,8 +290,62 @@ appels successifs s'additionnent. Retour : `void`.
 > Pas de réécriture silencieuse du triplet (incohérente avec la persistance) : pour **normaliser**,
 > refuse l'entrée non conforme, ou dérive la forme corrigée dans `onWrite`.
 
+## Faits uniques — contraintes d'unicité
+
+Par défaut un `(sujet, prédicat)` est **multi-valué** : `alice aime thé` puis `alice aime café`
+coexistent. Mais certains prédicats sont **fonctionnels** : un email n'a qu'un id, une personne qu'une
+date de naissance. Tu peux **déclarer une contrainte d'unicité** sur un prédicat ; elle est alors
+vérifiée à **chaque écriture**, avant que le fait ne soit posé.
+
+```ts
+kb.declareUnique('has_name',  'leftUnique');                          // 1 objet par sujet
+kb.declareUnique('has_email', 'rightUnique');                        // 1 sujet par objet
+kb.declareUnique('has_id',    'fullUnique');                         // bijection (les deux)
+kb.declareUnique('statut',    'leftUnique', { onConflict: 'replace' }); // le dernier gagne
+```
+
+Les **trois formes** d'unicité (selon ce qui sert de clé) :
+
+| `kind` | Clé | Garantit | Exemple |
+|---|---|---|---|
+| `leftUnique` | le **sujet** | `(s, p)` n'a qu'**un** objet (*fonctionnel*) | `b@gmail.com has_name Jean` — un email → un seul nom |
+| `rightUnique` | l'**objet** | `(p, o)` n'a qu'**un** sujet (*inverse-fonctionnel*, ≈ `UNIQUE` en base) | `Jean has_email b@gmail.com` — un email appartient à une seule personne |
+| `fullUnique` | les **deux** | fonctionnel **et** inverse-fonctionnel (*bijection / clé*) | `b@gmail.com has_id 1234` — un email ↔ un id |
+
+`kb.declareUnique(predicate, kind, opts?)` prend :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `predicate` | le prédicat contraint (normalisé) | — |
+| `kind` | `'leftUnique'` \| `'rightUnique'` \| `'fullUnique'` | — |
+| `opts.onConflict?` | que faire si une **valeur différente** existe déjà (voir ci-dessous) | `'reject'` |
+
+**Politique de conflit** (`onConflict`) — déclenchée seulement quand une valeur **différente** entre en conflit :
+
+| Politique | Effet |
+|---|---|
+| `reject` (défaut) | refuse l'écriture : `tell` **lève `UniquenessError`**, l'existant est conservé. Rien n'est perdu. |
+| `replace` | archive l'(les) ancienne(s) valeur(s) en conflit (rétractées → [historique](/fact-provenance)) puis écrit la neuve. |
+| `report` | écrit quand même et **renvoie un `UniquenessReport`** (`tell` → `{ kind: 'uniqueness', conflicts: [...] }`), à toi de trancher. |
+
+```ts
+kb.declareUnique('has_email', 'rightUnique');           // défaut: reject
+await kb.tell('alice', 'has_email', 'a@x.com');         // ✅
+await kb.tell('bob',   'has_email', 'a@x.com');         // ❌ UniquenessError (email déjà pris)
+await kb.tell('alice', 'has_email', 'a@x.com');         // ✅ idempotent — même fait, pas un conflit
+```
+
+À retenir :
+
+- **Idempotence** : réasserter le **même** triplet n'est jamais un conflit (ça ajoute juste une source).
+- **`closed` prime** : si la valeur existante est verrouillée (🔒 `closed`), toute écriture concurrente est **rejetée**, même sous `replace`.
+- **Rétrocompatible** : sans `declareUnique`, le prédicat reste multi-valué (rien ne change).
+- **`tell` renvoie** désormais soit une contradiction de négation, soit une violation d'unicité — distinguées par `report.kind` (`'negation'` vs `'uniqueness'`).
+- **À déclarer au démarrage** (comme `defineSymbols`) ; pour une unicité **globale inter-tenant**, c'est l'index `unique` côté [persistance](/persistence) qui s'en charge (les deux se composent).
+
 ## En une phrase
 
 Un seul type (le triplet), deux axes (**6 drapeaux** × **7 provenances**), **4 faits spéciaux** de
-raisonnement, **9 calculs** numériques et des **fonctions texte** (distinct, fréquences, mode…) — le
-tout par filtre `{ s?, p?, o? }`, et manipulable via une interface unique, `kb.fact(...)`.
+raisonnement, des **contraintes d'unicité** par prédicat, **9 calculs** numériques et des **fonctions
+texte** (distinct, fréquences, mode…) — le tout par filtre `{ s?, p?, o? }`, et manipulable via une
+interface unique, `kb.fact(...)`.
