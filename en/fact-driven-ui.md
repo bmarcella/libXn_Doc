@@ -56,6 +56,7 @@ write screens as **objects** (sugar) that become facts under the hood.
 | Remote data | `http` tool (injected, hence mockable) → writes the result as facts |
 | **dev/prod** variants | injectable KB: a `LayeredKnowledgeBase` overlays a dev layer (most specific wins) |
 | Hot-swap | `app.kb.tell(...)` / `retract(...)` then re-render |
+| Mount (initial load) | `(screen, on_mount, flow)` → flow run on mount (e.g. load data) |
 
 ## "Prompt → screen", safely
 
@@ -117,6 +118,17 @@ await app.screen('shop', {
 });
 await app.flow('load', [{ do: 'http', url: '/api/items', list: 'cart item' }]);            // GET → list
 await app.flow('save', [{ do: 'http', method: 'POST', url: '/api/cart', body: '$event' }]); // POST (body)
+```
+
+To **load on mount** (no button), declare the flow as the screen's `onMount` — it is a fact
+`(screen, on_mount, flow)` that `<FactUI>` runs once on mount:
+
+```ts
+await app.screen('shop', {
+  component: 'List', forEach: 'cart item',
+  template: { component: 'Item', props: { text: '$item' } },
+  onMount: 'load',            // ← initial load, driven by a fact
+});
 ```
 
 **WebSocket**: open the socket **separately**; each message writes facts + notifies → re-render

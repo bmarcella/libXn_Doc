@@ -56,6 +56,7 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 | Données distantes | tool `http` (port injecté, donc mockable) → écrit le résultat en faits |
 | Variantes **dev/prod** | KB injectable : une `LayeredKnowledgeBase` superpose un overlay (le plus spécifique gagne) |
 | Hot-swap | `app.kb.tell(...)` / `retract(...)` puis re-render |
+| Montage (chargement initial) | `(screen, on_mount, flow)` → flux exécuté au montage (ex. charger des données) |
 
 ## « Prompt → écran », en sûreté
 
@@ -117,6 +118,17 @@ await app.screen('shop', {
 });
 await app.flow('load', [{ do: 'http', url: '/api/items', list: 'cart item' }]);            // GET → liste
 await app.flow('save', [{ do: 'http', method: 'POST', url: '/api/cart', body: '$event' }]); // POST (body)
+```
+
+Pour **charger au montage** (sans bouton), déclare le flux en `onMount` de l'écran — c'est un fait
+`(screen, on_mount, flow)` que `<FactUI>` exécute une fois au montage :
+
+```ts
+await app.screen('shop', {
+  component: 'List', forEach: 'cart item',
+  template: { component: 'Item', props: { text: '$item' } },
+  onMount: 'load',            // ← chargement initial, piloté par fait
+});
 ```
 
 **WebSocket** : ouvre le socket **à part** ; chaque message écrit des faits + notifie → re-render
