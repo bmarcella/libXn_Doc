@@ -51,7 +51,8 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 | Événements | `on_click`/`on_change` → flux FlowRunner |
 | Formulaires | `on_change` transmet la saisie → `$event` dans le flux (`set value $event`) |
 | Listes | `for_each "cart item"` + gabarit ; `$item` dans events ; `itemKey: '$item'` → clé React par **identité** (pas de remount au réordonnancement) |
-| Conditionnel / RBAC | `show_if` : `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — lecture KB, 0 token |
+| Conditionnel / RBAC (nœud) | `show_if` : `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — lecture KB, 0 token |
+| Sécurité de page (RBAC) | `guard` (même grammaire que `show_if`) gate l'écran entier ; `denied` → écran de repli (login/403) |
 | Navigation | tool `navigate` → route + `show_if` pour basculer les panneaux |
 | Données distantes | tool `http` (port injecté, donc mockable) → écrit le résultat en faits |
 | CRUD de liste | tools `append` / `remove` (`$event`/`$item`) → ajouter/retirer un item ; `set`/`toggle`/`increment` pour le scalaire |
@@ -85,6 +86,39 @@ await app.screen('panier', {
 await app.flow('pick', [{ do: 'set', path: 'cart selected', value: '$item' }]); // → clic sur 'b' : selected = 'b'
 // suppression par item : { do: 'set', path: '$item removed', value: 'true' } + show_if « cart selected … »
 ```
+
+## Sécurité de page (RBAC)
+
+`show_if` protège un **nœud** (un bouton). Pour protéger une **page entière**, l'écran porte un
+`guard` : une condition (même grammaire que `show_if`) qui doit passer pour que l'écran se rende. Si
+elle échoue, `denied` désigne l'écran de **repli** (connexion, 403) ; sans `denied`, rien n'est
+rendu. L'autorisation **vit dans la KB** — pas dans le code :
+
+```ts
+await app.screen('admin', {
+  component: 'Card',
+  guard: 'session role admin',   // condition d'accès (lecture KB, 0 token)
+  denied: 'login',               // sinon → écran de repli (sans denied : rien)
+  children: [ /* … panneau admin … */ ],
+});
+await app.screen('login', { component: 'Card', children: [{ component: 'Text', props: { text: 'Connexion' } }] });
+```
+
+```ts
+// Octroyer l'accès = écrire un fait (tracé par provenance : qui, quand) ; révoquer = le retirer.
+await app.kb.tell('session', 'role', 'admin');  app.store.touch();   // → la page admin s'affiche
+await app.kb.retract('session', 'role', 'admin'); app.store.touch(); // → reverrouillée à chaud (repli)
+```
+
+Conséquences : l'accès est **gouverné et auditable** (provenance/historique tracent chaque
+octroi/révocation), **hot-swap** (changer un droit ne redéploie rien), et **déterministe** (le gate
+est une lecture KB pure, jamais un effet). Les redirections `denied` en boucle sont bornées
+(repli → `null`), donc l'arrêt est garanti. La condition accepte les comparateurs et `not`
+(ex. `guard: 'not session banned true'`, `guard: 'session level >= 3'`).
+
+> Sécurité : `guard` cache l'écran côté client — c'est de la **gouvernance d'UI**, pas un contrôle
+> d'accès serveur. Les données sensibles restent protégées par le backend (le port `http` ne renvoie
+> que ce que l'utilisateur a le droit de voir).
 
 ## Mise en forme (CSS)
 

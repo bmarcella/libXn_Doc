@@ -51,7 +51,8 @@ write screens as **objects** (sugar) that become facts under the hood.
 | Events | `on_click`/`on_change` → FlowRunner flows |
 | Forms | `on_change` passes input → `$event` in the flow (`set value $event`) |
 | Lists | `for_each "cart item"` + template ; `$item` in events ; `itemKey: '$item'` → React key by **identity** (no remount on reorder) |
-| Conditional / RBAC | `show_if`: `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — KB read, zero token |
+| Conditional / RBAC (node) | `show_if`: `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — KB read, zero token |
+| Page security (RBAC) | `guard` (same grammar as `show_if`) gates the whole screen ; `denied` → fallback screen (login/403) |
 | Navigation | `navigate` tool → route + `show_if` to switch panels |
 | Remote data | `http` tool (injected, hence mockable) → writes the result as facts |
 | List CRUD | `append` / `remove` tools (`$event`/`$item`) → add/remove an item ; `set`/`toggle`/`increment` for scalars |
@@ -85,6 +86,39 @@ await app.screen('cart', {
 await app.flow('pick', [{ do: 'set', path: 'cart selected', value: '$item' }]); // click on 'b': selected = 'b'
 // per-item delete: { do: 'set', path: '$item removed', value: 'true' } + show_if "cart selected …"
 ```
+
+## Page security (RBAC)
+
+`show_if` protects a **node** (a button). To protect a **whole page**, the screen carries a
+`guard`: a condition (same grammar as `show_if`) that must pass for the screen to render. If it
+fails, `denied` names the **fallback** screen (login, 403); without `denied`, nothing renders.
+Authorization **lives in the KB** — not in code:
+
+```ts
+await app.screen('admin', {
+  component: 'Card',
+  guard: 'session role admin',   // access condition (KB read, zero token)
+  denied: 'login',               // otherwise → fallback screen (without denied: nothing)
+  children: [ /* … admin panel … */ ],
+});
+await app.screen('login', { component: 'Card', children: [{ component: 'Text', props: { text: 'Sign in' } }] });
+```
+
+```ts
+// Granting access = writing a fact (traced by provenance: who, when); revoking = removing it.
+await app.kb.tell('session', 'role', 'admin');  app.store.touch();   // → admin page appears
+await app.kb.retract('session', 'role', 'admin'); app.store.touch(); // → re-locked live (fallback)
+```
+
+Consequences: access is **governed and auditable** (provenance/history trace every grant/revoke),
+**hot-swappable** (changing a right redeploys nothing), and **deterministic** (the gate is a pure KB
+read, never an effect). Looping `denied` redirects are bounded (fallback → `null`), so termination
+is guaranteed. The condition accepts comparators and `not`
+(e.g. `guard: 'not session banned true'`, `guard: 'session level >= 3'`).
+
+> Security: `guard` hides the screen client-side — this is **UI governance**, not server-side access
+> control. Sensitive data stays protected by the backend (the `http` port only returns what the user
+> is allowed to see).
 
 ## Styling (CSS)
 
