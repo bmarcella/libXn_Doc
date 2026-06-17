@@ -54,6 +54,7 @@ write screens as **objects** (sugar) that become facts under the hood.
 | Conditional / RBAC | `show_if`: `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — KB read, zero token |
 | Navigation | `navigate` tool → route + `show_if` to switch panels |
 | Remote data | `http` tool (injected, hence mockable) → writes the result as facts |
+| List CRUD | `append` / `remove` tools (`$event`/`$item`) → add/remove an item ; `set`/`toggle`/`increment` for scalars |
 | **dev/prod** variants | injectable KB: a `LayeredKnowledgeBase` overlays a dev layer (most specific wins) |
 | Hot-swap | `app.kb.tell(...)` / `retract(...)` then re-render |
 | Mount (initial load) | `(screen, on_mount, flow)` → flow run on mount (e.g. load data) |

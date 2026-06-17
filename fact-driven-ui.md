@@ -54,6 +54,7 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 | Conditionnel / RBAC | `show_if` : `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — lecture KB, 0 token |
 | Navigation | tool `navigate` → route + `show_if` pour basculer les panneaux |
 | Données distantes | tool `http` (port injecté, donc mockable) → écrit le résultat en faits |
+| CRUD de liste | tools `append` / `remove` (`$event`/`$item`) → ajouter/retirer un item ; `set`/`toggle`/`increment` pour le scalaire |
 | Variantes **dev/prod** | KB injectable : une `LayeredKnowledgeBase` superpose un overlay (le plus spécifique gagne) |
 | Hot-swap | `app.kb.tell(...)` / `retract(...)` puis re-render |
 | Montage (chargement initial) | `(screen, on_mount, flow)` → flux exécuté au montage (ex. charger des données) |
