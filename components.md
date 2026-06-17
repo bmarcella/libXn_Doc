@@ -65,6 +65,10 @@ objet)* plutôt que des données brutes.
 **À quoi ça sert :** mémoriser des faits (« marc aime le chocolat »), interroger dans les deux sens, croiser
 (intersections, unions, comparaison, similarité), et inférer (transitivité, héritage avec trace).
 
+> **Lectures déterministes :** les requêtes (`ask`, `askInverse`, `allFacts`…) sont servies depuis des
+> index miroir maintenus en parallèle de la grille — la réponse est **exacte et stable** quelle que soit
+> la taille du corpus, indépendamment de la géométrie du substrat.
+
 **Quand l'utiliser :** toute application qui a besoin d'une **couche de relations interrogeable** — profils,
 catalogues, ontologies métier, mémoire d'un agent — sans déployer une base de données graphe dédiée.
 

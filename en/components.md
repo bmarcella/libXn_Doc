@@ -65,6 +65,10 @@ data.
 **What it's for:** remember facts ("marc likes chocolate"), query both ways, cross-reference
 (intersections, unions, comparison, similarity), and infer (transitivity, inheritance with a trace).
 
+> **Deterministic reads:** queries (`ask`, `askInverse`, `allFacts`…) are served from mirror indices
+> kept alongside the grid — the answer is **exact and stable** regardless of corpus size, independent of
+> the substrate's geometry.
+
 **When to use it:** any app that needs a **queryable relations layer** — profiles, catalogs, business
 ontologies, an agent's memory — without deploying a dedicated graph database.
 
