@@ -147,6 +147,60 @@ ws.onmessage = (e) => {
 est immédiatement disponible aux `bind`/`for_each`/`show_if` — il n'y a **pas** d'état séparé à
 synchroniser : la KB *est* l'état.
 
+## Intégrations (axios, socket.io, gRPC, Tailwind, MUI…)
+
+Le paquet ne dépend que de `react`. Les libs externes se branchent à **trois coutures**, sans
+toucher au cœur : le **port `http`**, des **actions custom** (`app.action`, avec accès à `app.kb` /
+`app.store`), et le **registry de composants**.
+
+**axios** → le port `http` :
+```ts
+import axios from 'axios';
+const app = createFactApp({
+  http: (url, init) => axios.request({ url, method: init?.method ?? 'GET', data: init?.body }).then(r => r.data),
+});
+// tes intercepteurs/auth/retry s'appliquent ; les flux `http` marchent inchangés
+```
+
+**Tailwind** (et CSS modules / styled) → `prop.className` (zéro intégration, compilé au build) :
+```ts
+{ component: 'Button', props: { label: 'Save', className: 'px-4 py-2 rounded bg-blue-600 text-white' } }
+```
+
+**socket.io / SSE / WebSocket** → chaque message écrit des faits ; pour émettre, une action :
+```ts
+import { io } from 'socket.io-client';
+const socket = io('https://api.example.com');
+socket.on('feed', (items: string[]) => { void app.store.replaceList('feed item', items); });
+app.action('emit', async (i) => { socket.emit(String(i.event), i.payload); });
+```
+
+**gRPC / SDK quelconque** → une action custom (l'appel n'est pas « fetch-shaped ») :
+```ts
+const app = createFactApp();
+app.action('loadCart', async () => {
+  const res = await grpcClient.list(new ListReq());
+  await app.store.replaceList('cart item', res.getItemsList());
+});
+await app.flow('load', [{ do: 'loadCart' }]);   // + onMount:'load' pour charger au montage
+```
+
+**Bibliothèques de composants (MUI / shadcn / Radix)** → le registry :
+```tsx
+import { Button, Card } from '@mui/material';
+app.components({ Button, Card });   // faits : prop.variant 'contained' → prop MUI
+```
+
+> **Props objet.** Les valeurs de faits sont des **chaînes** ; une prop **objet/tableau** (ex. `sx`
+> MUI, `columns` d'une table) ne se passe pas directement. Enregistre un **composant adaptateur** qui
+> convertit des props-chaînes en props-objet :
+> ```tsx
+> const DataTable = (p: any) => <MuiTable columns={JSON.parse(p.columns ?? '[]')} dense={p.dense === 'true'} />;
+> app.components({ DataTable });   // fait : prop.columns '[{"key":"name"}]'
+> ```
+
+Ces libs sont **tes** dépendances dans **ton** app — pas dans le paquet (qui reste sans dépendance).
+
 ## Limites assumées
 
 - L'UI **ne remplace pas React** : elle s'appuie dessus pour le rendu/la réconciliation (clés

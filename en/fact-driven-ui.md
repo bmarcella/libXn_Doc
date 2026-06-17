@@ -147,6 +147,61 @@ ws.onmessage = (e) => {
 immediately available to `bind`/`for_each`/`show_if` — there is **no** separate state to keep in
 sync: the KB *is* the state.
 
+## Integrations (axios, socket.io, gRPC, Tailwind, MUI…)
+
+The package only depends on `react`. External libraries plug in at **three seams**, without touching
+the core: the **`http` port**, **custom actions** (`app.action`, with access to `app.kb` /
+`app.store`), and the **component registry**.
+
+**axios** → the `http` port:
+```ts
+import axios from 'axios';
+const app = createFactApp({
+  http: (url, init) => axios.request({ url, method: init?.method ?? 'GET', data: init?.body }).then(r => r.data),
+});
+// your interceptors/auth/retry apply; `http` flows work unchanged
+```
+
+**Tailwind** (and CSS modules / styled) → `prop.className` (zero integration, compiled at build):
+```ts
+{ component: 'Button', props: { label: 'Save', className: 'px-4 py-2 rounded bg-blue-600 text-white' } }
+```
+
+**socket.io / SSE / WebSocket** → each message writes facts; to emit, a custom action:
+```ts
+import { io } from 'socket.io-client';
+const socket = io('https://api.example.com');
+socket.on('feed', (items: string[]) => { void app.store.replaceList('feed item', items); });
+app.action('emit', async (i) => { socket.emit(String(i.event), i.payload); });
+```
+
+**gRPC / any SDK** → a custom action (the call is not "fetch-shaped"):
+```ts
+const app = createFactApp();
+app.action('loadCart', async () => {
+  const res = await grpcClient.list(new ListReq());
+  await app.store.replaceList('cart item', res.getItemsList());
+});
+await app.flow('load', [{ do: 'loadCart' }]);   // + onMount:'load' to load on mount
+```
+
+**Component libraries (MUI / shadcn / Radix)** → the registry:
+```tsx
+import { Button, Card } from '@mui/material';
+app.components({ Button, Card });   // facts: prop.variant 'contained' → MUI prop
+```
+
+> **Object props.** Fact values are **strings**; an **object/array** prop (e.g. MUI `sx`, a table's
+> `columns`) cannot be passed directly. Register an **adapter component** that converts string props
+> into the library's object props:
+> ```tsx
+> const DataTable = (p: any) => <MuiTable columns={JSON.parse(p.columns ?? '[]')} dense={p.dense === 'true'} />;
+> app.components({ DataTable });   // fact: prop.columns '[{"key":"name"}]'
+> ```
+
+These libraries are **your** dependencies in **your** app — not in the package (which stays
+dependency-free).
+
 ## Honest limits
 
 - The UI **does not replace React**: it relies on it for rendering/reconciliation (stable keys =
