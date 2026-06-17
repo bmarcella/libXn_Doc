@@ -61,6 +61,40 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 | Hot-swap | `app.kb.tell(...)` / `retract(...)` puis re-render |
 | Montage (chargement initial) | `(screen, on_mount, flow)` → flux exécuté au montage (ex. charger des données) |
 
+## React classique ou UI pilotée par faits ?
+
+Les deux approches sont **complémentaires** — ce n'est pas un remplacement de React (qui reste le
+moteur de rendu). Le choix dépend de **qui** change l'écran, **quand**, et **sous quelle
+gouvernance**.
+
+| Critère | React « normal » | UI pilotée par faits (`@damba/libxn-react-ui`) |
+|---|---|---|
+| Changer l'écran / le comportement | recompiler + redéployer | **à chaud** : ajouter/retirer un fait, **0 build** |
+| Gouvernance | rien nativement | **provenance + historique** (qui a changé quoi, quand), RBAC **nœud** + **page** |
+| Variantes (tenant, rôle, A/B, dev/prod) | branches de code / *flags* | **overlays** `LayeredKnowledgeBase` (le plus spécifique gagne) |
+| UI générée par un LLM | code arbitraire (risqué) | LLM **auteur** filtré + validé, **rendu déterministe** |
+| Source de vérité | état + props éparpillés | **la KB** (structure, état, comportement = faits) |
+| Sûreté de typage | bout en bout (TS) | props en **chaînes** (coercition / adaptateur) |
+| Props riches (objets, callbacks) | natif | chaînes ; objets via **composant adaptateur** |
+| Performance | fine, optimisée à la main | re-render à la **granularité de l'action** (mémo par nœud non implémentée) |
+| Courbe d'apprentissage | standard React | + un **vocabulaire de faits/flux** à connaître |
+| Écosystème / recrutement | énorme | ta bibliothèque React via le *registry* |
+
+**Quand coder en React classique.** UI **sur-mesure** et très interactive (canvas, animations, gestes),
+besoin de **sûreté de typage** maximale et de props riches, performance fine sur de gros arbres, ou
+simplement une équipe qui veut rester sur les outils standards. La structure est figée au build —
+c'est un avantage quand elle n'a **pas** vocation à changer sans déploiement.
+
+**Quand utiliser l'UI pilotée par faits.** Écrans qui doivent **changer sans redéployer**, être
+**gouvernés/audités** (qui a modifié l'écran, quand), **varier par tenant/rôle/édition** (dev↔prod),
+ou être **générés par un prompt** en sûreté : formulaires, **CRUD**, panneaux d'admin, **tableaux de
+bord**, parcours d'onboarding, écrans pilotés par configuration ou *feature flags*.
+
+**Approche hybride (recommandée).** On mélange : les composants **sur-mesure** (widget de graphe,
+éditeur riche) restent du React classique, **enregistrés dans le *registry*** ; les faits ne font que
+les **assembler et les piloter**. On garde la gouvernance/hot-swap là où elle apporte de la valeur,
+sans payer la rigidité des chaînes là où le sur-mesure s'impose.
+
 ## « Prompt → écran », en sûreté
 
 Un LLM peut **proposer** un écran à partir d'une demande en langage naturel — mais il est **auteur,

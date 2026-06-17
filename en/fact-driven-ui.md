@@ -61,6 +61,38 @@ write screens as **objects** (sugar) that become facts under the hood.
 | Hot-swap | `app.kb.tell(...)` / `retract(...)` then re-render |
 | Mount (initial load) | `(screen, on_mount, flow)` → flow run on mount (e.g. load data) |
 
+## Plain React or fact-driven UI?
+
+The two approaches are **complementary** — this is not a React replacement (React stays the rendering
+engine). The choice depends on **who** changes the screen, **when**, and **under what governance**.
+
+| Criterion | "Plain" React | Fact-driven UI (`@damba/libxn-react-ui`) |
+|---|---|---|
+| Change the screen / behavior | recompile + redeploy | **at runtime**: add/remove a fact, **0 build** |
+| Governance | none natively | **provenance + history** (who changed what, when), **node** + **page** RBAC |
+| Variants (tenant, role, A/B, dev/prod) | code branches / flags | **overlays** via `LayeredKnowledgeBase` (most specific wins) |
+| LLM-generated UI | arbitrary code (risky) | LLM **author** filtered + validated, **deterministic render** |
+| Source of truth | state + props scattered | **the KB** (structure, state, behavior = facts) |
+| Type safety | end-to-end (TS) | props are **strings** (coercion / adapter) |
+| Rich props (objects, callbacks) | native | strings; objects via an **adapter component** |
+| Performance | fine-grained, hand-tuned | re-render at **action granularity** (per-node memo not implemented) |
+| Learning curve | standard React | + a **fact/flow vocabulary** to learn |
+| Ecosystem / hiring | huge | your React library via the *registry* |
+
+**When to use plain React.** **Bespoke**, highly interactive UIs (canvas, animations, gestures),
+maximum **type safety** and rich props, fine performance on large trees, or a team that prefers
+staying on standard tooling. Structure is frozen at build time — an advantage when it is **not** meant
+to change without a deploy.
+
+**When to use fact-driven UI.** Screens that must **change without redeploying**, be
+**governed/audited** (who changed the screen, when), **vary per tenant/role/edition** (dev↔prod), or
+be **prompt-generated** safely: forms, **CRUD**, admin panels, **dashboards**, onboarding flows,
+config- or feature-flag-driven screens.
+
+**Hybrid approach (recommended).** Mix them: **bespoke** components (a chart widget, a rich editor)
+stay plain React, **registered in the *registry***; facts only **assemble and drive** them. You keep
+governance/hot-swap where it adds value, without paying the string rigidity where bespoke wins.
+
 ## "Prompt → screen", safely
 
 An LLM can **propose** a screen from a natural-language request — but it is **author, never
