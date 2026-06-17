@@ -343,6 +343,29 @@ await kb.tell('alice', 'has_email', 'a@x.com');         // ✅ idempotent — m�
 - **`tell` renvoie** désormais soit une contradiction de négation, soit une violation d'unicité — distinguées par `report.kind` (`'negation'` vs `'uniqueness'`).
 - **À déclarer au démarrage** (comme `defineSymbols`) ; pour une unicité **globale inter-tenant**, c'est l'index `unique` côté [persistance](/persistence) qui s'en charge (les deux se composent).
 
+### Portée & gouvernance — qui possède quelle clé
+
+Une contrainte porte un **tier** (`declareUnique(pred, kind, { tier })`), calqué sur les [anneaux de mémoire](/layers) :
+
+| Tier | Qui | Portée |
+|---|---|---|
+| `global` | le **système** : dev (codé en dur) + admin plateforme | s'applique dans **chaque** scope |
+| `tenant` | un **org / user** (créées en UI, avec libellé/description) | s'applique **uniquement à son scope**, isolé |
+
+Deux règles découlent de cette séparation :
+
+- **Espaces séparés** : une déclaration `tenant` sur un prédicat déjà possédé en `global` est **ignorée** — un tenant ne peut ni redéfinir ni affaiblir une règle système (ex. il ne peut pas retirer l'unicité de `has_email`). Il ne contraint que **ses propres** prédicats.
+- **Isolation** : l'unicité est vérifiée contre **les seules données du scope qui écrit**. Deux organisations peuvent donc avoir la même valeur sans conflit — « global » qualifie la *règle*, pas la *valeur*.
+
+Comme les org/user créent les leurs depuis l'UI, une contrainte peut vivre **en tant que faits** (scopée par anneau, descriptible) plutôt qu'en code :
+
+```ts
+// Écrit (predicat, cardinality, kind) [+ on_conflict, + unique_label] dans l'anneau courant :
+await kb.declareUniqueAsFacts('matricule', 'fullUnique', { onConflict: 'reject', label: 'Matricule interne' });
+// À l'hydratation d'un scope, on traduit ces méta-faits en contraintes (generic en 'global', org/user en 'tenant') :
+kb.loadUniqueConstraints({ tier: 'tenant' });
+```
+
 ## En une phrase
 
 Un seul type (le triplet), deux axes (**6 drapeaux** × **7 provenances**), **4 faits spéciaux** de

@@ -342,6 +342,29 @@ Keep in mind:
 - **`tell` now returns** either a negation contradiction or a uniqueness violation — told apart by `report.kind` (`'negation'` vs `'uniqueness'`).
 - **Declare at startup** (like `defineSymbols`); for **cross-tenant global** uniqueness, the `unique` index on the [persistence](/en/persistence) side handles it (the two compose).
 
+### Scope & governance — who owns which key
+
+A constraint carries a **tier** (`declareUnique(pred, kind, { tier })`), mirroring the [memory rings](/en/layers):
+
+| Tier | Who | Scope |
+|---|---|---|
+| `global` | the **system**: dev (hard-coded) + platform admin | applies in **every** scope |
+| `tenant` | an **org / user** (created in the UI, with label/description) | applies **only to its scope**, isolated |
+
+Two rules follow from this split:
+
+- **Separate namespaces**: a `tenant` declaration on a predicate already owned `global` is **ignored** — a tenant can neither redefine nor weaken a system rule (e.g. it can't remove `has_email` uniqueness). It only constrains **its own** predicates.
+- **Isolation**: uniqueness is checked against **the writing scope's data only**. Two organizations can therefore hold the same value without conflict — "global" qualifies the *rule*, not the *value*.
+
+Since orgs/users create theirs from the UI, a constraint can live **as facts** (ring-scoped, describable) rather than in code:
+
+```ts
+// Writes (predicate, cardinality, kind) [+ on_conflict, + unique_label] into the current ring:
+await kb.declareUniqueAsFacts('matricule', 'fullUnique', { onConflict: 'reject', label: 'Internal staff id' });
+// On hydrating a scope, translate those meta-facts into constraints (generic as 'global', org/user as 'tenant'):
+kb.loadUniqueConstraints({ tier: 'tenant' });
+```
+
 ## In one sentence
 
 One type (the triplet), two axes (**6 flags** × **7 provenances**), **4 special** reasoning facts,
