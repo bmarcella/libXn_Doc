@@ -25,8 +25,38 @@ kb.fact(f.id).retract('périmé');
 kb.tripletOf(f.id);         // { s, p, o } d'un id
 ```
 
+**Les appels en détail.** Le handle a **deux façons de désigner un fait** : par triplet
+(`kb.fact(s, p, o)`) à la création, ou par id (`kb.fact(id)`) une fois qu'il existe.
+
+- `kb.fact(s, p, o)` / `kb.fact(id)` — ouvre le handle. La forme **3 arguments** vise un triplet
+  (sujet, prédicat, objet) — tous obligatoires et castés en chaîne. La forme **1 argument** prend l'**id
+  déterministe** d'un fait déjà connu et lève une erreur si l'id est inconnu. Retour : un `FactRef`
+  chaînable (rien n'est écrit tant que `.save()` n'est pas appelé).
+- `.from(source)` — attache la **provenance** à l'écriture à venir. `source` est un objet `FactSource`
+  (voir l'axe « provenance » ci-dessous) ; seul `kind` est obligatoire.
+- `.closed(v?)` / `.major(v?)` — posent un drapeau. L'argument booléen est **optionnel et vaut `true`**
+  par défaut ; passe `false` pour retirer le drapeau (ex. `.major(false)`).
+- `.group(g)` — rattache le fait au groupe d'accès nommé `g` (chaîne obligatoire).
+- `.save()` — écrit le triplet **+** sa provenance **+** ses drapeaux en attente, en un seul appel.
+  C'est `async` (la persistance peut être distante) : `await`-le. Retour : le même `FactRef` (chaînable) ;
+  `f.id` est alors l'identifiant déterministe.
+
+| Méthode du handle (par id) | Argument | Rôle | Retour |
+|---|---|---|---|
+| `.setFlags(flags)` | objet `FactFlags` partiel (`{ closed?, major?, secret?, group?, … }`) — **fusionné** avec l'existant | pose/modifie des drapeaux **immédiatement** (sans re-écrire le triplet) | le handle |
+| `.flags()` | *(aucun)* | lit les drapeaux courants | `FactFlags` (`{}` si aucun) |
+| `.sources()` | *(aucun)* | lit la provenance | `FactSource[]` |
+| `.retract(reason?)` | raison optionnelle (chaîne, archivée) | rétracte le fait (archivé, **jamais** effacé) | `boolean` — `true` s'il existait |
+| `kb.tripletOf(id)` | l'id déterministe | retrouve le triplet d'un id | `{ s, p, o }` ou `undefined` si l'id est inconnu |
+
+> 💡 `.save()` est **asynchrone**, mais `.setFlags()` / `.flags()` / `.sources()` / `.retract()` sont
+> **synchrones** (ils opèrent sur l'index en mémoire). N'`await` que `.save()` (et `kb.tell`).
+
 > Le plus simple : `await kb.tell('alice', 'aime', 'café')` reste valable pour un fait nu. `kb.fact()`
-> est la version unifiée quand tu veux provenance, drapeaux ou l'id en retour.
+> est la version unifiée quand tu veux provenance, drapeaux ou l'id en retour. Signature complète :
+> `kb.tell(s, p, o, source?, flags?)` — les 4ᵉ/5ᵉ arguments (provenance, drapeaux) sont optionnels, et
+> `tell` retourne une `Promise<ContradictionReport | null>` (non `null` si l'opposé exact `p ↔ not_p`
+> existe déjà).
 
 ## Axe « drapeau » — le rôle du fait
 
@@ -51,7 +81,20 @@ await kb.fact('alice', 'ville', 'paris').from({ kind: 'document', ref: 'cv.pdf' 
 kb.fact(id).sources();   // [{ kind: 'document', ref: 'cv.pdf', at: … }]
 ```
 
-`user` · `document` · `web` · `tool` · `llm-verified` · `inference` · `import`.
+L'objet `source` passé à `.from(...)` (type `FactSource`) :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `kind` | **obligatoire** — la nature de l'origine (voir la liste ci-dessous) | — |
+| `ref?` | référence libre : URL, id de document, nom d'outil… | — (aucune) |
+| `at?` | timestamp epoch (ms) de l'enregistrement | **maintenant** (`Date.now()`) si omis |
+| `confidence?` | confiance portée par cette source, entre `0` et `1` | — (non pondérée) |
+| `display?` | forme d'**affichage verbatim** de l'objet (casse/accents préservés) — l'objet stocké est normalisé en minuscules, ce champ garde l'original pour l'UI | — |
+
+> 💡 Plusieurs `.save()`/`tell` du même triplet **n'écrasent pas** la provenance : ils **empilent** les
+> sources. `kb.fact(id).sources()` renvoie donc un tableau (chaque entrée porte son propre `at`).
+
+Valeurs possibles de `kind` : `user` · `document` · `web` · `tool` · `llm-verified` · `inference` · `import`.
 
 ## Faits spéciaux (sémantique de raisonnement)
 
@@ -61,6 +104,28 @@ kb.fact(id).sources();   // [{ kind: 'document', ref: 'cv.pdf', at: … }]
 | **Identité** `même_que` | deux noms = même entité | `kb.mergeEntities('bob','robert')` | lectures fusionnées |
 | **Non-identité** `distinct_de` | « pas le même Jean » | `kb.splitEntity(...)` | bloque une fusion |
 | **Classe** `est` | `chat est animal` → héritage | `kb.fact('chat','est','animal').save()` | `kb.classesOf`, `kb.askInherited` |
+
+**Les opérations de ce tableau, en détail :**
+
+- `kb.mergeEntities(a, b, source?)` — déclare que deux noms désignent la **même** entité. `a` et `b` sont
+  les deux sujets (chaînes obligatoires) ; `source` est une provenance `FactSource` optionnelle (défaut :
+  `{ kind: 'user', ref: 'fusion' }`). Retour : `Promise<boolean>` — `false` si la fusion est **refusée**
+  (mêmes noms, ou une non-identité `distinct_de` existe déjà entre eux), `true` sinon.
+- `kb.splitEntity(from, factsToMove, opts?)` — scinde une entité en deux (« pas le même Jean »). `from`
+  est le sujet d'origine ; `factsToMove` est la **liste des faits à déplacer** vers la nouvelle entité,
+  chacun `{ p, o }` (le sujet est implicitement `from`) ; `opts` est optionnel —
+  `{ discriminantNew?, discriminantOld? }` pose un libellé lisible sur chaque entité. Retour :
+  `Promise<string>` — l'**id du nouveau sujet** créé. Les faits déplacés sont rétractés côté `from`
+  (archivés, pas effacés) et un `distinct_de` est posé dans les **deux** sens.
+- `kb.checkInherited(s, p, o, maxDepth?)` — vérifie un triplet **avec héritage et exceptions**. Les trois
+  premiers arguments sont le triplet à tester ; `maxDepth` borne la remontée d'héritage (défaut **6**).
+  Retour : `{ verdict: 'yes' | 'no' | 'unknown'; answer? }` — `'yes'` (affirmé, direct ou hérité),
+  `'no'` (**nié** par un `not_p` — une preuve, pas une absence), `'unknown'` (indécidable).
+- `kb.classesOf(s, maxDepth?)` / `kb.askInherited(s, p, maxDepth?)` — remontent la chaîne de classes
+  (`est`) ; `maxDepth` borne la profondeur (défaut **6**).
+
+> ⚠️ Pour **changer** un fait de classe à valeur unique, `retract` puis `tell` : un simple second `tell`
+> **ajoute** une valeur au lieu de remplacer la précédente.
 
 ## Objets numériques — calculs
 
@@ -81,6 +146,17 @@ kb.compute({ p: 'email', o: { op: 'like', value: '@gmail' } }, 'count'); // emai
 kb.matchFacts({ p: 'prix', o: { op: '!=', value: '0' } });           // prix non nuls
 ```
 
+Un **comparateur** est l'objet `{ op, value }` accepté à la place d'une chaîne dans `s`, `p` ou `o` :
+
+- `op` — l'opérateur : `=` · `!=` · `<` · `<=` · `>` · `>=` (sur la valeur **numérique** du champ) ·
+  `like` (sous-chaîne, insensible à la casse) · `in` (appartenance à une liste).
+- `value` — la valeur de comparaison. Une **chaîne ou un nombre** pour la plupart des opérateurs ; un
+  **tableau** (`['alice', 'bob']`) pour `in`. Pour `<` `<=` `>` `>=`, la valeur du champ est parsée en
+  nombre — un champ non numérique ne matche jamais.
+
+> 💡 Une **chaîne nue** (`{ p: 'age' }`) est un raccourci pour l'**égalité exacte** (`{ op: '=' }`) ;
+> un champ **absent** est un **joker** (tous). `{ s?, p?, o? }` se lit donc « ces contraintes-là, le
+> reste libre ».
 
 ```ts
 // compute(filtre, fonction) — le point d'entrée
@@ -97,15 +173,44 @@ kb.stats({ p: 'age' });
 kb.matchFacts({ p: 'age', o: '40' });             // [{ s, p, o }, …]
 ```
 
+**Les trois points d'entrée, en détail :**
+
+- `kb.compute(filtre, fn)` — applique **une** fonction d'agrégat aux objets numériques des faits
+  filtrés. `filtre` est un `{ s?, p?, o? }` (chaque champ absent = joker) ; `fn` est l'une des 9
+  fonctions ci-dessous. Retour : `number | undefined` (**`undefined`** si aucun fait numérique ne
+  matche). Cas particulier : `'count'` compte les **faits** (pas seulement les numériques).
+- `kb.stats(filtre)` — calcule **toutes** les statistiques d'un coup avec le même filtre. Un seul
+  argument (le filtre). Retour : un objet `{ count, sum, avg, min, max, median, variance, stddev, range }`,
+  ou **`undefined`** si aucun objet numérique ne matche.
+- `kb.matchFacts(filtre)` — la **sélection brute** : renvoie les faits qui matchent, sous la forme
+  `Array<{ s, p, o }>` (tableau vide si rien). C'est la base de `compute`/`stats` et des fonctions texte.
+
+> ⚠️ `compute`/`stats`/fonctions texte **excluent** par défaut le vocabulaire moteur (`excludeReserved`
+> implicite à `true`). `matchFacts` **brut** reste **inclusif** sauf si tu passes `excludeReserved: true`
+> dans le filtre.
+
 > **Vocabulaire moteur exclu par défaut.** Les calculs et fonctions texte **ignorent** les faits dont
 > le prédicat est interne (`même_que`, `distinct_de`, `not_*`, `est`/`est_un`/`is`) — `compute({ s: 'bob' })`
 > ne compte pas les `même_que` créés par une fusion. Pour les réintégrer : `{ …, excludeReserved: false }`.
 > Test direct : `KnowledgeBase.isReservedPredicate('même_que') // true`.
 
-Fonctions : **`count` · `sum` · `avg` · `min` · `max` · `median` · `variance` · `stddev` · `range`**.
-Raccourcis : `kb.aggregate(s, p, fn)` = `compute({ s, p }, fn)` · `kb.aggregateAll(p, fn)` =
-`compute({ p }, fn)`. Et pour interroger : `kb.askNumeric('age', '>', 18)` (« qui a plus de 18 ans ? »),
-`kb.numericValueOf(s, p)`, `kb.compareNumeric(s1, s2, p)`.
+Fonctions (valeurs possibles de `fn`) : **`count` · `sum` · `avg` · `min` · `max` · `median` ·
+`variance` · `stddev` · `range`** (variance/écart-type **populationnels**).
+
+**Raccourcis et requêtes numériques, en détail :**
+
+- `kb.aggregate(s, p, fn)` — = `compute({ s, p }, fn)`. Agrège les objets d'un couple (sujet, prédicat).
+  Retour : `number | undefined`.
+- `kb.aggregateAll(p, fn)` — = `compute({ p }, fn)`. Agrège transversalement tous les sujets porteurs du
+  prédicat `p`. Retour : `number | undefined`.
+- `kb.askNumeric(p, op, value, value2?)` — « quels sujets vérifient (p) `op` valeur ? ». `op` est un
+  opérateur numérique (`>` `>=` `<` `<=` `=` `!=` `between`) ; `value2` n'est requis **que** pour
+  `between` (inclusif). Retour : `NumericMatch[]` = `Array<{ subject, value }>`, **trié par valeur
+  croissante**.
+- `kb.numericValueOf(s, p)` — la **première** valeur numérique de (s, p). Retour : `number | undefined`
+  (`undefined` si aucun objet n'est numérique).
+- `kb.compareNumeric(s1, s2, p)` — compare deux sujets sur un prédicat numérique. Retour : le **signe**
+  de (v1 − v2) — `-1`, `0` ou `1` — ou `undefined` si l'un des deux manque.
 
 ## Objets alphanumériques — fonctions texte
 
@@ -130,6 +235,16 @@ kb.matchCount({ p: 'email' }, '@gmail');   // combien d'objets contiennent une s
 | `longest` / `shortest(filtre)` | `string` | par longueur de chaîne |
 | `matchCount(filtre, sous-chaîne)` | `number` | combien contiennent un motif (insensible à la casse) |
 
+Toutes prennent le **même** `filtre` `{ s?, p?, o? }` que `compute`/`stats` (premier argument). Les deux
+qui ont un **second** argument :
+
+- `concat(filtre, sep?)` — `sep` est le séparateur, **`', '` par défaut** ; passe `' | '` pour changer.
+- `matchCount(filtre, substring)` — `substring` (chaîne **obligatoire**) est le motif cherché dans les
+  objets ; la comparaison est **insensible à la casse**.
+
+> 💡 `mode` / `longest` / `shortest` renvoient `undefined` si la sélection est vide ; `distinctValues`
+> renvoie `[]` et `frequencies` renvoie `{}`.
+
 ## Symboles développeur — réagir à l'écriture
 
 Tu peux **« réclamer » un token** (sujet, prédicat ou objet) et y brancher une logique déclenchée
@@ -150,6 +265,19 @@ kb.defineSymbols({
 await kb.fact('compte', 'solde', 'abc').save();  // ❌ SymbolValidationError — rien posé
 await kb.fact('compte', 'solde', '100').save();  // ✅
 ```
+
+`kb.defineSymbols(spec)` prend **un seul** argument, un objet à trois clés **toutes optionnelles** —
+`{ subjects?, predicates?, objects? }` — chacune un tableau de `DeveloperSymbol` :
+
+| Champ d'un `DeveloperSymbol` | Rôle | Défaut |
+|---|---|---|
+| `name` | **obligatoire** — le token réclamé (normalisé) | — |
+| `description?` | libellé libre (doc/introspection) | — |
+| `validate?(ctx)` | **véto** synchrone avant écriture | — (pas de véto) |
+| `onWrite?(ctx)` | **effet de bord** après écriture | — (aucun) |
+
+L'appel est **idempotent et cumulatif** : ré-enregistrer un même `name` écrase le précédent, et les
+appels successifs s'additionnent. Retour : `void`.
 
 | Hook | Quand | Rôle |
 |---|---|---|

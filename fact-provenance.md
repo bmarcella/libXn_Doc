@@ -21,9 +21,39 @@ kb.sourcesOf('bitcoin', 'vaut', '60000');
 // → [{ kind: 'web', ref: 'https://exemple.org/cours', at: 1760000000000 }]
 ```
 
+**Les arguments de `tell(s, p, o, source?, flags?)`** — les trois premiers sont le triplet ; les
+deux derniers, optionnels, attachent la provenance et les drapeaux **dans la même écriture** :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `s` | **sujet** du fait | — (requis) |
+| `p` | **prédicat** (la relation) | — (requis) |
+| `o` | **objet** (la valeur) | — (requis) |
+| `source?` | l'origine du fait — voir la table `FactSource` ci-dessous | `undefined` = aucune source enregistrée (le fait existe mais n'a ni fraîcheur ni canal de revérification) |
+| `flags?` | drapeaux posés **atomiquement** avec le fait (`{ closed?, major?, secret?, group?, companionOf?, cascade? }`) — voir [Les drapeaux](#les-drapeaux-statut-epistemique-et-saillance) | `undefined` = ouvert + mineur |
+
+L'objet **`source`** (`FactSource`) :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `kind` | type d'origine — l'une des valeurs listées ci-dessous | — (requis si `source` est fourni) |
+| `ref?` | référence : URL, id de document, **nom d'outil**… (c'est ce que `FactVerifier` relit pour retrouver le bon canal) | `undefined` |
+| `at?` | horodatage epoch ms de l'enregistrement | `undefined` → l'instant courant à l'écriture |
+| `confidence?` | confiance portée par cette source, de `0` à `1` | `undefined` |
+| `display?` | forme d'**affichage verbatim** de l'objet (casse/accents préservés) — le KB normalise `o` en minuscules pour la recherche ; ce champ garde l'original pour l'UI, lu via `displayOf()` | `undefined` → l'objet normalisé est affiché |
+
 Les `kind` disponibles : `user` (affirmé par l'utilisateur), `document` (extrait d'un document
 ingéré), `web`, `tool`, `llm-verified` (hypothèse LLM vérifiée puis mémorisée), `inference`
 (dérivé par raisonnement), `import`.
+
+> 💡 `tell` est **asynchrone** (`await`) et retourne `ContradictionReport | null` : `null` dans le
+> cas normal, sinon un rapport quand le fait entrant a son **opposé exact** déjà en base
+> (`p` ↔ `not_p`, même sujet, même objet). Les deux faits restent stockés — la mémoire archive
+> l'évidence, le curateur tranche.
+
+**`sourcesOf(s, p, o)`** prend le triplet exact et retourne **un tableau** `FactSource[]` (copie, en
+ordre chronologique d'enregistrement) — vide `[]` si le fait n'a aucune source connue. C'est la même
+forme que celle passée à `tell`, augmentée du `at` réel.
 
 Redire un fait n'écrase rien : **les sources s'accumulent** — un fait confirmé par trois canaux
 porte trois sources. Et toute la chaîne d'écriture de QPath source déjà ses faits automatiquement :
@@ -40,6 +70,23 @@ est éternel) :
 kb.statusOf('bitcoin', 'vaut', '60000');   // 'fresh' → puis, 31 jours plus tard : 'stale'
 kb.staleFacts();                            // tous les faits à revérifier
 ```
+
+**`statusOf(s, p, o, policy?, now?)`** — dérive le statut de fraîcheur d'**un** fait à partir de sa
+source la plus récente :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `s`, `p`, `o` | le triplet à évaluer | — (requis) |
+| `policy?` | la politique de fraîcheur — `{ ttlByKind?, ttlByPredicate? }` : TTL en ms par `kind` (absent = stable), avec override par prédicat | `DEFAULT_FRESHNESS` (web 30 j, tool 7 j, llm-verified 90 j ; le reste stable) |
+| `now?` | instant de référence epoch ms (pour tester ou rejouer une date) | `Date.now()` |
+
+Retourne `'fresh' \| 'stale' \| 'unknown'` : `'unknown'` si le fait n'existe pas ou n'a **aucune
+source** (pré-provenance) ; `'fresh'` s'il est dans son TTL (ou si aucun TTL ne s'applique →
+stable) ; `'stale'` si le TTL est dépassé.
+
+**`staleFacts(policy?, now?)`** — mêmes deux arguments optionnels (mêmes défauts) ; retourne **tous**
+les faits périmés sous forme d'un tableau `{ s, p, o, sources }[]`. Les faits **fermés** (🔒) sont
+exclus : un fait décidé n'est plus jamais revérifié.
 
 Un fait `stale` n'est pas supprimé — il est **candidat à la revérification**.
 
@@ -68,6 +115,37 @@ await verifier.verify('meteo paris', 'est', 'pluie');
 await verifier.sweep();   // mode « curateur » : balaye et revérifie tous les faits périmés
 ```
 
+**Le constructeur `new FactVerifier(kb, opts?)`** :
+
+- **`kb`** — la `KnowledgeBase` à revérifier (requis). C'est elle qui sera ré-estampillée
+  (`confirm`) ou corrigée (`retract` + `tell`) selon le verdict.
+- **`opts?`** — les canaux et réglages (objet, par défaut `{}`) :
+
+| Option | Rôle | Défaut |
+|---|---|---|
+| `tools` | un `ToolRegistry` : canal **intégré** pour les faits de `kind: 'tool'` — rappelle l'outil d'origine (par nom via `ref`, sinon par prédicat) | `undefined` (pas de canal outil) |
+| `reverifiers` | canaux **injectés** par `kind` de source (`{ web, 'llm-verified', user, … }`), chacun une fonction `Reverifier`. **Prioritaires** sur le canal `tools` | `undefined` (aucun canal injecté) |
+| `policy` | politique de fraîcheur utilisée par `sweep` pour collecter les périmés | `DEFAULT_FRESHNESS` |
+| `writeBack` | `false` = **dry-run** : calcule les verdicts sans toucher la KB | `true` (les verdicts écrivent) |
+
+Un **`Reverifier`** est une fonction `(s, p, o, source) => Promise<string[] | null>` : elle renvoie
+les valeurs **actuelles** observées pour `(s, p)`, ou **`null`** si le canal ne peut pas répondre
+(indisponible, hors sujet) — ce `null` est ce qui produit le verdict `unknown`.
+
+**`verify(s, p, o)`** prend le triplet exact d'un fait connu et retourne `Promise<VerifyOutcome>` :
+`{ s, p, o, verdict, current?, via? }` où `verdict` est `'confirmed' | 'contradicted' | 'unknown'`,
+`current` les valeurs observées (présent surtout en cas de contradiction) et `via` le canal utilisé
+(`'tool:<ref>'` ou `'reverifier:<kind>'`).
+
+> 🔒 `verify` **ne touche jamais** un fait secret (🔑) ni un fait fermé (🔒) : il renvoie d'emblée
+> `unknown`. Pour un secret, l'objet stocké est un chiffré — le comparer à une valeur en clair
+> donnerait toujours « contredit » et réécrirait le secret en clair (fuite). Un fait fermé est une
+> décision figée, hors du champ de la revérification automatique.
+
+**`sweep(now?)`** — `now` (epoch ms, défaut `Date.now()`) fixe l'instant d'évaluation de la
+fraîcheur. Retourne un `Promise<SweepReport>` : `{ checked, confirmed, contradicted, unknown, outcomes }`
+(les compteurs + le détail de chaque `VerifyOutcome`).
+
 Un canal qui échoue donne `unknown`, jamais `contradicted` : **l'indisponibilité n'est pas une
 contradiction**.
 
@@ -81,6 +159,20 @@ kb.historyOf('marcella');
 // → [{ s: 'marcella', p: 'travaille_chez', o: 'acme',
 //      from: 1717000000000, to: 1760000000000, reason: 'contredit par revérification' }]
 ```
+
+**`historyOf(s?, p?)`** — les deux arguments sont des **filtres optionnels** :
+
+- **`s?`** — ne garder que les faits archivés de ce sujet ; `undefined` = tous les sujets.
+- **`p?`** — ne garder que ce prédicat ; `undefined` = tous les prédicats.
+
+Retourne un tableau `ArchivedFact[]` (le plus récent en dernier), chaque entrée portant la
+**période de validité** : `{ s, p, o, sources, from?, to, reason? }` — `from` = premier
+enregistrement connu (epoch ms, `undefined` si inconnu), `to` = instant de rétractation, `reason` =
+pourquoi (contradiction, expiration, édition, manuel…).
+
+**`kb.retract(s, p, o, reason?, now?)`** est ce qui alimente cet historique : `reason` (texte libre,
+optionnel) et `now` (epoch ms, défaut `Date.now()`, qui devient le `to` de l'archive) ; il retourne
+`true` si le fait existait, `false` sinon. Le fait cesse d'être servi **mais n'est jamais effacé**.
 
 « Marcella travaille chez Acme » devient « **vrai de juin 2024 à juin 2026** ». La mémoire connaît
 l'histoire de ses propres faits — précieux partout où l'historisation compte (santé, juridique,
@@ -101,9 +193,30 @@ kb.factAsOf('paris', 'maire', tEn2020);
 // → { asOf: ['x'], current: ['y'], changed: true }
 ```
 
-`valueAsOf` combine le **courant** (s'il était déjà vrai à `at`) et l'**archive** (faits dont `[from, to)`
-contient `at`). `factAsOf` ajoute la valeur **actuelle** et un drapeau `changed` — de quoi répondre
-« à l'époque c'était **X** (mais aujourd'hui c'est **Y**) » sans jamais réécrire l'histoire.
+**`editFact(s, p, oldO, newO, source?)`** — modifie la valeur d'un fait :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `s`, `p` | le sujet et le prédicat visés | — (requis) |
+| `oldO` | l'**ancienne** valeur (celle à archiver) | — (requis) |
+| `newO` | la **nouvelle** valeur (celle à écrire) | — (requis) |
+| `source?` | provenance de la nouvelle écriture | `{ kind: 'user', ref: 'edit' }` |
+
+Asynchrone, retourne `Promise<boolean>` : `true` si l'édition a réussi (ou si `oldO === newO`, un
+no-op réussi) ; `false` si l'ancien fait n'existait pas. Sous le capot c'est un `retract(oldO)` suivi
+d'un `tell(newO)` — l'ancienne valeur part donc à l'historique **avec sa période**, ce qui rend
+chaque version successive interrogeable par les méthodes ci-dessous.
+
+**`valueAsOf(s, p, at)`** et **`factAsOf(s, p, at)`** prennent le sujet, le prédicat et **`at`**,
+l'instant à interroger (epoch ms) — les trois sont requis.
+
+- **`valueAsOf`** retourne un **tableau** `string[]` : les valeurs valides à `at`. Il combine le
+  **courant** (s'il était déjà vrai à `at`) et l'**archive** (faits dont la période `[from, to)`
+  contient `at`).
+- **`factAsOf`** retourne un **objet** `{ asOf, current, changed }` : `asOf` = le résultat de
+  `valueAsOf` (ce qui était vrai à `at`), `current` = la valeur **actuelle** (`ask`), `changed` =
+  `true` si les deux diffèrent — de quoi répondre « à l'époque c'était **X** (mais aujourd'hui c'est
+  **Y**) » sans jamais réécrire l'histoire.
 
 ## Les drapeaux : statut épistémique et saillance
 

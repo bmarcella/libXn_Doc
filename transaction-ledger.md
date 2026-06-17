@@ -28,9 +28,52 @@ await ledger.open('12345_c', {
 });
 ```
 
+**`new TransactionLedger(kb, options?)`** — le constructeur prend deux arguments :
+
+- `kb` — la `KnowledgeBase` (ou `DurableKnowledgeBase`) qui stocke les faits. **Obligatoire.** C'est
+  d'elle que vient la durabilité : un ledger sur une [`DurableKnowledgeBase`](/persistence#kb-durable-durableknowledgebase)
+  devient persistant et transactionnel **sans changer le code ledger**.
+- `options?` — les `LedgerOptions` (toutes optionnelles ; `{}` par défaut). Voir le tableau ci-dessous.
+
+| Option (`LedgerOptions`) | Rôle | Défaut |
+|---|---|---|
+| `name` | Nom du grand livre (son rôle), ex. « Comptes courants », « Crédits API » | — |
+| `description` | Description libre de ce que ce livre suit | — |
+| `unit` | Unité **par défaut** des quantités (`'USD'`, `'pts'`, `'kWh'`…). Un livre n'est pas forcément de l'argent | — (sans unité) |
+| `allowNegative` | Le solde peut-il devenir négatif **sans plancher explicite** ? | `false` (plancher implicite à `0`) |
+| `floor` | Plancher par défaut (solde minimum), surchargeable par compte | `0` (ou `-∞` si `allowNegative`) |
+| `ceiling` | Plafond par défaut (solde maximum), surchargeable par compte | `+∞` |
+| `limits` | Limites de vélocité **globales** (s'ajoutent à celles de chaque compte) | `[]` |
+| `types` | Types de transaction pré-configurés. Dès qu'un type est déclaré, il devient **REQUIS** | `[]` (aucun → type libre) |
+| `now` | Fournisseur d'horloge (`() => number`, epoch ms) — utile en test pour figer le temps | `() => Date.now()` |
+
+**`ledger.open(account, config?)`** — ouvre/configure un compte. Renvoie `Promise<void>` ; **idempotent**.
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `account` | Identifiant du compte (chaîne ; normalisé par le KB) | **obligatoire** |
+| `config.unit` | Unité de **ce** compte | hérite du `unit` du ledger |
+| `config.initialBalance` | Dotation d'ouverture (écrite comme mouvement « ouverture », **hors contraintes**). Seulement si > 0 et compte vierge | `0` (aucun mouvement) |
+| `config.floor` | Plancher (solde minimum, ex. `-4000` pour un découvert). **Remplace** l'ancienne valeur à la ré-ouverture | `floor` du ledger |
+| `config.ceiling` | Plafond (solde maximum). **Remplace** l'ancienne valeur à la ré-ouverture | `ceiling` du ledger |
+| `config.limits` | Limites de vélocité **propres** au compte (s'ajoutent aux globales) | `[]` |
+
+Chaque entrée de `limits` est une `VelocityLimit` :
+
+| Champ (`VelocityLimit`) | Rôle | Défaut |
+|---|---|---|
+| `windowMs` | Taille de la fenêtre glissante en ms | **obligatoire** |
+| `kind` | Sens limité (`'deposit'` / `'withdraw'`) | absent = **les deux** |
+| `maxAmount` | Somme maximale des montants dans la fenêtre | — (pas de borne montant) |
+| `maxCount` | Nombre maximal de mouvements dans la fenêtre | — (pas de borne nombre) |
+| `label` | Libellé lisible de la limite | — |
+
 `windowMs` est libre : 60 000 (minute), 3 600 000 (heure), 86 400 000 (jour), ×7 (semaine), etc.
 Une limite borne le **montant** (`maxAmount`) et/ou le **nombre** (`maxCount`) de mouvements d'un
 sens dans la fenêtre. On en empile autant que le domaine l'exige.
+
+> 💡 La dotation d'ouverture (`initialBalance`) est écrite **hors contraintes** et ignorée par les
+> compteurs de vélocité (son `ref` interne est `ouverture`) : elle ne consomme pas un quota.
 
 > `open()` est **idempotent** et **reconfigurable** : ré-ouvrir un compte avec un autre plancher
 > ou plafond **remplace** l'ancienne valeur (la nouvelle gagne), sans empiler de doublon.
@@ -54,6 +97,23 @@ await ledger.ready;            // les types sont déclarés en async
 ledger.declaredTypes();        // [{ name:'loyer', kind:'withdraw' }, …]
 ```
 
+Chaque entrée de `types` est une `TransactionType` :
+
+| Champ (`TransactionType`) | Rôle | Défaut |
+|---|---|---|
+| `name` | Identifiant du type (normalisé en minuscules) | **obligatoire** |
+| `kind` | Restreint le type à un sens (`'deposit'` / `'withdraw'`) | absent = **les deux** (donc utilisable en virement) |
+| `label` | Libellé d'affichage, **casse préservée** (« Salaire ») | — |
+
+- **`ledger.ready`** — une `Promise<void>` (et non une méthode). Le constructeur ne pouvant pas
+  `await`, les types globaux sont déclarés en arrière-plan ; `await ledger.ready` garantit qu'ils le
+  sont avant la première opération.
+- **`ledger.declaredTypes()`** — sans argument ; renvoie un `TransactionType[]` trié par `name`,
+  reconstruit depuis les faits (le `label` ressort avec sa casse d'origine).
+
+> 💡 Un type **sans `kind`** est le seul utilisable pour un **virement** (qui enjambe les deux sens) :
+> `transfer` refuse (`reason: 'invalid-type'`) un type restreint à `'deposit'` ou `'withdraw'`.
+
 ### Dépôts, retraits, virements (avec métadonnées)
 
 Chaque mouvement porte un **type**, son **auteur** (`by` = created_by) et sa **date** (`at` =
@@ -73,6 +133,42 @@ ledger.balance('12345_c');    // calculé par repli, jamais écrit
 ledger.movements('12345_c');  // historique : { kind, amount, type, by, at, ref } — la vérité
 ```
 
+**`ledger.deposit(account, amount, meta?)`** et **`ledger.withdraw(account, amount, meta?)`** ont la
+même forme et renvoient une `Promise<PostResult>` :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `account` | Compte cible | **obligatoire** |
+| `amount` | Montant **positif** (un montant ≤ 0 ou non fini → `reason: 'bad-amount'`) | **obligatoire** |
+| `meta.type` | Type de transaction (**requis** dès qu'au moins un type est configuré) | — |
+| `meta.by` | Auteur (`created_by`) | — |
+| `meta.ref` | Référence libre (filtrable / recherchable ensuite) | `ledger:<deposit\|withdraw>` |
+
+**`ledger.transfer(from, to, amount, meta?)`** → `Promise<TransferResult>` :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `from` | Compte débité | **obligatoire** |
+| `to` | Compte crédité | **obligatoire** |
+| `amount` | Montant positif | **obligatoire** |
+| `meta.type` | Type **non restreint** (sans `kind`) si des types sont configurés | — |
+| `meta.by` | Auteur des deux jambes | — |
+| `meta.ref` | Référence des deux jambes | `virement:<from>-><to>` |
+
+**Formes de retour.** `PostResult` = `{ ok, reason, movement?, balance }` : `ok` (booléen), `reason`
+(la cause si refus, sinon `null`), `movement` (le mouvement écrit si succès), `balance` (le solde
+**après** l'opération). `TransferResult` = `{ ok, reason, side?, fromBalance, toBalance }` : `side`
+(`'from'` | `'to'`) indique **quel côté** a causé le refus ; `fromBalance`/`toBalance` sont les soldes
+résultants des deux comptes.
+
+- **`ledger.balance(account)`** → `number` — solde courant (dépôts − retraits), arrondi au centième,
+  **jamais stocké** (calculé par repli des mouvements).
+- **`ledger.movements(account)`** → `Movement[]` — l'historique trié du plus ancien au plus récent.
+  Chaque `Movement` = `{ id, account, kind, amount, at, type?, by?, ref? }`.
+
+> ⚠️ Les **montants** doivent être strictement positifs ; le sens (dépôt vs retrait) vient de la
+> méthode appelée, pas du signe. Un montant négatif est refusé (`bad-amount`), il ne « retire » pas.
+
 ### Cycle de vie du compte
 
 Un compte est **actif**, **bloqué** (gel temporaire) ou **fermé** (terminal). Une opération sur
@@ -85,6 +181,15 @@ await ledger.unblock('12345_c');                     // retour à 'active'
 
 await ledger.close('12345_c');                       // TERMINAL : plus aucune opération, pas de déblocage
 ```
+
+- **`ledger.block(account, reason?)`** → `Promise<void>` — gèle le compte. `reason` (optionnel) est la
+  cause archivée dans l'historique ; défaut `'ledger:block'`. **Sans effet sur un compte fermé.**
+- **`ledger.unblock(account)`** → `Promise<void>` — un seul argument ; remet le compte à `'active'`.
+  Sans effet si le compte n'est pas `'blocked'`.
+- **`ledger.close(account, reason?)`** → `Promise<void>` — ferme définitivement (état **terminal** :
+  aucun déblocage possible). `reason` par défaut `'ledger:close'`.
+- **`ledger.statusOf(account)`** → `AccountStatus` (`'active'` | `'blocked'` | `'closed'`) ; un compte
+  jamais modifié renvoie `'active'`.
 
 > Les changements d'état sont eux-mêmes des faits (rétractés/archivés à chaque transition) :
 > l'historique du compte — quand il a été bloqué, par qui, pourquoi — est auditable.
@@ -125,6 +230,45 @@ ledger.movementsPage('cli_bob', {
 ledger.movementById('mv:cli_bob:withdraw:200:1700000000000:0'); // lookup direct, ou undefined
 ```
 
+**`ledger.accounts(query?)`** → `Page<AccountSummary>`. Toutes les options sont optionnelles (`{}`
+liste tout) :
+
+| Option (`AccountQuery`) | Rôle | Défaut |
+|---|---|---|
+| `search` | Sous-chaîne recherchée dans l'**id** du compte | — (aucun filtre) |
+| `status` | `'active'` \| `'blocked'` \| `'closed'` | — |
+| `unit` | Ne garder que les comptes de cette unité | — |
+| `minBalance` / `maxBalance` | Bornes de solde (incluses) | — |
+| `sort` | Clé de tri : `'id'` \| `'balance'` \| `'movements'` | `'id'` |
+| `desc` | Ordre décroissant | `false` |
+| `offset` | Décalage de pagination | `0` |
+| `limit` | Taille de page | absent = **tout** (pas de troncature) |
+
+`Page<T>` = `{ items, total, offset, limit, hasMore }` : `total` est le décompte **avant** découpe
+(pour calculer le nombre de pages), `hasMore` indique s'il reste une page. `AccountSummary` =
+`{ id, balance, unit?, status, movementCount, floor, ceiling }`.
+
+**`ledger.movementsPage(account, query?)`** → `Page<Movement>`. `account` obligatoire, options :
+
+| Option (`MovementQuery`) | Rôle | Défaut |
+|---|---|---|
+| `kind` | `'deposit'` \| `'withdraw'` | — (les deux) |
+| `type` | Filtre par type de transaction | — |
+| `by` | Filtre par auteur | — |
+| `ref` | Sous-chaîne dans la **référence** | — |
+| `since` / `until` | Bornes temporelles en epoch ms (incluses) | — |
+| `search` | Recherche plein-texte sur `id` / `ref` / `type` / auteur | — |
+| `desc` | Plus récent d'abord | `false` (plus ancien d'abord) |
+| `offset` / `limit` | Pagination | `0` / tout |
+
+- **`ledger.deposits(account, query?)`** / **`ledger.withdrawals(account, query?)`** — raccourcis de
+  `movementsPage` avec `kind` forcé à `'deposit'` / `'withdraw'` (le `kind` que tu passes est écrasé).
+- **`ledger.account(account)`** → `AccountSummary | undefined` — synthèse d'**un** compte (`undefined`
+  s'il n'existe pas). Un seul argument.
+- **`ledger.hasAccount(account)`** → `boolean` — le compte a-t-il été enregistré (ouvert ou touché) ?
+- **`ledger.movementById(id)`** → `Movement | undefined` — recherche directe par id de mouvement,
+  tous comptes confondus.
+
 > Tout est **calculé**, jamais dénormalisé : le solde et le décompte d'une page sont repliés à la
 > volée depuis les mouvements immuables — aucun compteur à maintenir, donc rien à désynchroniser.
 
@@ -159,3 +303,12 @@ await kb.hydrate();
 const ledger = new TransactionLedger(kb);   // identique — la durabilité vient du KB
 await ledger.transfer('a', 'b', 200);        // atomique côté base si le KB est durable
 ```
+
+**`new DurableKnowledgeBase(grid, factStore, scope)`** — trois arguments (détaillés dans
+[Persistance](/persistence#kb-durable-durableknowledgebase)) : `grid` (le graphe QPath en mémoire),
+`factStore` (où les faits sont réellement persistés) et `scope` (la clé qui isole cette mémoire, ex.
+`ledger:42`). `await kb.hydrate()` recharge l'état durable au démarrage.
+
+> 💡 Ici `new TransactionLedger(kb)` est appelé **sans options** : il hérite des unités/contraintes
+> par défaut. La durabilité et l'atomicité de `transfer` viennent **uniquement** du `kb` durable —
+> le code du ledger est strictement le même qu'en mémoire.

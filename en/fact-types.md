@@ -25,8 +25,38 @@ kb.fact(f.id).retract('stale');
 kb.tripletOf(f.id);         // { s, p, o } of an id
 ```
 
+**The calls in detail.** The handle has **two ways to designate a fact**: by triplet
+(`kb.fact(s, p, o)`) when creating, or by id (`kb.fact(id)`) once it exists.
+
+- `kb.fact(s, p, o)` / `kb.fact(id)` — opens the handle. The **3-argument** form targets a triplet
+  (subject, predicate, object) — all required and cast to strings. The **1-argument** form takes the
+  **deterministic id** of an already-known fact and throws if the id is unknown. Returns: a chainable
+  `FactRef` (nothing is written until `.save()` is called).
+- `.from(source)` — attaches the **provenance** of the upcoming write. `source` is a `FactSource` object
+  (see the "provenance" axis below); only `kind` is required.
+- `.closed(v?)` / `.major(v?)` — set a flag. The boolean argument is **optional and defaults to `true`**;
+  pass `false` to clear the flag (e.g. `.major(false)`).
+- `.group(g)` — attaches the fact to the access group named `g` (required string).
+- `.save()` — writes the triplet **+** its provenance **+** its pending flags in a single call. It is
+  `async` (persistence may be remote): `await` it. Returns: the same `FactRef` (chainable); `f.id` is then
+  the deterministic identifier.
+
+| Handle method (by id) | Argument | Role | Returns |
+|---|---|---|---|
+| `.setFlags(flags)` | partial `FactFlags` object (`{ closed?, major?, secret?, group?, … }`) — **merged** with the existing ones | sets/changes flags **immediately** (without re-writing the triplet) | the handle |
+| `.flags()` | *(none)* | reads the current flags | `FactFlags` (`{}` if none) |
+| `.sources()` | *(none)* | reads the provenance | `FactSource[]` |
+| `.retract(reason?)` | optional reason (string, archived) | retracts the fact (archived, **never** erased) | `boolean` — `true` if it existed |
+| `kb.tripletOf(id)` | the deterministic id | recovers the triplet of an id | `{ s, p, o }` or `undefined` if the id is unknown |
+
+> 💡 `.save()` is **async**, but `.setFlags()` / `.flags()` / `.sources()` / `.retract()` are
+> **synchronous** (they operate on the in-memory index). Only `await` `.save()` (and `kb.tell`).
+
 > Simplest: `await kb.tell('alice', 'likes', 'coffee')` still works for a bare fact. `kb.fact()` is
-> the unified version when you want provenance, flags, or the id back.
+> the unified version when you want provenance, flags, or the id back. Full signature:
+> `kb.tell(s, p, o, source?, flags?)` — the 4th/5th arguments (provenance, flags) are optional, and
+> `tell` returns a `Promise<ContradictionReport | null>` (non-`null` if the exact opposite `p ↔ not_p`
+> already exists).
 
 ## "Flag" axis — the role of the fact
 
@@ -51,7 +81,20 @@ await kb.fact('alice', 'city', 'paris').from({ kind: 'document', ref: 'cv.pdf' }
 kb.fact(id).sources();   // [{ kind: 'document', ref: 'cv.pdf', at: … }]
 ```
 
-`user` · `document` · `web` · `tool` · `llm-verified` · `inference` · `import`.
+The `source` object passed to `.from(...)` (type `FactSource`):
+
+| Field | Role | Default |
+|---|---|---|
+| `kind` | **required** — the nature of the origin (see the list below) | — |
+| `ref?` | free-form reference: URL, document id, tool name… | — (none) |
+| `at?` | epoch timestamp (ms) of the record | **now** (`Date.now()`) if omitted |
+| `confidence?` | confidence carried by this source, between `0` and `1` | — (unweighted) |
+| `display?` | **verbatim display** form of the object (case/accents preserved) — the stored object is lowercased, this field keeps the original for the UI | — |
+
+> 💡 Multiple `.save()`/`tell` of the same triplet **do not overwrite** the provenance: they **stack**
+> the sources. So `kb.fact(id).sources()` returns an array (each entry carries its own `at`).
+
+Possible `kind` values: `user` · `document` · `web` · `tool` · `llm-verified` · `inference` · `import`.
 
 ## Special facts (reasoning semantics)
 
@@ -61,6 +104,28 @@ kb.fact(id).sources();   // [{ kind: 'document', ref: 'cv.pdf', at: … }]
 | **Identity** `même_que` | two names = same entity | `kb.mergeEntities('bob','robert')` | merged reads |
 | **Non-identity** `distinct_de` | "not the same John" | `kb.splitEntity(...)` | blocks a merge |
 | **Class** `est` | `cat est animal` → inheritance | `kb.fact('cat','est','animal').save()` | `kb.classesOf`, `kb.askInherited` |
+
+**The operations in this table, in detail:**
+
+- `kb.mergeEntities(a, b, source?)` — declares that two names refer to the **same** entity. `a` and `b`
+  are the two subjects (required strings); `source` is an optional `FactSource` provenance (default:
+  `{ kind: 'user', ref: 'fusion' }`). Returns: `Promise<boolean>` — `false` if the merge is **refused**
+  (same names, or a non-identity `distinct_de` already exists between them), `true` otherwise.
+- `kb.splitEntity(from, factsToMove, opts?)` — splits one entity into two ("not the same John"). `from`
+  is the original subject; `factsToMove` is the **list of facts to move** to the new entity, each
+  `{ p, o }` (the subject is implicitly `from`); `opts` is optional — `{ discriminantNew?, discriminantOld? }`
+  sets a readable label on each entity. Returns: `Promise<string>` — the **id of the new subject**
+  created. The moved facts are retracted on the `from` side (archived, not erased) and a `distinct_de` is
+  set in **both** directions.
+- `kb.checkInherited(s, p, o, maxDepth?)` — checks a triplet **with inheritance and exceptions**. The
+  first three arguments are the triplet to test; `maxDepth` bounds the inheritance walk (default **6**).
+  Returns: `{ verdict: 'yes' | 'no' | 'unknown'; answer? }` — `'yes'` (asserted, direct or inherited),
+  `'no'` (**denied** by a `not_p` — a proof, not an absence), `'unknown'` (undecidable).
+- `kb.classesOf(s, maxDepth?)` / `kb.askInherited(s, p, maxDepth?)` — walk the class chain (`est`);
+  `maxDepth` bounds the depth (default **6**).
+
+> ⚠️ To **change** a single-valued class fact, `retract` then `tell`: a plain second `tell` **adds** a
+> value instead of replacing the previous one.
 
 ## Numeric objects — computations
 
@@ -81,6 +146,17 @@ kb.compute({ p: 'email', o: { op: 'like', value: '@gmail' } }, 'count'); // gmai
 kb.matchFacts({ p: 'price', o: { op: '!=', value: '0' } });          // non-zero prices
 ```
 
+A **comparator** is the `{ op, value }` object accepted instead of a string in `s`, `p` or `o`:
+
+- `op` — the operator: `=` · `!=` · `<` · `<=` · `>` · `>=` (on the **numeric** value of the field) ·
+  `like` (substring, case-insensitive) · `in` (membership in a list).
+- `value` — the comparison value. A **string or number** for most operators; an **array**
+  (`['alice', 'bob']`) for `in`. For `<` `<=` `>` `>=`, the field value is parsed as a number — a
+  non-numeric field never matches.
+
+> 💡 A **bare string** (`{ p: 'age' }`) is shorthand for **exact equality** (`{ op: '=' }`); a
+> **missing** field is a **wildcard** (all). So `{ s?, p?, o? }` reads as "these constraints, the rest
+> free".
 
 ```ts
 // compute(filter, function) — the entry point
@@ -97,15 +173,43 @@ kb.stats({ p: 'age' });
 kb.matchFacts({ p: 'age', o: '40' });             // [{ s, p, o }, …]
 ```
 
+**The three entry points, in detail:**
+
+- `kb.compute(filter, fn)` — applies **one** aggregate function to the numeric objects of the filtered
+  facts. `filter` is a `{ s?, p?, o? }` (each missing field = wildcard); `fn` is one of the 9 functions
+  below. Returns: `number | undefined` (**`undefined`** if no numeric fact matches). Special case:
+  `'count'` counts the **facts** (not only the numeric ones).
+- `kb.stats(filter)` — computes **all** statistics at once with the same filter. A single argument (the
+  filter). Returns: an object `{ count, sum, avg, min, max, median, variance, stddev, range }`, or
+  **`undefined`** if no numeric object matches.
+- `kb.matchFacts(filter)` — the **raw selection**: returns the matching facts as `Array<{ s, p, o }>`
+  (empty array if none). It is the base of `compute`/`stats` and the text functions.
+
+> ⚠️ `compute`/`stats`/text functions **exclude** the engine vocabulary by default (`excludeReserved`
+> implicitly `true`). **Raw** `matchFacts` stays **inclusive** unless you pass `excludeReserved: true`
+> in the filter.
+
 > **Engine vocabulary excluded by default.** Computations and text functions **skip** facts whose
 > predicate is internal (`même_que`, `distinct_de`, `not_*`, `est`/`est_un`/`is`) — `compute({ s: 'bob' })`
 > does not count the `même_que` facts created by a merge. To include them: `{ …, excludeReserved: false }`.
 > Direct check: `KnowledgeBase.isReservedPredicate('même_que') // true`.
 
-Functions: **`count` · `sum` · `avg` · `min` · `max` · `median` · `variance` · `stddev` · `range`**.
-Shortcuts: `kb.aggregate(s, p, fn)` = `compute({ s, p }, fn)` · `kb.aggregateAll(p, fn)` =
-`compute({ p }, fn)`. And to query: `kb.askNumeric('age', '>', 18)` ("who is older than 18?"),
-`kb.numericValueOf(s, p)`, `kb.compareNumeric(s1, s2, p)`.
+Functions (possible values of `fn`): **`count` · `sum` · `avg` · `min` · `max` · `median` · `variance` ·
+`stddev` · `range`** (variance/stddev are **population** ones).
+
+**Shortcuts and numeric queries, in detail:**
+
+- `kb.aggregate(s, p, fn)` — = `compute({ s, p }, fn)`. Aggregates the objects of a (subject, predicate)
+  pair. Returns: `number | undefined`.
+- `kb.aggregateAll(p, fn)` — = `compute({ p }, fn)`. Aggregates across all subjects bearing the predicate
+  `p`. Returns: `number | undefined`.
+- `kb.askNumeric(p, op, value, value2?)` — "which subjects satisfy (p) `op` value?". `op` is a numeric
+  operator (`>` `>=` `<` `<=` `=` `!=` `between`); `value2` is required **only** for `between`
+  (inclusive). Returns: `NumericMatch[]` = `Array<{ subject, value }>`, **sorted by ascending value**.
+- `kb.numericValueOf(s, p)` — the **first** numeric value of (s, p). Returns: `number | undefined`
+  (`undefined` if no object is numeric).
+- `kb.compareNumeric(s1, s2, p)` — compares two subjects on a numeric predicate. Returns: the **sign**
+  of (v1 − v2) — `-1`, `0` or `1` — or `undefined` if either is missing.
 
 ## Alphanumeric objects — text functions
 
@@ -130,6 +234,16 @@ kb.matchCount({ p: 'email' }, '@gmail');    // how many objects contain a substr
 | `longest` / `shortest(filter)` | `string` | by string length |
 | `matchCount(filter, substring)` | `number` | how many contain a pattern (case-insensitive) |
 
+All take the **same** `filter` `{ s?, p?, o? }` as `compute`/`stats` (first argument). The two that have
+a **second** argument:
+
+- `concat(filter, sep?)` — `sep` is the separator, **`', '` by default**; pass `' | '` to change it.
+- `matchCount(filter, substring)` — `substring` (**required** string) is the pattern searched in the
+  objects; the comparison is **case-insensitive**.
+
+> 💡 `mode` / `longest` / `shortest` return `undefined` if the selection is empty; `distinctValues`
+> returns `[]` and `frequencies` returns `{}`.
+
 ## Developer symbols — react on write
 
 You can **"claim" a token** (subject, predicate or object) and wire logic that fires **on write** —
@@ -150,6 +264,19 @@ kb.defineSymbols({
 await kb.fact('account', 'balance', 'abc').save();  // ❌ SymbolValidationError — nothing stored
 await kb.fact('account', 'balance', '100').save();  // ✅
 ```
+
+`kb.defineSymbols(spec)` takes **one** argument, an object with three **all-optional** keys —
+`{ subjects?, predicates?, objects? }` — each an array of `DeveloperSymbol`:
+
+| `DeveloperSymbol` field | Role | Default |
+|---|---|---|
+| `name` | **required** — the claimed token (normalized) | — |
+| `description?` | free-form label (docs/introspection) | — |
+| `validate?(ctx)` | synchronous **veto** before write | — (no veto) |
+| `onWrite?(ctx)` | **side effect** after write | — (none) |
+
+The call is **idempotent and cumulative**: re-registering the same `name` overwrites the previous one,
+and successive calls add up. Returns: `void`.
 
 | Hook | When | Role |
 |---|---|---|

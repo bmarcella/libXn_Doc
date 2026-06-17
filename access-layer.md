@@ -24,6 +24,26 @@ vault.read('bigvai#1', 'password');   // [] sans session
 vault.read('bigvai#1', 'password', session); // ['hunter2'] avec session valide
 ```
 
+**`new FactVault(kb, opts)`** — deux arguments :
+
+- `kb` : la `KnowledgeBase` (ou `DurableKnowledgeBase`) où vivent les faits. Le coffre ne stocke rien à côté : un secret est un fait normal portant le drapeau `secret`.
+- `opts` : un objet d'options, **tous les champs facultatifs** :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `authenticator` | le port `FactAuthenticator` qui **vérifie** les sessions (ta crypto : Argon2id, JWT…). Sans lui, le coffre est **fail-closed** (aucune révélation) | `undefined` |
+| `cipher` | le port `CipherPort` qui chiffre/déchiffre les valeurs au repos | `PlaintextCipher` — **non sécurisé**, à remplacer en prod |
+| `now` | horloge injectable (`() => number`), utile pour les tests déterministes (fenêtres de gardes) | `() => Date.now()` |
+| `insecureAllowUnauthenticated` | DEV/TEST seulement : révèle les secrets sur n'importe quelle session, **sans** authenticator | `false` |
+
+**`vault.setSecret(s, p, plainO, source?)`** → `Promise<void>`. Écrit le triplet `(s, p, plainO)` avec la valeur **chiffrée au repos** et le drapeau `secret`. Le 4ᵉ argument `source` (provenance) est optionnel ; par défaut `{ kind: 'user', ref: 'vault' }`.
+
+**`vault.read(s, p, session?)`** → **`string[]`** (jamais `null`). Renvoie les valeurs du fait :
+- `session` absente ou invalide → les valeurs `secret` sont **omises** (tableau vide si le fait n'a que des secrets).
+- `session` valide (vérifiée par l'`authenticator`) → les secrets sont **déchiffrés** et inclus.
+
+> 💡 La forme `string[]` est la même que `kb.ask` : un sujet+prédicat peut avoir plusieurs valeurs. Pour un secret unique, lis `vault.read(...)[0]`.
+
 > **Fail-closed par défaut.** Sans `authenticator` injecté, le Vault **refuse** toute révélation —
 > une `Session` est un simple objet non signé, l'accepter sans vérification serait *fail-open*. Pour
 > un bac à sable de dev, l'option explicite `insecureAllowUnauthenticated: true` lève la garde (à ne
@@ -65,6 +85,22 @@ login, un dépôt, une lecture, ou tout verbe métier. Il passe les gardes appli
 première qui refuse l'emporte. Les actions s'enregistrent en faits systématiques via
 `vault.record(principal, action, outcome)`, sur lesquels les gardes comptent.
 
+**`vault.authorize(principal, action)`** → **`{ allow: boolean; reason?: string }`** (synchrone) :
+- `principal` : le sujet concerné (utilisateur, compte…).
+- `action` : le verbe tenté (`'login'`, `'deposit'`, `'read'`…). Seules les gardes dont `actions` contient cette valeur (ou qui n'ont **pas** de `actions`, donc « toutes ») sont consultées.
+- Retour : `{ allow: true }` si aucune garde ne refuse ; sinon `{ allow: false, reason }` de la **première** garde qui refuse.
+
+**`vault.record(principal, action, outcome, at?)`** → `Promise<void>`. Émet un fait systématique horodaté `(audit:<principal>, action, outcome)`.
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `principal` | sujet de l'audit | — (requis) |
+| `action` | verbe enregistré (doit correspondre à ce que les gardes comptent) | — (requis) |
+| `outcome` | résultat libre (`'fait'`, `'échec'`, `'succès'`…) — c'est lui que comptent `lockoutGuard`/`rateLimitGuard` | — (requis) |
+| `at` | horodatage (ms) du fait | `now()` (l'horloge du coffre) |
+
+> ⚠️ L'`outcome` que tu passes à `record(...)` doit être **exactement** celui que la garde attend : `lockoutGuard` compte par défaut `'échec'`, `rateLimitGuard` compte `'fait'`. Un libellé différent = la garde ne voit rien.
+
 **Exemple 1 — verrou après 5 échecs de connexion** (fabrique fournie `lockoutGuard`) :
 
 ```ts
@@ -72,6 +108,18 @@ vault.addGuard(lockoutGuard({ action: 'login', maxFailures: 5, windowMs: 15 * 60
 await vault.login('alice', 'mauvais'); // …×5 → chaque échec est un fait systématique
 await vault.login('alice', 'bon');     // reason: 'denied' — même le bon mot de passe est refusé
 ```
+
+**`lockoutGuard(opts)`** → un `FactGuard` prêt à passer à `addGuard`. Champs de `opts` :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `action` | l'action gardée (et comptée), ex. `'login'` | — (requis) |
+| `maxFailures` | nombre d'échecs dans la fenêtre qui déclenche le verrou | — (requis) |
+| `windowMs` | largeur de la fenêtre glissante, en millisecondes | — (requis) |
+| `failureOutcome` | le libellé d'`outcome` compté comme un échec | `'échec'` |
+| `name` | nom de la garde (trace/audit) | `'lockout:<action>'` |
+
+**`vault.login(principal, credential)`** → **`Promise<LoginResult>`**, où `LoginResult = { session: Session | null; reason: 'bad-credential' | 'denied' | null; guardReason?: string }`. `reason` vaut `null` en cas de succès, `'denied'` si une garde a bloqué (avec `guardReason`), `'bad-credential'` si l'authentification a échoué. Nécessite un `authenticator` injecté (sinon lève).
 
 **Exemple 2 — au plus 5 dépôts par jour** (`rateLimitGuard`, sur une action métier) :
 
@@ -85,6 +133,18 @@ await ledger.deposit('alice', 100);
 await vault.record('alice', 'deposit', 'fait'); // pour que la garde le compte
 ```
 
+**`rateLimitGuard(opts)`** → un `FactGuard`. Même esprit que `lockoutGuard`, mais compte les **réussites** :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `action` | l'action gardée (et comptée), ex. `'deposit'` | — (requis) |
+| `max` | nombre maximum d'actions réussies tolérées dans la fenêtre | — (requis) |
+| `windowMs` | largeur de la fenêtre glissante, en millisecondes | — (requis) |
+| `successOutcome` | le libellé d'`outcome` compté comme une réussite | `'fait'` |
+| `name` | nom de la garde (trace/audit) | `'rate:<action>'` |
+
+> ⚠️ `rateLimitGuard` ne **compte** que ce que tu enregistres : c'est à toi d'appeler `vault.record(principal, action, successOutcome)` **après** chaque action réussie (cf. la ligne `vault.record('alice', 'deposit', 'fait')`). La garde ne s'incrémente pas toute seule.
+
 **Exemple 3 — garde sur mesure (heures ouvrées)** : n'importe quelle logique, en quelques lignes :
 
 ```ts
@@ -97,6 +157,16 @@ vault.addGuard({
   },
 });
 ```
+
+**`vault.addGuard(guard)`** → `void`. Le `guard` est un objet `FactGuard` :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `name` | identifiant de la garde (trace/audit) | — (requis) |
+| `actions` | tableau des actions gardées ; une garde sans `actions` s'applique à **toutes** les actions | `undefined` (= toutes) |
+| `check(ctx)` | la décision : renvoie `{ allow: boolean; reason?: string }` | — (requis) |
+
+Le `ctx` (`GuardContext`) reçu par `check` contient : `kb` (la base), `principal`, `action`, `now` (timestamp ms), et `count(action, outcome, windowMs)` pour compter les faits systématiques.
 
 > Une garde peut tout interroger via `ctx.kb` (faits, rôles, soldes via le ledger…) et
 > `ctx.count(action, outcome, windowMs)` (les faits systématiques). Les protections sont donc
@@ -150,9 +220,44 @@ await acl.update('admin', 'finances', 'prime', 'vaut', '1000', '1200');
 acl.remove('admin', 'finances', 'prime', 'vaut', '1200');          // rétracté (archivé)
 ```
 
+**`new FactAccessControl(kb, opts?)`** — deux arguments :
+- `kb` : la `KnowledgeBase` où vivent faits et droits (les permissions sont elles-mêmes des faits).
+- `opts` : facultatif. Seul champ : `requireDeclaredGroups` (booléen, défaut `false`). À `true`, rattacher un fait à un groupe **non déclaré** est refusé — `assign`/`tellInGroup` retournent alors un échec tant que le groupe n'a pas été créé via `declareGroup`.
+
+Les méthodes utilisées ci-dessus, argument par argument :
+
+| Appel | Arguments | Retour |
+|---|---|---|
+| `declareGroup(name, info?)` | `name` (requis) ; `info?` = `{ description? }` (la description préserve casse/accents à l'affichage) | `Promise<string>` (le nom normalisé) |
+| `declaredGroups()` | aucun | `GroupInfo[]` = `{ name, description?, factCount, declared }[]`, trié par nom |
+| `tellInGroup(s, p, o, group, source?)` | triplet `s/p/o` + `group` ; `source?` = provenance (défaut `{ kind:'user', ref:'acl:group:<group>' }`) | `Promise<string>` — l'**id déterministe** du fait (`kb.factId(s,p,o)`) |
+| `grant(member, group, ...perms)` | `member`, `group`, puis 0..N permissions ; **aucune perm = TOUTES** (`read/write/update/delete`) | `Promise<void>` |
+| `revoke(member, group, perm?)` | `perm?` omis = révoque **toutes** les permissions ; archivé, pas effacé | `void` |
+| `can(member, group, perm)` | les trois requis | `boolean` |
+| `permissionsOf(member, group)` | les deux requis | `Permission[]` |
+| `membersWithAccess(group, perm?)` | `perm?` défaut `'read'` | `string[]` (membres) |
+| `groupsAccessibleBy(member, perm?)` | `perm?` défaut `'read'` | `string[]` (groupes) |
+| `factsInGroup(group)` | `group` requis | `EnumeratedFact[]` (secrets inclus, chiffrés) |
+| `searchInGroup(group, query)` | recherche plein-texte s/p/o dans le groupe | `EnumeratedFact[]` |
+| `factsAccessibleBy(member, perm?)` | `perm?` défaut `'read'` | `EnumeratedFact[]` (union des groupes autorisés) |
+
+> 💡 **`Permission`** est l'un de `'read' | 'write' | 'update' | 'delete'`. `grant` accepte un nombre variable de permissions ; les passer **toutes** revient à n'en passer **aucune** (`grant('admin', 'finances')`).
+
+Les opérations gouvernées (CRUD vérifié) :
+
+| Appel | Arguments | Retour |
+|---|---|---|
+| `read(member, group)` | les deux requis | `{ result: AccessResult; facts: EnumeratedFact[] }` — `facts` vide si refusé |
+| `write(member, group, s, p, o, source?)` | triplet + `source?` ; écrit puis tague le fait du groupe | `Promise<AccessResult>` |
+| `update(member, group, s, p, oldO, newO)` | remplace `oldO` par `newO` (le fait doit déjà appartenir au groupe) | `Promise<AccessResult>` |
+| `remove(member, group, s, p, o)` | rétracte (archive) le fait du groupe | `AccessResult` |
+
 Chaque opération `read/write/update/delete` vérifie la permission avant d'agir et renvoie
-`{ allowed, missing? }`. Comme les droits sont des faits, un audit complet (« qui a donné l'accès
+`AccessResult` = `{ allowed: boolean; missing? }` (`missing` indique la permission absente quand
+`allowed` est `false`). Comme les droits sont des faits, un audit complet (« qui a donné l'accès
 écriture à finances, et quand ? ») se lit directement dans la provenance et l'historique.
+
+> ⚠️ `update`/`remove` renvoient `{ allowed: false }` (sans `missing`) si le fait visé **n'appartient pas** au groupe indiqué — le contrôle d'appartenance précède le contrôle de permission.
 
 
 ## Exemple complet — coffre personnel + portefeuille
@@ -233,6 +338,15 @@ await ledger.withdraw('bigvai@mail.com', 100);
 ledger.balance('bigvai@mail.com');                   // 150 — calculé par repli, jamais stocké
 vault.auditTrail('bigvai@mail.com', 'login');        // [{ action:'login', outcome:'échec', at }, { …'succès' }]
 ```
+
+**Les constructeurs et appels de la mise en place :**
+
+- **`new XNeuroneGrid(encoder?, opts?)`** — `encoder?` est la fonction qui encode une donnée en paires de bits (défaut : `BinaryConverter.toBinaryPairs`, d'où `undefined`) ; `opts?` = `{ headless? }`, et `{ headless: true }` désactive tout rendu (Node/serveur).
+- **`new KnowledgeBase(grid)`** — un seul argument : la grille QPath qui sert de mémoire de travail.
+- **`new TransactionLedger(kb, opts?)`** — `kb` requis ; `opts?` accepte notamment `{ unit, name?, description?, types?, now? }`. Détails complets sur la page [Grand livre](transaction-ledger).
+- **`vault.auditTrail(principal, action?)`** → tableau d'objets `{ action, outcome, at }` triés par horodatage. `action?` omis = **toutes** les actions du principal.
+
+> 🔒 La clé AES (`randomBytes(32)`, 32 octets) est passée au `CipherPort` et **reste hors du graphe** : QPath ne stocke jamais la clé, seulement la valeur chiffrée. La perte de la clé rend les secrets irrécupérables — c'est voulu.
 
 **Ce que ça résout, concrètement** : le mot de passe n'existe nulle part (seul son hash), le
 secret est chiffré et invisible des lectures normales et des admins, le brute-force est bloqué
