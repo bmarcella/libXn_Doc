@@ -53,7 +53,7 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 | Listes | `for_each "cart item"` + gabarit ; `$item` dans events ; `itemKey: '$item'` → clé React par **identité** (pas de remount au réordonnancement) |
 | Conditionnel / RBAC (nœud) | `show_if` : `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — lecture KB, 0 token |
 | Sécurité de page (RBAC) | `guard` (même grammaire que `show_if`) gate l'écran entier ; `denied` → écran de repli (login/403) |
-| Navigation | tool `navigate` → route + `show_if` pour basculer les panneaux |
+| Navigation | tools `navigate` / `back` (historique) + `<FactRouter app initial>` (rend l'écran de `route current`) ; ou `show_if` pour basculer des panneaux |
 | Données distantes | tool `http` (port injecté, donc mockable) → écrit le résultat en faits |
 | Chargement & erreurs | `http` écrit `(cible, loading, true/false)` + `(cible, error, msg)` ; une erreur n'interrompt pas le flux → `show_if "x loading = true"` / `show_if "x error"` |
 | CRUD de liste | tools `append` / `remove` (`$event`/`$item`) → ajouter/retirer un item ; `set`/`toggle`/`increment` pour le scalaire |
@@ -100,11 +100,13 @@ await app.flow('pick', [{ do: 'set', path: 'cart selected', value: '$item' }]); 
 // suppression par item : { do: 'set', path: '$item removed', value: 'true' } + show_if « cart selected … »
 ```
 
-**Identité d'item.** `itemKey: '$item'` clé par la **valeur**. Les doublons (« Lait », « Lait »)
-restent rendus correctement — un suffixe d'occurrence garantit des clés React uniques — mais la
-valeur ne distingue plus les deux lignes : une suppression par valeur viserait les deux. Pour une
-identité robuste (doublons supprimables un à un, propriétés par ligne), modélise chaque item en
-**entité** : la liste porte des **ids** et le gabarit binde leurs propriétés.
+**Identité d'item.** `itemKey: '$item'` clé par la **valeur**. ⚠️ Le KB **déduplique** les triplets
+identiques : deux items de **même valeur** (« Lait », « Lait ») se **collapsent** en un seul — on ne
+peut donc pas avoir deux lignes « Lait » comme valeurs nues. Pour des doublons logiques (et une
+identité robuste : suppression un à un, propriétés par ligne), modélise chaque item en **entité** :
+la liste porte des **ids** distincts et le gabarit binde leurs propriétés. (Un `itemKey` qui
+collisionne — p. ex. constant — reste sans danger : un suffixe d'occurrence garantit des clés React
+uniques.)
 
 ```ts
 // la liste = des ids ; chaque id a ses faits → $item résout l'id, on binde ses propriétés
@@ -147,6 +149,25 @@ est une lecture KB pure, jamais un effet). Les redirections `denied` en boucle s
 > Sécurité : `guard` cache l'écran côté client — c'est de la **gouvernance d'UI**, pas un contrôle
 > d'accès serveur. Les données sensibles restent protégées par le backend (le port `http` ne renvoie
 > que ce que l'utilisateur a le droit de voir).
+
+## Navigation multi-écrans (`FactRouter`)
+
+Pour une vraie navigation entre écrans (plutôt que des panneaux `show_if`), `<FactRouter>` rend
+l'écran nommé par `route current` ; les tools `navigate` (avance, empile l'historique) et `back`
+(revient) pilotent la route — toujours en faits.
+
+```ts
+await app.flow('toAbout', [{ do: 'navigate', to: 'about' }]);
+await app.flow('goBack',  [{ do: 'back' }]);            // dépile l'historique
+// chaque écran est défini par app.screen('home'|'about', …)
+export const App = () => <FactRouter app={app} initial="home" />;
+```
+
+`FactRouter` pose la route initiale comme fait au montage, puis re-rend à chaque `navigate`/`back`.
+L'historique est conservé en fait (`route stack`) → le `back` est gouverné et traçable comme le reste.
+
+**Cycle de vie.** Pour libérer une app (fermer un socket ouvert hors modèle, détacher les abonnés du
+store) : `app.onDispose(() => socket.close())` puis `app.dispose()`.
 
 ## Mise en forme (CSS)
 

@@ -53,7 +53,7 @@ write screens as **objects** (sugar) that become facts under the hood.
 | Lists | `for_each "cart item"` + template ; `$item` in events ; `itemKey: '$item'` → React key by **identity** (no remount on reorder) |
 | Conditional / RBAC (node) | `show_if`: `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — KB read, zero token |
 | Page security (RBAC) | `guard` (same grammar as `show_if`) gates the whole screen ; `denied` → fallback screen (login/403) |
-| Navigation | `navigate` tool → route + `show_if` to switch panels |
+| Navigation | `navigate` / `back` tools (history) + `<FactRouter app initial>` (renders the `route current` screen) ; or `show_if` to switch panels |
 | Remote data | `http` tool (injected, hence mockable) → writes the result as facts |
 | Loading & errors | `http` writes `(target, loading, true/false)` + `(target, error, msg)` ; an error never breaks the flow → `show_if "x loading = true"` / `show_if "x error"` |
 | List CRUD | `append` / `remove` tools (`$event`/`$item`) → add/remove an item ; `set`/`toggle`/`increment` for scalars |
@@ -99,11 +99,12 @@ await app.flow('pick', [{ do: 'set', path: 'cart selected', value: '$item' }]); 
 // per-item delete: { do: 'set', path: '$item removed', value: 'true' } + show_if "cart selected …"
 ```
 
-**Item identity.** `itemKey: '$item'` keys by the **value**. Duplicates ("Milk", "Milk") still
-render correctly — an occurrence suffix keeps React keys unique — but the value no longer tells the
-two rows apart: a delete-by-value would hit both. For robust identity (individually removable
-duplicates, per-row properties), model each item as an **entity**: the list holds **ids** and the
-template binds their properties.
+**Item identity.** `itemKey: '$item'` keys by the **value**. ⚠️ The KB **deduplicates** identical
+triples: two items with the **same value** ("Milk", "Milk") **collapse** into one — so you can't have
+two "Milk" rows as bare values. For logical duplicates (and robust identity: individual removal,
+per-row properties), model each item as an **entity**: the list holds distinct **ids** and the
+template binds their properties. (A colliding `itemKey` — e.g. a constant — stays safe: an occurrence
+suffix keeps React keys unique.)
 
 ```ts
 // the list = ids; each id has its own facts → $item resolves to the id, bind its properties
@@ -146,6 +147,25 @@ is guaranteed. The condition accepts comparators and `not`
 > Security: `guard` hides the screen client-side — this is **UI governance**, not server-side access
 > control. Sensitive data stays protected by the backend (the `http` port only returns what the user
 > is allowed to see).
+
+## Multi-screen navigation (`FactRouter`)
+
+For real navigation between screens (rather than `show_if` panels), `<FactRouter>` renders the screen
+named by `route current`; the `navigate` (go, pushes history) and `back` (return) tools drive the
+route — still as facts.
+
+```ts
+await app.flow('toAbout', [{ do: 'navigate', to: 'about' }]);
+await app.flow('goBack',  [{ do: 'back' }]);            // pops the history
+// each screen is defined via app.screen('home'|'about', …)
+export const App = () => <FactRouter app={app} initial="home" />;
+```
+
+`FactRouter` sets the initial route as a fact on mount, then re-renders on every `navigate`/`back`.
+History is kept as a fact (`route stack`) → `back` is governed and traceable like everything else.
+
+**Lifecycle.** To release an app (close a socket opened outside the model, detach store
+subscribers): `app.onDispose(() => socket.close())` then `app.dispose()`.
 
 ## Styling (CSS)
 
