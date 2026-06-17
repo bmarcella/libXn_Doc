@@ -70,6 +70,71 @@ const proposal = await proposeScreen(llm, 'a login screen: email, password, butt
 if (isRenderable(proposal)) { await app.facts(proposal.facts); } // proposal.rejected = discarded
 ```
 
+## Styling (CSS)
+
+Props are passed **as-is** to the component. Styling = passing a prop your component applies — the
+simplest being `className` (utility classes / your CSS):
+
+```ts
+// fact
+{ component: 'Button', props: { label: 'Save', className: 'btn btn-primary' } }
+```
+```tsx
+// your component (it owns the CSS)
+const Button = (p: any) => (
+  <button className={p.className} onClick={p.onClick}>{p.label}</button>
+);
+```
+
+Fact values are **strings** → `className` is ideal. For inline `style` (React expects an object),
+pass a string and let the component parse it, or expose dedicated props:
+
+```tsx
+const styleObj = (s = '') => Object.fromEntries(
+  s.split(';').filter(Boolean).map(r => { const [k, v] = r.split(':'); return [k.trim(), v.trim()]; }),
+);
+const Box = (p: any) => <div style={styleObj(p.style)}>{p.children}</div>;
+// fact: { component:'Box', props:{ style:'padding:8px; background:#eee' }, children:[…] }
+```
+
+## Server calls — HTTP & WebSocket
+
+**HTTP**: inject an `http` port (a `fetch` wrapper), then a **flow** loads the data → writes it as
+**facts** → the screen renders it (`bind`/`for_each`). Effect at the boundary, deterministic flow.
+
+```ts
+const app = createFactApp({
+  http: (url, init) => fetch(url, init).then(r => r.json()),   // real port (mockable in tests)
+});
+app.components({ List, Item, Button });
+
+await app.screen('shop', {
+  component: 'Card',
+  children: [
+    { component: 'Button', props: { label: 'Load' }, on: { click: 'load' } },
+    { component: 'List', forEach: 'cart item', template: { component: 'Item', props: { text: '$item' } } },
+  ],
+});
+await app.flow('load', [{ do: 'http', url: '/api/items', list: 'cart item' }]);            // GET → list
+await app.flow('save', [{ do: 'http', method: 'POST', url: '/api/cart', body: '$event' }]); // POST (body)
+```
+
+**WebSocket**: open the socket **separately**; each message writes facts + notifies → re-render
+(the store and KB are exposed, no extra API):
+
+```ts
+const ws = new WebSocket('wss://example/feed');
+ws.onmessage = (e) => {
+  const data = JSON.parse(e.data);
+  void app.store.replaceList('feed item', data.items); // writes facts + notifies
+};
+// a `for_each 'feed item'` screen shows the live stream, with no separate state.
+```
+
+**Using the data**: anything written as facts (by `http`, the socket, or `app.kb.tell`) is
+immediately available to `bind`/`for_each`/`show_if` — there is **no** separate state to keep in
+sync: the KB *is* the state.
+
 ## Honest limits
 
 - The UI **does not replace React**: it relies on it for rendering/reconciliation (stable keys =
