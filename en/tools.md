@@ -30,6 +30,30 @@ const weather: Tool = {
 };
 ```
 
+**The fields of the `Tool` object** (the port you implement):
+
+| Field | Role | Default |
+|---|---|---|
+| `name` | unique tool identifier (used for the LLM-driven call, `TOOL <name>`) | — (required) |
+| `description` | short description — used for selection (by the LLM or in docs) | — (required) |
+| `resolves?` | list of predicates the tool can resolve → **deterministic binding** (called on a `(s, p)` cache-miss) | `undefined` (never triggered deterministically) |
+| `ephemeral?` | if `true`, **no** fact from this tool is ever memorized (dynamic data by nature) | `false` |
+| `run` | the function that executes the tool; see below | — (required) |
+
+`run(input)` receives **a single argument**: `input: Record<string, unknown>` — a **free-form** bag of
+keys/values. In deterministic mode the core fills it with `{ subject, predicate }`; LLM-driven, these
+are the `args` of the `TOOL` move. Hence the `input['subject'] ?? input['query']`: you read the key your
+tool expects, with a fallback. `run` returns a **`Promise<ToolResult>`**.
+
+**The fields of the `ToolResult` object** (what `run` returns) — **all optional**:
+
+| Field | Role | Default |
+|---|---|---|
+| `facts?` | `[subject, predicate, object]` triplets → **memorized** in the KB (unless volatile) | `undefined` (nothing to memorize) |
+| `value?` | direct answer (computation, data object, status…), **not** memorized | `undefined` |
+| `text?` | optional human-readable text, for the reasoning trace | `undefined` |
+| `ephemeral?` | marks **this specific result** as volatile (overrides `Tool.ephemeral`) | inherits `Tool.ephemeral`, else `false` |
+
 Tools are kept in a **registry**:
 
 ```ts
@@ -37,9 +61,28 @@ import { ToolRegistry } from '@damba/libxn';
 const tools = new ToolRegistry().register(weather);
 ```
 
+`new ToolRegistry()` takes **no argument**. `register(tool)` takes **one** tool and **returns the
+registry itself** (`this`) — hence the chaining `new ToolRegistry().register(a).register(b)`. Under the
+hood it indexes the tool by `name` (explicit call) and by each predicate in `resolves` (deterministic
+binding). The registry's other methods: `get(name)` → `Tool | undefined`,
+`byPredicate(p)` → `Tool | undefined`, `list()` → `Tool[]`.
+
 > Under the hood, `ingestToolResult(kb, result, opts?)` (exported) is what writes a `ToolResult`'s
 > facts into the KB **with their provenance**; both triggers below use it (`resolveWithTools` and
 > PingPong's `TOOL` move).
+
+`ingestToolResult` takes **three** arguments — `ingestToolResult(kb, result, opts?)`:
+
+| Argument | Role | Default |
+|---|---|---|
+| `kb` | the `KnowledgeBase` to write the facts into | — (required) |
+| `result` | the `ToolResult` whose `facts` field is ingested | — (required) |
+| `opts?` | write options `{ ephemeral?, source? }` — see below | `{}` |
+
+The `opts` fields: `ephemeral?` (if `true`, **nothing** is written → returns `[]`) and `source?`
+(the **provenance** attached to each fact, typically `{ kind: 'tool', ref: tool.name }` — it is what
+later lets the same tool be re-called to re-verify). The function **returns** the list of facts actually
+written: `Array<{ s: string; p: string; o: string }>` (empty if volatile).
 
 ## Two ways to trigger a tool
 
@@ -56,6 +99,28 @@ const r = await resolveWithTools(kb, tools, 'paris', 'weather_of');
 // Next time, QPath answers on its own: zero token, zero tool call.
 ```
 
+`resolveWithTools` takes **four** arguments — `resolveWithTools(kb, registry, s, p)`:
+
+| Argument | Role | Default |
+|---|---|---|
+| `kb` | the `KnowledgeBase` being queried (and where the fact gets memorized) | — (required) |
+| `registry` | the `ToolRegistry` to look up the tool bound to the predicate | — (required) |
+| `s` | the **subject** of the question `(s, p)` | — (required) |
+| `p` | the **predicate**; if QPath doesn't know it and a tool declares `resolves: [p]`, the tool is called | — (required) |
+
+The function **returns** a `ResolveWithToolsResult`:
+
+| Field | Meaning |
+|---|---|
+| `objects` | the objects of `(s, p)` after the possible tool call (re-read from the KB → consistent with what is actually queryable) |
+| `usedTool?` | name of the tool called, or `undefined` if QPath already knew / no tool was bound |
+| `learned` | facts actually added to the KB — `[]` if QPath already knew or the answer was volatile |
+| `ephemeral?` | `true` if the tool's answer was volatile (not memorized) |
+
+> 💡 If QPath already knows `(s, p)`, **no tool is called**: `objects` comes from memory, `learned` is
+> `[]` and `usedTool` stays `undefined` — that's the whole point (zero token, zero network call on the
+> second pass).
+
 Reproducible, traceable, no LLM.
 
 ### 2. LLM-driven (TOOL move in PingPong)
@@ -70,6 +135,27 @@ const result = await new PingPongReasoner(kb, llm, { tools }).run('What is the w
 // The LLM plays: TOOL weather | city=paris  → QPath memorizes (paris, weather_of, rain) → CONCLUDE
 result.factsLearned;   // [{ s: 'paris', p: 'weather_of', o: 'rain' }]
 ```
+
+The **constructor** `new PingPongReasoner(kb, llm, opts?)` takes **three** arguments:
+
+| Argument | Role | Default |
+|---|---|---|
+| `kb` | the `KnowledgeBase` acting as the deterministic referee (verifies each LLM move) | — (required) |
+| `llm` | the `LlmPort` (the language engine that plays the moves) | — (required) |
+| `opts?` | reasoner options — see below | `{}` |
+
+`opts` fields (all optional): `tools?` (the `ToolRegistry` made available for `TOOL` moves),
+`maxRounds?` (max exchanges, **default 3**), `writeBack?` (re-inject verified hypotheses into the KB,
+**default `true`**), `confidence?` (confidence policy passed to `ChainResolver`), `algebra?` (predicate
+algebra; defaults to `PredicateAlgebra.withDefaults()`).
+
+`.run(question, opts?)` takes the **question** (string, required) and an optional second argument
+`opts?` that **overrides for this call** the constructor's options (`maxRounds`, `writeBack`,
+`confidence`, plus `seedSubject?` — a starting subject whose known facts seed the LLM — and
+`systemPrompt?`). It **returns** a `Promise<PingPongResult>` whose useful fields here:
+`conclusion` (the final answer), `factsLearned` (facts written during the exchange), `grounded`
+(boolean: is everything grounded on QPath), `llmCalls` (number of LLM calls) and `stopped`
+(`'concluded'` | `'maxRounds'` | `'stalled'`).
 
 ## Reading the KB: the LLM queries the memory
 
@@ -108,6 +194,22 @@ class KbQueryTool implements Tool {
 }
 ```
 
+The **KB read methods** used in this `run`:
+
+- **`kb.ask(s, p)`** — **direct** read: takes the subject `s` and predicate `p`, **returns** the list of
+  objects `string[]` (e.g. Alice's city). Empty if unknown.
+- **`kb.askInverse(p, o)`** — **inverse** read: takes the predicate `p` and object `o`, **returns** the
+  **subjects** `string[]` satisfying `(?, p, o)` (e.g. "who lives in Paris?").
+- **`kb.compute(filter, fn)`** — deterministic aggregate (zero token). First argument: a **fact filter**
+  `{ s?, p?, o? }` (here `{ p: pred }` = "all facts with predicate `pred`"). Second argument: the
+  **aggregate function** `fn` of type `AggregateFn` — one of
+  `'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'variance' | 'stddev' | 'range'`. **Returns** a
+  `number`, or **`undefined`** if no numeric fact matches (hence the `v === undefined ? '∅'`). `count`
+  counts facts; the others apply only to **numeric** objects.
+
+> 💡 `ephemeral = true` on the class: it's a **pure read**, so even if it returned `facts` they would not
+> be memorized. Here it only returns `value`/`text` anyway.
+
 Wire it like any tool; the LLM calls it via a `TOOL` move in PingPong:
 
 ```ts
@@ -117,6 +219,10 @@ const tools = new ToolRegistry().register(new KbQueryTool(kb));
 await new PingPongReasoner(kb, llm, { tools }).run('What is the average age of the clients?');
 // The LLM plays: TOOL kb_query | compute=age:avg → the KB computes → grounded answer, zero-token math
 ```
+
+Same signatures as above: `KbQueryTool` receives the `kb` in its **constructor** (the read tool needs a
+reference to the memory it queries), then `register(...)` adds it to the registry, and
+`PingPongReasoner(kb, llm, { tools })` receives that registry via the `tools` option.
 
 > **Read vs bring in**: a **read** tool returns `value`/`text` (nothing is memorized); a tool that
 > **fills a gap** returns `facts` (memorized). You can scope the read by **permissions**
@@ -154,6 +260,11 @@ const weather: Tool = {
   },
 };
 ```
+
+Here `ephemeral: true` is set **on the tool** (the `Tool.ephemeral` field): it applies to **all** its
+calls. For a tool that is **sometimes** stable and **sometimes** volatile, leave the tool default and set
+the flag **per call** in the returned `ToolResult` (`return { facts: [...], ephemeral: true }`) — the
+`ToolResult.ephemeral` overrides the tool default.
 
 - **At the tool level**: `ephemeral: true` → all its responses are volatile.
 - **Per call**: `return { facts: [...], ephemeral: true }` → overrides the tool default (useful for a tool

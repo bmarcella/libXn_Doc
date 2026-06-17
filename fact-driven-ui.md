@@ -31,6 +31,52 @@ export const App = () => <FactUI app={app} screen="counter" />;
 Pas de `ToolRegistry`, pas de `FlowRunner`, pas de store à câbler : la **façade** `createFactApp`
 les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des faits sous le capot.
 
+**Les appels de cet exemple, argument par argument :**
+
+`createFactApp(options?)` — fabrique l'app. L'objet d'options est **entièrement optionnel** :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `options.kb?` | la `KnowledgeBase` à utiliser — passe une `LayeredKnowledgeBase` pour des variantes dev/prod ou par utilisateur | une KB neuve sur une grille **headless** (`new XNeuroneGrid(undefined, { headless: true })`) |
+| `options.http?` | le **port HTTP** (`(url, init?) => Promise<unknown>`) qui active le tool `http` ; sans lui, le tool `http` n'est **pas** enregistré | — (aucun ; pas d'appels réseau) |
+
+`app.components(map)` — un seul argument, `map`, un objet `{ nom de fait → composant React }` (ex. `{ Card, Text, Button }`) : la clé est le nom utilisé dans les faits `component`, la valeur le composant qui le rend. **Synchrone et chaînable** (retourne `app`).
+
+`app.state(initial)` — un seul argument : l'état initial sous forme `{ sujet: { prédicat: valeur } }`. La valeur peut être `string | number | boolean` (stockée en chaîne) **ou un tableau** (`string[]`/`number[]`) qui amorce une **liste** multi-valuée. `await` car il écrit dans la KB.
+
+`app.screen(name, spec)` :
+
+- **`name`** — le nom de l'écran (le sujet racine des faits, ex. `'counter'`) ; c'est ce que tu passes à `<FactUI screen="…">`.
+- **`spec`** — le `ScreenSpec` (objet déclaratif converti en faits). Champs détaillés au tableau ci-dessous.
+
+`app.flow(name, steps)` :
+
+- **`name`** — le nom du flux (invoqué par les events `on: { click: 'inc' }` et exécuté par `FlowRunner`).
+- **`steps`** — un **tableau d'actions** `ActionSpec`, exécutées **séquentiellement**. Chaque action est `{ do: '<tool>', ...args }` : `do` est le nom du tool, les autres clés deviennent des `arg.<k>` (voir « Actions de flux » plus bas).
+
+`<FactUI app screen>` — le composant qui rend l'écran. **`app`** = l'instance `createFactApp` ; **`screen`** = le nom d'écran à rendre (chaîne). Il s'abonne au store et re-rend à chaque mutation.
+
+> 💡 `components`, `action`, `onDispose` sont **synchrones et chaînables** (retournent `app`) ; `screen`, `flow`, `facts`, `state` sont **asynchrones** (ils écrivent dans la KB) — `await`-les avant le premier rendu.
+
+**Le `ScreenSpec` (l'objet passé à `app.screen` / `template`)** — tous les champs sont optionnels sauf `component` :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `component` | **(requis)** nom du composant à rendre (clé du registry) → fait `(node, component, …)` | — |
+| `props?` | props **statiques** (`string \| number \| boolean`, stockées en chaîne) → `prop.<k>` | `{}` |
+| `bind?` | props **liées à l'état** ; valeur = expression « s p » → `bind.<k>` | `{}` |
+| `on?` | events → flux ; clé = event (`click`, `change`), valeur = nom de flux → `on_<event>` | `{}` |
+| `showIf?` | rendu conditionnel du **nœud** (« s p o », comparateur, ou `not …`) → `show_if` | — (toujours rendu) |
+| `forEach?` | liste : expression « s p » dont chaque valeur produit une ligne (avec `template`) | — |
+| `template?` | gabarit `ScreenSpec` rendu par item (`$item` = la valeur) ; requiert `forEach` | — |
+| `itemKey?` | clé React stable par identité (ex. `'$item'`) ; n'a de sens qu'avec `forEach` | id positionnel |
+| `children?` | enfants `ScreenSpec[]` ordonnés (exclusif avec `forEach`/`template`) | `[]` |
+| `onMount?` | **racine seule** : flux (ou liste de flux) exécuté(s) au montage → `on_mount` | — |
+| `guard?` | **racine seule** : condition d'accès page (même grammaire que `showIf`) → `guard` | — (pas de garde) |
+| `denied?` | **racine seule** : écran de repli si `guard` échoue ; sans lui, rien n'est rendu → `denied` | — (rend `null`) |
+
+> ⚠️ `forEach`+`template` et `children` s'**excluent** : une liste n'a pas d'enfants statiques (le gabarit est sa seule descendance). `onMount`/`guard`/`denied` ne sont lus **qu'à la racine** de l'écran (ignorés sur un nœud enfant).
+
 ## Ce que fait l'UI
 
 1. **Elle se dessine à partir de faits** — `(node, component, "Button")`, `(btn, prop.label, "+1")`,
@@ -120,6 +166,32 @@ if (isRenderable(proposal)) {
 `FlowValidator` sur **chaque** flux de la KB (boucle non bornée, lien mort, condition incomplète,
 outil hors liste) — le **gate dev→prod**, avant tout rendu.
 
+**Les arguments en détail :**
+
+`proposeScreen(llm, demand, opts?)` :
+
+- **`llm`** — un `LlmPort` (`{ complete(prompt, opts?) => Promise<string> }`, mockable en test). Le LLM est **auteur**, jamais exécuteur.
+- **`demand`** — la demande en langage naturel (ex. `'un écran de connexion : email, mot de passe, bouton'`).
+- **`opts?`** — options de filtrage (toutes optionnelles) :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `opts.allowedComponents?` | liste blanche des composants invocables ; un `component` hors liste part dans `rejected` | — (tout composant accepté) |
+| `opts.allowedActions?` | liste blanche des **actions** (objet d'un prédicat `action`) qu'un flux proposé peut invoquer ; recommandé en contexte non fiable | — (toute action acceptée) |
+| `opts.systemPrompt?` | system prompt envoyé au LLM | `SCREEN_AUTHORING_RULES` (les règles du format de faits, exportées) |
+
+La valeur de retour est une **`ScreenProposal`** : `{ facts, rejected, screen?, raw }` — `facts` = triplets **retenus** (à écrire via `app.facts`), `rejected` = triplets **écartés** (anti-injection), `screen` = le nom d'écran déduit du fait `render` (ou `undefined`), `raw` = la réponse brute du LLM (audit).
+
+`isRenderable(proposal)` — un seul argument, la `ScreenProposal` ; renvoie `true` si elle contient une racine d'écran (`proposal.screen !== undefined`). Gate minimal avant écriture.
+
+`app.facts(triples)` — un seul argument : un tableau de triplets `[s, p, o]` (typiquement `proposal.facts`), écrits **casse préservée**. `await` (écrit dans la KB).
+
+`app.checkFlows(opts?)` — valide **tous** les flux présents dans la KB. Unique option :
+
+- **`opts.allowedTools?`** — liste blanche d'outils ; tout flux invoquant un outil hors liste est marqué invalide. Omise → seules les vérifications structurelles (boucle non bornée, lien mort, condition incomplète) s'appliquent.
+
+Retour : `{ ok: boolean, flows: Array<{ flow, result }> }` — `ok` est `true` si **tous** les flux sont valides ; `flows` détaille chaque flux et son `FlowValidationResult`.
+
 ### Listes interactives (`$item` dans les events)
 
 Dans un `for_each`, l'event d'une **ligne** connaît **son** item via `$item` — donc sélectionner,
@@ -151,6 +223,18 @@ await app.flow('toggle', [{ do: 'toggle', path: '$item done' }]);   // bascule C
 await app.flow('del', [{ do: 'remove', path: 'tasks item' }]);      // retire l'id (value défaut = $item)
 ```
 
+**Les `arg.*` de ces actions (objet `ActionSpec` = `{ do: '<tool>', ...args }`) :**
+
+| Tool (`do`) | Arguments | Effet |
+|---|---|---|
+| `set` | `path` (« s p »), `value` | écrit l'**unique** valeur de l'état (remplace l'ancienne) |
+| `toggle` | `path` (« s p ») | bascule un booléen `'true'`/`'false'` |
+| `increment` | `path` (« s p »), `by?` (défaut **1**) | additionne `by` à un état numérique |
+| `append` | `path` (« s p »), `value` | ajoute une valeur à une **liste** (sans retirer les autres) |
+| `remove` | `path` (« s p »), `value?` (**défaut = `$item`** de la ligne) | retire une valeur de la liste |
+
+`$event` (valeur saisie) et `$item` (item de la ligne `for_each` cliquée) sont **substitués automatiquement** dans les `arg.*` par le `FlowRunner` au moment de l'exécution. `app.kb.tell(s, p, o)` écrit un triplet brut (les trois positions du fait) ; ici il sème la liste d'ids et leurs propriétés.
+
 ## Sécurité de page (RBAC)
 
 `show_if` protège un **nœud** (un bouton). Pour protéger une **page entière**, l'écran porte un
@@ -173,6 +257,14 @@ await app.screen('login', { component: 'Card', children: [{ component: 'Text', p
 await app.kb.tell('session', 'role', 'admin');  app.store.touch();   // → la page admin s'affiche
 await app.kb.retract('session', 'role', 'admin'); app.store.touch(); // → reverrouillée à chaud (repli)
 ```
+
+**Les appels de bas niveau utilisés ici :**
+
+- `app.kb.tell(s, p, o)` — écrit le fait `(sujet, prédicat, objet)` ; `await` (asynchrone, tracé par provenance). Une 4ᵉ option `source` existe (qui/d'où vient le fait) mais n'est pas requise.
+- `app.kb.retract(s, p, o, reason?)` — rétracte le fait `(s, p, o)` ; `reason?` est une étiquette d'audit optionnelle. Renvoie `true` si un fait a été rétracté. **Synchrone** (pas d'`await`).
+- `app.store.touch()` — **sans argument** : incrémente la version du store et notifie React → re-render. À appeler **après** un `tell`/`retract` manuel (hot-swap), car ces écritures court-circuitent les tools qui notifient d'eux-mêmes.
+
+> 💡 `app.kb.ask(s, p)` (utilisé par les gardes/`show_if` en coulisses) prend le **sujet** et le **prédicat** et renvoie le **tableau** des objets connus (`[]` si aucun) — lecture KB pure, 0 token.
 
 Conséquences : l'accès est **gouverné et auditable** (provenance/historique tracent chaque
 octroi/révocation), **hot-swap** (changer un droit ne redéploie rien), et **déterministe** (le gate
@@ -200,8 +292,17 @@ export const App = () => <FactRouter app={app} initial="home" />;
 `FactRouter` pose la route initiale comme fait au montage, puis re-rend à chaque `navigate`/`back`.
 L'historique est conservé en fait (`route stack`) → le `back` est gouverné et traçable comme le reste.
 
+**Les arguments de ce bloc :**
+
+- Action `navigate` — un seul `arg.to` : la route cible. Empile la route courante dans l'historique (`route stack`) puis écrit `(route, current, <to>)`.
+- Action `back` — **aucun argument** : dépile l'historique et restaure la route précédente. Sans effet si l'historique est vide.
+- `<FactRouter app initial?>` — **`app`** = l'instance ; **`initial?`** = l'écran affiché tant qu'aucune route n'est posée (optionnel : sans lui, rien n'est rendu jusqu'au premier `navigate`).
+
 **Cycle de vie.** Pour libérer une app (fermer un socket ouvert hors modèle, détacher les abonnés du
 store) : `app.onDispose(() => socket.close())` puis `app.dispose()`.
+
+- `app.onDispose(fn)` — un seul argument, la fonction de nettoyage (sans argument, sans retour) exécutée par `dispose()`. Chaînable.
+- `app.dispose()` — **sans argument** : exécute les nettoyages enregistrés puis détache les abonnés du store. **Idempotent** (rappelable sans risque).
 
 ## Mise en forme (CSS)
 
@@ -252,6 +353,23 @@ await app.flow('load', [{ do: 'http', url: '/api/items', list: 'cart item' }]); 
 await app.flow('save', [{ do: 'http', method: 'POST', url: '/api/cart', body: '$event' }]); // POST (body)
 ```
 
+**Le port `http` et l'action `http` :**
+
+`createFactApp({ http })` — le **port** est `(url, init?) => Promise<unknown>` : `url` est l'adresse, `init?` un objet `{ method?, body? }`, et la valeur **résolue** est le corps **déjà parsé** (d'où le `.then(r => r.json())`). C'est le seul effet de bord ; il est injecté donc mockable en test.
+
+L'action de flux `http` accepte ces `arg.*` :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `url` | l'URL à appeler (`$event` supporté) | — (requis) |
+| `method?` | verbe HTTP | `'GET'` |
+| `body?` | corps de la requête (ex. `'$event'`) | — (aucun corps) |
+| `list?` | cible « s p » où écrire un **tableau** de résultats (via `replaceList`) | — |
+| `set?` | cible « s p » où écrire un **scalaire** | — |
+| `status?` | sujet explicite pour l'état `loading`/`error` | le **sujet** (1er mot) de `list`/`set` |
+
+Effet annexe : l'action écrit `(<status>, loading, true/false)` autour de l'appel et `(<status>, error, msg)` en cas d'échec — **une erreur n'interrompt jamais le flux** (consignée, pas relancée).
+
 Pour **charger au montage** (sans bouton), déclare le flux en `onMount` de l'écran — c'est un fait
 `(screen, on_mount, flow)` que `<FactUI>` exécute une fois au montage :
 
@@ -274,6 +392,8 @@ ws.onmessage = (e) => {
 };
 // un écran `for_each 'feed item'` affiche le flux EN DIRECT, sans state séparé.
 ```
+
+`app.store.replaceList(path, values)` — **`path`** = la liste cible « s p » (ex. `'feed item'`) ; **`values`** = le **tableau** de chaînes qui remplace **intégralement** la liste (les anciennes valeurs sont rétractées). Écrit les faits **puis notifie** (re-render) — d'où l'absence d'état React séparé. `await` (asynchrone). Le store expose aussi `set` / `append` / `removeItem` / `increment` / `toggle` selon la même convention « s p ».
 
 **Utiliser les données** : tout ce qui est écrit en faits (par `http`, le socket, ou `app.kb.tell`)
 est immédiatement disponible aux `bind`/`for_each`/`show_if` — il n'y a **pas** d'état séparé à
@@ -327,6 +447,13 @@ const socket = io('https://api.example.com');
 socket.on('feed', (items: string[]) => { void app.store.replaceList('feed item', items); });
 app.action('emit', async (i) => { socket.emit(String(i.event), i.payload); });
 ```
+
+`app.action(name, fn)` — enregistre un **tool custom** invocable comme `{ do: '<name>', … }` dans un flux :
+
+- **`name`** — le nom du tool (l'objet d'un prédicat `action`).
+- **`fn`** — la fonction exécutée : reçoit `input` (un `Record<string, unknown>` = les `arg.*` du step, `$event`/`$item` déjà résolus), peut être `async`, retour ignoré. À l'intérieur, `app.kb` et `app.store` sont accessibles pour lire/muter des faits.
+
+Chaînable (retourne `app`). Ici `i.event` / `i.payload` sont les `arg.event` / `arg.payload` du step.
 
 **gRPC / SDK quelconque** → une action custom (l'appel n'est pas « fetch-shaped ») :
 ```ts

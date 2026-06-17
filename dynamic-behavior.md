@@ -94,6 +94,64 @@ await promoteFacts(dev.primary, prod, 'v1');  // la PROD bascule premium
 rollbackRelease(prod, 'v1');                  // retour à l'état précédent (archivé)
 ```
 
+Cet exemple mobilise sept API du noyau. Voici précisément ce que chacune attend.
+
+**`new ToolRegistry().register(tool)`** — déclare une capacité à effet de bord. `register` prend **un
+seul** argument, un objet `Tool`, et **retourne le registre lui-même** (chaînable :
+`.register(a).register(b)`). Les champs de `tool` :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `name` | identifiant unique de l'outil (insensible à la casse) ; c'est ce que vise un fait `(étape, action, name)` | — (requis) |
+| `description` | description courte — sert à la sélection (par un LLM auteur) et à la doc | — (requis) |
+| `run` | la fonction exécutée : `async (input: Record<string, unknown>) => ToolResult`. `input` reçoit les `arg.*` de l'étape (clés sans le préfixe `arg.`) | — (requis) |
+| `resolves?` | prédicats que l'outil sait résoudre (liaison déterministe sur cache-miss) — inutile pour un flux piloté par `action` | `undefined` |
+| `ephemeral?` | si `true`, les faits renvoyés ne sont **jamais** mémorisés (données volatiles) | `false` |
+
+La valeur de retour de `run`, un **`ToolResult`**, a quatre champs tous optionnels : `text?` (texte
+lisible repris dans la trace), `value?` (réponse directe non mémorisée), `facts?`
+(`[s, p, o][]` réinjectés dans la mémoire) et `ephemeral?` (override par appel). Dans les exemples de
+flux, on ne renvoie que `{ text }` : l'outil agit, et son texte apparaît dans la trace.
+
+**`new KnowledgeBase(grid)`** — la mémoire. Un seul argument : la **grille** QPath qui sert de mémoire
+de travail. `new XNeuroneGrid(undefined, { headless: true })` la construit en mode serveur :
+`undefined` = encodeur par défaut, `{ headless: true }` = sans rendu Three.js (Node).
+
+**`kb.tell(s, p, o)`** — écrit un fait. Les trois premiers arguments (sujet, prédicat, objet) sont les
+seuls utilisés ici ; deux arguments optionnels suivent (`source?` pour la provenance, `flags?` pour
+les drapeaux `major`/`closed`/… — voir [Types de faits](/fact-types)). `tell` est `async`.
+
+**`new FlowRunner(kb, tools)`** — l'exécuteur. Deux arguments : la **`kb`** (où vivent les faits du
+flux) et le **`tools`** (le `ToolRegistry` des capacités). Le second est **optionnel** (défaut : un
+registre vide) — un flux sans `action` s'exécute sans outils.
+
+**`runner.run(flow)`** — lance le flux nommé depuis son fait `(flow, entry, …)`. L'argument `flow`
+est le **nom du flux** (le sujet qui porte `entry`). Un second argument `opts?` est optionnel :
+
+| Option | Rôle | Défaut |
+|---|---|---|
+| `maxSteps` | budget de pas global — garantit l'arrêt même sur un cycle | `1000` |
+| `context` | contexte d'exécution propre à l'appel : `{ event?, item? }`, substitué aux jetons `$event` / `$item` des `arg.*` (binding UI sans course entre flux concurrents) | `undefined` (aucune substitution) |
+
+`run` est `async` et **retourne la trace** : un `FlowStep[]`, chaque pas portant `{ step, kind, detail }`
+(l'étape, son type `condition`/`switch`/`loop`/`action`/`goto`/`end`, et un détail lisible incluant le
+déclencheur).
+
+**`new LayeredKnowledgeBase(primary, parents)`** — la vue dev en couches. Deux arguments : `primary`
+(la KB d'**écriture**, la surcouche dev) et `parents` (un tableau de KB **en lecture seule**, de la
+plus à la moins spécifique — ici `[prod]`). Le second est optionnel (défaut `[]`). Lectures : le plus
+spécifique gagne ; écritures : seulement dans `primary`. Le champ `.primary` réexpose cette surcouche
+(c'est lui qu'on promeut).
+
+**`promoteFacts(from, to, releaseId)`** — copie en prod les faits absents. Trois arguments : `from`
+(la KB source, ici `dev.primary`), `to` (la cible, `prod`) et `releaseId` (l'étiquette de release,
+attachée comme provenance `release:<id>` → c'est ce qui rend le `rollback` possible). `async`,
+retourne le **nombre** de faits effectivement appliqués (les doublons déjà présents sont ignorés).
+
+**`rollbackRelease(kb, releaseId)`** — annule une release. Deux arguments : la `kb` et le `releaseId`
+exact passé à la promotion. Rétracte (archive, n'efface jamais) tous les faits portant cette
+provenance ; retourne le **nombre** rétracté. Synchrone.
+
 Chaque pas de la trace porte son **déclencheur** (le fait qui l'a routé) ; l'exécution est bornée
 (budget de pas + `max_iter`) et **rejouable**.
 
@@ -137,6 +195,13 @@ await new FlowRunner(kb, tools).run('inscription');
 
 **Résultat.** L'ordre vit dans les faits `next` ; insérer ou retirer une étape, c'est quelques
 `tell` / `retract`, jamais un redéploiement.
+
+> 💡 **`kb.retract(s, p, o)`** prend le triplet **exact** à débrancher (les trois premiers arguments
+> identifient le fait). Deux arguments optionnels suivent : `reason?` (motif d'archivage — rien n'est
+> jamais effacé, seulement marqué `retracted_at`) et `now?` (horodatage, défaut `Date.now()`).
+> Synchrone, retourne `true` si un fait correspondait. Pour **re-pointer** un prédicat de contrôle à
+> valeur unique (`next`, `then`, `entry`…), il faut `retract` l'ancien **puis** `tell` le nouveau —
+> un simple `tell` ajouterait une 2ᵉ valeur, et le premier inséré l'emporterait.
 
 ### 2. Condition — brancher sur un fait (`if` / `then` / `else`)
 
@@ -439,6 +504,57 @@ if (!p.validation.ok) {
 }
 ```
 
+Les arguments des trois API de ce flux d'authoring sûr.
+
+**`new FlowAuthor(llm)`** — le harnais d'écriture. Un seul argument : `llm`, un **port `LlmPort`** (le
+même que PingPong) — un objet exposant `complete(prompt, opts?)`. En prod c'est Claude via le backend ;
+en test, un mock. Le noyau ne dépend d'aucun transport.
+
+**`author.propose(demand, opts?)`** — demande des faits au LLM, les écrit en dev, valide. Le premier
+argument `demand` est la **demande en langage naturel**. Le second, `opts?`, est optionnel :
+
+| Option | Rôle | Défaut |
+|---|---|---|
+| `prod` | la couche prod (lecture seule) sous la surcouche dev — pour valider l'**état post-promotion** | `undefined` (dev seul) |
+| `tools` | registre d'outils — vérifie que chaque `action` référence un outil **existant** | `undefined` |
+| `allowedTools` | itérable des outils **autorisés** dans cet environnement (le LLM ne doit invoquer que ceux-là) | `undefined` (aucune restriction de permission) |
+| `flow` | nom de flux attendu ; sinon **déduit** du fait `(?, entry, ?)` | déduit |
+| `requireElse` | exiger un `else` sur chaque condition (sinon simple avertissement) | `false` |
+| `systemPrompt` | system prompt sur-mesure | `FLOW_AUTHORING_RULES` (les règles du noyau) |
+
+`propose` est `async` et retourne un **`FlowProposal`** : `facts` (les faits RETENUS — prédicat de flot
+uniquement — écrits en dev), `rejected` (faits à prédicat **hors-flux**, rejetés par anti-injection),
+`flow?` (nom déduit), `validation` (le verdict, un `FlowValidationResult`), `dev` (la surcouche
+`LayeredKnowledgeBase` à passer au gate) et `raw` (réponse brute du LLM, pour l'audit).
+
+**`formatFlowIssues(result)`** — rend un `FlowValidationResult` lisible. Un seul argument (le résultat
+de validation) ; retourne une **chaîne** multi-lignes (`[error] étape : message`), ou `(aucun problème)`
+si tout est vert.
+
+**`promoteFlowIfValid(dev, prod, flow, releaseId, opts?)`** — le **gate** dev→prod. Cinq arguments :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `dev` | la vue **en couches** (surcouche + prod) — c'est l'état qu'aura prod APRÈS promotion, donc ce qui est validé | — (requis) |
+| `prod` | la KB de production, cible de la promotion | — (requis) |
+| `flow` | nom du flux à valider puis promouvoir | — (requis) |
+| `releaseId` | étiquette de release (provenance `release:<id>`, annulable par `rollbackRelease`) | — (requis) |
+| `opts?` | options de validation `ValidateFlowOptions` (voir ci-dessous) — typiquement `{ tools, allowedTools }` | `{}` |
+
+`async`, retourne un **`PromoteFlowResult`** : `promoted` (booléen — promu seulement si valide),
+`applied` (nombre de faits écrits en prod, `0` si refusé) et `validation` (le `FlowValidationResult`
+complet). Si invalide, **rien** n'est écrit en prod.
+
+> 💡 **`ValidateFlowOptions` — le contrat de sûreté.** Ces options pilotent `validateFlow` (appelé
+> sous le capot par `promoteFlowIfValid`, `promoteFlow` et `FlowAuthor.propose`) :
+> - `tools?` — un `ToolRegistry` : si fourni, toute `action` doit référencer un outil **enregistré**
+>   (sinon erreur `unknown-tool`). Vérifie l'**existence**.
+> - `allowedTools?` — un itérable de noms : si fourni, toute `action` hors liste est refusée
+>   (`tool-not-allowed`). Vérifie la **permission** — c'est le garde-fou « effets de bord » côté
+>   écriture non fiable. Orthogonal à `tools`.
+> - `requireElse?` — `boolean` (défaut `false`) : si `true`, une condition sans `else` devient une
+>   **erreur** bloquante au lieu d'un avertissement.
+
 Deux invariants rendent cela sûr :
 
 - **Le LLM est auteur, pas exécuteur.** Il produit des faits ; c'est `FlowRunner` qui exécute, de
@@ -542,6 +658,19 @@ app.post('/admin/facts', async (req, res) => {
 
 app.listen(3000);
 ```
+
+Cet exemple réutilise les API déjà vues, avec deux détails d'argument à noter :
+
+- **`dev.tell(s, p, o, { kind: 'user' })`** — le **4ᵉ** argument de `tell` est la **`source`** (provenance).
+  `{ kind: 'user' }` marque ces faits comme **saisis par un humain** ; les valeurs de `kind` courantes
+  sont `user`, `import`, `inference`, `tool` (cf. `promoteFacts` qui pose `{ kind: 'import', ref: 'release:…' }`).
+  La provenance n'est pas qu'informative : c'est elle qui permet à `rollbackRelease` de retrouver les
+  faits d'une release.
+- **`promoteFlowIfValid(dev, prod, flow, releaseId, opts)`** est ici appelé avec un `releaseId`
+  **dynamique** (`rel-${Date.now()}`) — chaque promotion est une release distincte, donc annulable
+  individuellement. `opts` passe `{ tools: toolsFor(res), allowedTools: ALLOWED }` : l'allowlist
+  `ALLOWED` est la **liste blanche par environnement** (ici `['json', 'status']`), pas la liste de tous
+  les outils existants.
 
 **Reconfiguration à chaud, sans redéployer** :
 

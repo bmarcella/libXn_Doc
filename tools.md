@@ -30,6 +30,30 @@ const weather: Tool = {
 };
 ```
 
+**Les champs de l'objet `Tool`** (le port que tu implémentes) :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `name` | identifiant unique de l'outil (sert à l'appel piloté par le LLM, `TOOL <name>`) | — (requis) |
+| `description` | description courte — sert à la sélection (par le LLM ou en doc) | — (requis) |
+| `resolves?` | liste de prédicats que l'outil sait résoudre → **liaison déterministe** (appelé sur cache-miss de `(s, p)`) | `undefined` (jamais déclenché en mode déterministe) |
+| `ephemeral?` | si `true`, **aucun** fait de cet outil n'est jamais mémorisé (donnée dynamique par nature) | `false` |
+| `run` | la fonction qui exécute l'outil ; voir ci-dessous | — (requis) |
+
+`run(input)` reçoit **un seul argument** : `input: Record<string, unknown>` — un sac de clés/valeurs
+**libre**. En mode déterministe, le noyau le remplit avec `{ subject, predicate }` ; piloté par le LLM,
+ce sont les `args` du coup `TOOL`. D'où le `input['subject'] ?? input['query']` : tu lis la clé que ton
+outil attend, avec un repli. `run` renvoie une **`Promise<ToolResult>`**.
+
+**Les champs de l'objet `ToolResult`** (ce que `run` retourne) — **tous optionnels** :
+
+| Champ | Rôle | Défaut |
+|---|---|---|
+| `facts?` | triplets `[sujet, prédicat, objet]` → **mémorisés** dans la KB (sauf si volatile) | `undefined` (rien à mémoriser) |
+| `value?` | réponse directe (calcul, objet de données, statut…), **non** mémorisée | `undefined` |
+| `text?` | texte lisible optionnel, pour la trace de raisonnement | `undefined` |
+| `ephemeral?` | marque **ce résultat précis** comme volatile (l'emporte sur `Tool.ephemeral`) | hérite de `Tool.ephemeral`, sinon `false` |
+
 On enregistre les outils dans un **registre** :
 
 ```ts
@@ -37,9 +61,28 @@ import { ToolRegistry } from '@damba/libxn';
 const tools = new ToolRegistry().register(weather);
 ```
 
+`new ToolRegistry()` ne prend **aucun argument**. `register(tool)` prend **un** outil et **retourne le
+registre lui-même** (`this`) — d'où le chaînage `new ToolRegistry().register(a).register(b)`. Sous le
+capot il indexe l'outil par `name` (appel explicite) et par chaque prédicat de `resolves` (liaison
+déterministe). Les autres méthodes du registre : `get(name)` → `Tool | undefined`,
+`byPredicate(p)` → `Tool | undefined`, `list()` → `Tool[]`.
+
 > Sous le capot, c'est `ingestToolResult(kb, result, opts?)` (exporté) qui écrit les faits d'un
 > `ToolResult` dans la KB **avec leur provenance** ; les deux déclencheurs ci-dessous l'utilisent
 > (`resolveWithTools` et le coup `TOOL` de PingPong).
+
+`ingestToolResult` prend **trois** arguments — `ingestToolResult(kb, result, opts?)` :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `kb` | la `KnowledgeBase` où écrire les faits | — (requis) |
+| `result` | le `ToolResult` dont on ingère le champ `facts` | — (requis) |
+| `opts?` | options d'écriture `{ ephemeral?, source? }` — voir ci-dessous | `{}` |
+
+Les champs de `opts` : `ephemeral?` (si `true`, **rien** n'est écrit → retourne `[]`) et `source?`
+(la **provenance** attachée à chaque fait, typiquement `{ kind: 'tool', ref: tool.name }` — c'est elle
+qui permettra plus tard de rappeler le même outil pour revérifier). La fonction **retourne** la liste
+des faits réellement écrits : `Array<{ s: string; p: string; o: string }>` (vide si volatile).
 
 ## Deux façons de déclencher un outil
 
@@ -55,6 +98,28 @@ const r = await resolveWithTools(kb, tools, 'paris', 'weather_of');
 // La prochaine fois, QPath répond seul : 0 token, 0 appel d'outil.
 ```
 
+`resolveWithTools` prend **quatre** arguments — `resolveWithTools(kb, registry, s, p)` :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `kb` | la `KnowledgeBase` interrogée (et où le fait sera mémorisé) | — (requis) |
+| `registry` | le `ToolRegistry` dans lequel chercher l'outil lié au prédicat | — (requis) |
+| `s` | le **sujet** de la question `(s, p)` | — (requis) |
+| `p` | le **prédicat** ; si QPath l'ignore et qu'un outil déclare `resolves: [p]`, l'outil est appelé | — (requis) |
+
+La fonction **retourne** un `ResolveWithToolsResult` :
+
+| Champ | Sens |
+|---|---|
+| `objects` | les objets de `(s, p)` après éventuel appel d'outil (relus depuis la KB → cohérents avec ce qui est réellement interrogeable) |
+| `usedTool?` | nom de l'outil appelé, ou `undefined` si QPath savait déjà / aucun outil lié |
+| `learned` | faits réellement ajoutés à la KB — `[]` si QPath savait déjà ou si la réponse était volatile |
+| `ephemeral?` | `true` si la réponse de l'outil était volatile (non mémorisée) |
+
+> 💡 Si QPath connaît déjà `(s, p)`, **aucun outil n'est appelé** : `objects` vient de la mémoire,
+> `learned` est `[]` et `usedTool` reste `undefined` — c'est tout l'intérêt (0 token, 0 appel réseau
+> au second passage).
+
 Reproductible, traçable, sans LLM.
 
 ### 2. Piloté par le LLM (coup TOOL dans PingPong)
@@ -69,6 +134,27 @@ const result = await new PingPongReasoner(kb, llm, { tools }).run('Quel temps fa
 // Le LLM joue : TOOL weather | city=paris  → QPath mémorise (paris, weather_of, rain) → CONCLUDE
 result.factsLearned;   // [{ s: 'paris', p: 'weather_of', o: 'rain' }]
 ```
+
+Le **constructeur** `new PingPongReasoner(kb, llm, opts?)` prend **trois** arguments :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `kb` | la `KnowledgeBase` qui sert d'arbitre déterministe (vérifie chaque coup du LLM) | — (requis) |
+| `llm` | le port `LlmPort` (le moteur de langage qui joue les coups) | — (requis) |
+| `opts?` | options du raisonneur — voir ci-dessous | `{}` |
+
+Champs de `opts` (tous optionnels) : `tools?` (le `ToolRegistry` mis à disposition pour les coups
+`TOOL`), `maxRounds?` (échanges max, **défaut 3**), `writeBack?` (réinjecter les hypothèses vérifiées
+dans la KB, **défaut `true`**), `confidence?` (politique de confiance passée à `ChainResolver`),
+`algebra?` (algèbre de prédicats ; défaut `PredicateAlgebra.withDefaults()`).
+
+`.run(question, opts?)` prend la **question** (chaîne, requise) et un second argument `opts?` optionnel
+qui **surcharge ponctuellement** les options du constructeur pour cet appel (`maxRounds`, `writeBack`,
+`confidence`, plus `seedSubject?` — un sujet de départ dont les faits connus amorcent le LLM — et
+`systemPrompt?`). Il **retourne** une `Promise<PingPongResult>` dont les champs utiles ici :
+`conclusion` (la réponse finale), `factsLearned` (les faits écrits pendant l'échange),
+`grounded` (booléen : tout est-il ancré sur QPath), `llmCalls` (nombre d'appels LLM) et
+`stopped` (`'concluded'` | `'maxRounds'` | `'stalled'`).
 
 ## Lire la KB : le LLM interroge la mémoire
 
@@ -107,6 +193,22 @@ class KbQueryTool implements Tool {
 }
 ```
 
+Les **méthodes de lecture de la KB** utilisées dans ce `run` :
+
+- **`kb.ask(s, p)`** — lecture **directe** : prend le sujet `s` et le prédicat `p`, **retourne** la liste
+  des objets `string[]` (ex. la ville d'Alice). Vide si inconnu.
+- **`kb.askInverse(p, o)`** — lecture **inverse** : prend le prédicat `p` et l'objet `o`, **retourne**
+  les **sujets** `string[]` qui satisfont `(?, p, o)` (ex. « qui habite à Paris ? »).
+- **`kb.compute(filter, fn)`** — agrégat déterministe (0 token). Premier argument : un **filtre** de
+  faits `{ s?, p?, o? }` (ici `{ p: pred }` = « tous les faits de prédicat `pred` »). Second argument :
+  la **fonction d'agrégat** `fn` de type `AggregateFn` — l'une de
+  `'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'variance' | 'stddev' | 'range'`. **Retourne**
+  un `number`, ou **`undefined`** si aucun fait numérique ne correspond (d'où le `v === undefined ? '∅'`).
+  `count` compte les faits ; les autres ne portent que sur les objets **numériques**.
+
+> 💡 `ephemeral = true` sur la classe : c'est une **lecture pure**, donc même si elle renvoyait des
+> `facts` ils ne seraient pas mémorisés. Ici elle ne renvoie d'ailleurs que `value`/`text`.
+
 On le branche comme n'importe quel outil ; le LLM l'appelle via un coup `TOOL` dans PingPong :
 
 ```ts
@@ -116,6 +218,10 @@ const tools = new ToolRegistry().register(new KbQueryTool(kb));
 await new PingPongReasoner(kb, llm, { tools }).run('Quel est l\'âge moyen des clients ?');
 // Le LLM joue : TOOL kb_query | compute=age:avg → la KB calcule → réponse ancrée, calcul à 0 token
 ```
+
+Mêmes signatures que plus haut : `KbQueryTool` reçoit la `kb` dans son **constructeur** (l'outil de
+lecture a besoin d'une référence vers la mémoire à interroger), puis `register(...)` l'ajoute au
+registre, et `PingPongReasoner(kb, llm, { tools })` reçoit ce registre via l'option `tools`.
 
 > **Lire vs apporter** : un outil de **lecture** renvoie `value`/`text` (rien n'est mémorisé) ; un
 > outil qui **comble un manque** renvoie `facts` (mémorisés). Tu peux restreindre la lecture par les
@@ -153,6 +259,11 @@ const weather: Tool = {
   },
 };
 ```
+
+Ici `ephemeral: true` est posé **sur l'outil** (champ `Tool.ephemeral`) : il s'applique à **tous** ses
+appels. Pour un outil **parfois** stable, **parfois** volatile, laisse l'outil par défaut et pose le
+drapeau **par appel** dans le `ToolResult` retourné (`return { facts: [...], ephemeral: true }`) — le
+`ToolResult.ephemeral` l'emporte sur le défaut de l'outil.
 
 - **Au niveau de l'outil** : `ephemeral: true` → toutes ses réponses sont volatiles.
 - **Par appel** : `return { facts: [...], ephemeral: true }` → l'emporte sur le défaut de l'outil

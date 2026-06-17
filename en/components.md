@@ -28,6 +28,19 @@ grid.findValuesContaining('cat');      // retrieve by content
 const snap = grid.serialize();          // persistence
 ```
 
+**`new XNeuroneGrid(encoder?, opts?)`** — both arguments are optional:
+
+| Argument | Role | Default |
+|---|---|---|
+| `encoder?` | function turning a datum into bit pairs; `undefined` = the default encoder (`BinaryConverter.toBinaryPairs`) | `undefined` (default encoder) |
+| `opts?` | `{ headless?: boolean }` — `headless: true` disables all 3D rendering (Node/server). Without headless, the grid tries to create a view via `XNeuroneGrid.viewFactory` if one is registered | `{}` (so `headless: false`) |
+
+**`processData(data, opts?)`** — `data` is the datum to ingest (text, number, object — any type); `opts?` = `{ skipView?: boolean }` (pass `true` to skip the view redraw after ingestion). Returns a `Promise<void>`.
+
+**`findValuesContaining(query, limit?)`** — `query` is the keyword to look for (case-insensitive); `limit?` caps the number of results (default `10`). Returns a `string[]`: the **original ingested texts** that contain the query (not atomic triplets).
+
+**`serialize(opts?)`** — `opts?` = `{ lite?: boolean }`; `lite: true` serializes only the **topology** (without the nodes' `value`) to shrink a large visualization snapshot. Returns a `GridSnapshot` (a `{ nodes, edges }` object) ready to persist.
+
 > It is the **source of truth**: fast, in-memory, deterministic. Headless by default on the server; an
 > optional 3D rendering plugs in via `@damba/libxn-visualization`.
 
@@ -49,6 +62,9 @@ const grid = new XNeuroneGrid(undefined, { headless: true });
 const sample = BinaryConverter.toBinaryPairs({ area: 120, rooms: 4 });
 await grid.trainClass(sample, 'house');    // prepare an example for learning
 ```
+
+- **`BinaryConverter.toBinaryPairs(data)`** (static) — `data` is any value (primitive, array, object); object keys are **sorted** so that `{a,b}` and `{b,a}` produce the same result (content-addressable property). Returns a `[number, number][]` (the list of bit pairs, each `0` or `1`).
+- **`grid.trainClass(pairs, label)`** — `pairs` is the output of `toBinaryPairs` (the encoded example); `label` is the **class** (string) to associate with this path. Returns a `Promise<void>`. This is the learning step: the label is stored at the reached leaf and counted on every ancestor.
 
 > The encoder choice decides **which inputs look alike** to the graph. Golden rule: the same encoder for
 > ingestion and for queries.
@@ -81,6 +97,22 @@ kb.ask('marc', 'likes');              // ['chocolate']
 kb.askInverse('likes', 'chocolate');  // ['marc']
 ```
 
+**`new KnowledgeBase(grid)`** — a single argument: the `XNeuroneGrid` used as substrate. If the grid is already populated (reloaded snapshot), the mirror indices are rebuilt in passing.
+
+**`tell(s, p, o, source?, flags?)`** — records a fact *(subject, predicate, object)*:
+
+| Argument | Role | Default |
+|---|---|---|
+| `s` | the **subject** | — (required) |
+| `p` | the **predicate** (the relation) | — (required) |
+| `o` | the **object** (the value) | — (required) |
+| `source?` | the fact's **provenance** (`FactSource`); several `tell` of the same fact accumulate their sources | `undefined` |
+| `flags?` | fact flags (`FactFlags`: `closed`, `major`, `companionOf`…) | `undefined` |
+
+Returns a `Promise<ContradictionReport | null>`: a **non-null** report if the exact opposite (`p` ↔ `not_p`) already exists, otherwise `null`.
+
+**`ask(s, p)`** — `s` the subject, `p` the predicate; returns the `string[]` of objects known for this pair (direct read). **`askInverse(p, o)`** — the inverse read: `p` the predicate, `o` the object; returns the `string[]` of subjects `s` such that *(s, p, o)*.
+
 > **Reliable, deterministic** reads; **editable and auditable** memory.
 
 ### QPathKeyIndex — fuzzy prefix recall
@@ -100,6 +132,9 @@ via `nearestSubjects` / `subjectsWithPrefix`.
 kb.nearestSubjects('alicia');     // known subjects by longest shared prefix, closest first
 kb.subjectsWithPrefix('user:42'); // all scoped keys under this prefix (range query)
 ```
+
+- **`kb.nearestSubjects(s, limit?)`** — `s` is the reference key; `limit?` caps the number of neighbors returned (default `5`). Returns a `KeyHit[]`, i.e. `{ key: string; sharedDepth: number }[]` (the neighbor key + the **shared path-prefix depth**, in quats), sorted closest first, including `s` itself if known.
+- **`kb.subjectsWithPrefix(prefix)`** — a single argument, the key prefix; returns the `string[]` of all subjects whose (normalized) name starts with this prefix — a range query, **zero scan**.
 
 > The same path representation serves both exact and approximate search. A prefix search's cost stays
 > nearly flat as the number of keys grows (sub-linear), where a scan grows linearly. Position-wise
@@ -130,6 +165,26 @@ await comp.attach(f, 'account_12345', 'opened_on', '2020-06-01', { cascade: true
 comp.retractOwner(f);      // retracts the fact + its cascade companions
 ```
 
+**`new CompanionFacts(kb)`** — a single argument: the `KnowledgeBase` to build on.
+
+The **owner** common to all these methods is a `CompanionOwner`: either `{ entity: '<subject>' }` (an entity) or `{ fact: { s, p, o } }` (a precise triplet).
+
+**`attach(owner, s, p, o, opts?)`** — writes the fact *(s, p, o)* **and** attaches it to `owner` in one call:
+
+| Argument | Role | Default |
+|---|---|---|
+| `owner` | the owner (`{ entity }` or `{ fact }`) | — (required) |
+| `s`, `p`, `o` | the companion fact to write | — (required) |
+| `opts?` | `{ cascade?: boolean; source?: FactSource }` — `cascade: true` ties the companion's lifecycle to the owner's; `source` = provenance | `{}` (so `cascade: false`, source `user`/`companion`) |
+
+Returns a `Promise<string>`: the **id** of the created companion fact.
+
+**`tag(owner, s, p, o, opts?)`** — the **synchronous** variant of `attach` for an **already-existing** fact (does not write it, only flags it as a companion); same arguments, returns `void`.
+
+**`profileOf(owner)`** — a single argument; returns a `Record<string, string[]>`, i.e. `{ predicate: [values] }` aggregated over all companions (merged entity aliases included). **`companionsOf(owner)`** returns the raw list of companion facts (`EnumeratedFact[]`).
+
+**`retractOwner(owner, reason?)`** — `reason?` is the archival reason (default `'owner retracted'`). Retracts (archives) the owner and its **direct** companions flagged `cascade`, **one level only**. Returns `{ retracted: number }` (the count of retracted facts).
+
 > Companions stay **ordinary facts** (queryable normally); they are merely tagged to their owner.
 > `cascade` ties their lifecycle; without it they are independent.
 >
@@ -150,6 +205,8 @@ comp.retractOwner(owner);   // DIRECT companions only (one level) → 'note' is 
 comp.retractTree(owner);    // the whole tree: companion of a companion, etc.
 ```
 
+**`retractTree(owner, reason?)`** — same signature as `retractOwner` (`reason?` default `'owner tree retracted'`), but **recursive**: walks the whole companion tree, following only `cascade` links (a non-`cascade` companion anchors a kept branch with its subtree). Cycle-safe. Also returns `{ retracted: number }`.
+
 **Advanced use-cases**
 
 ```ts
@@ -169,6 +226,8 @@ comp.retractOwner(doc);   // purges the document AND all its metadata at once
 await kb.mergeEntities('bob', 'robert');
 comp.profileOf({ entity: 'robert' });   // returns bob's profile — a single one, nothing re-tagged
 ```
+
+- **`kb.mergeEntities(a, b, source?)`** — merges two entities as aliases of each other: `a` and `b` the two names, `source?` the optional provenance. Returns a `Promise<boolean>` (`true` if the merge happened). After the merge, reads follow the aliases — hence the single profile.
 
 - **Two lifecycles side by side**: mark `cascade` what must die with the owner (IDs, technical
   metadata), leave the rest independent (address, preferences).
@@ -199,6 +258,18 @@ if (parsed.kind === 'statement') {
 }
 ```
 
+**`NaturalParser.parse(text)`** (static) — a single argument, the sentence to analyze. Returns a `ParsedInput`, a **discriminated union** on the `kind` field:
+
+| `kind` | Fields | Meaning |
+|---|---|---|
+| `'statement'` | `s`, `p`, `o` | usable statement → store via `kb.tell` |
+| `'what'` | `s`, `p` | open question ("what is the…") — store nothing |
+| `'yesno'` | `s`, `p`, `o` | yes/no question — store nothing |
+| `'list'` | `p`, `o` | list request — store nothing |
+| `'unknown'` | `text` | nothing usable (vague/conversational sentence) |
+
+> 💡 **Always test `parsed.kind === 'statement'`** before writing: only this case carries a triplet to remember; all others are questions or noise the parser refuses to assert.
+
 The parser goes well beyond schoolbook "X is Y":
 
 ```ts
@@ -213,6 +284,8 @@ NaturalParser.parse('le pingouin ne vole pas');    // → { s:'pingouin', p:'not
 NaturalParser.parseAll('Alice est la mère de Bob. Bob est le père de Carl');
 // → [ {s:'alice',p:'mère_de',o:'bob'}, {s:'bob',p:'père_de',o:'carl'} ]
 ```
+
+**`NaturalParser.parseAll(text)`** (static) — a single argument, a message that may hold **several sentences**. Splits the text, keeps only the statements (`kind: 'statement'`) and directly returns an `Array<{ s, p, o }>` — already filtered of questions, ready to loop over `kb.tell`.
 
 > A **permissive, cautious** parser: it tells a statement apart from a **question** ("which dog…",
 > even without "?") and from a **reply** ("I think that…") — which it does not store. When in doubt,
@@ -236,6 +309,12 @@ NaturalRuleParser.parse('If someone is human then they are mortal');
 NaturalRuleParser.parse('Tout humain a deux jambes');   // universal
 // → { dsl: 'X est humain => X a deux_jambes', … }
 ```
+
+**`NaturalRuleParser.parse(text)`** (static) — a single argument, the conditional sentence. Returns a `ParsedRuleNL | null`:
+- `dsl` — the normalized rule (`'condition => conclusion'`), ready for `RuleEngine.addRuleFromText` / `RuleFactory.refine`;
+- `conditions` / `conclusions` — `Array<{ s, p, o }>`, the triplets on each side of the arrow.
+
+Returns **`null`** if the structure is ambiguous or there is no shared variable between conditions and conclusion (then it is not a real general rule).
 
 Recognizes "**if … then …**" / "si … alors …", the **arrow** (`=>`/`⇒`/`→`) and the **universal**
 "every/all/tout ‹class› …". Handles FR/EN, **negation** (`ne … pas` → `not_*`), **relations**
@@ -268,6 +347,20 @@ ChainResolver.format(chain!);
 // → "socrates —is→ human —is→ mortal —has→ end  (⇒ has = end, confidence 1.00, via transitive)"
 ```
 
+**`new ChainResolver(kb, algebra?)`** — `kb` the `KnowledgeBase`; `algebra?` a `PredicateAlgebra` (the predicate-composition rules), defaulting to `PredicateAlgebra.withDefaults()`.
+
+**`chain(s, targetP, opts?)`** — finds the shortest chain (BFS) linking `s` to an object via the composed predicate `targetP`:
+
+| Argument | Role | Default |
+|---|---|---|
+| `s` | the starting **subject** | — (required) |
+| `targetP` | the **target predicate** to reach by composition | — (required) |
+| `opts?` | `{ maxDepth?: number; confidence?: 'min' \| 'product' }` — max chain depth (default `4`) and confidence-aggregation policy (`'min'` = weakest link, default; `'product'` = probabilistic composition) | `{}` |
+
+Returns a `ReasoningChain | null` (`null` if no valid chain) — hence the `chain!` before `format`.
+
+**`ChainResolver.format(chain)`** (static) — a single argument, a (non-null) `ReasoningChain`; returns the readable `string` shown in the comment.
+
 > **Lazy**: computes on demand, at query time, storing nothing. Deterministic and traceable.
 
 ### RuleEngine — deriving new facts
@@ -289,6 +382,19 @@ rules.addRuleFromText('X uses typescript => X understands javascript');
 await rules.applyAllRules();
 kb.askInverse('understands', 'javascript');   // includes the derived facts
 ```
+
+**`new RuleEngine(kb, persistent?, store?, storageKey?)`**:
+
+| Argument | Role | Default |
+|---|---|---|
+| `kb` | the `KnowledgeBase` to enrich | — (required) |
+| `persistent?` | load/save the rules in `store` (`false` = in-memory rules only, as here) | `true` |
+| `store?` | the `KeyValueStore` persisting the rules | `new MemoryStore()` |
+| `storageKey?` | persistence key (lets you scope the rules, e.g. per conversation) | default key |
+
+**`addRuleFromText(text, name?, origin?)`** — `text` the rule in DSL (`'condition => conclusion'`); `name?` an optional name; `origin?` ∈ `'manual' | 'induced' | 'document'` (default `'manual'`). Returns the created `Rule`, or **`null`** if the DSL is rejected (reason in `rules.lastRefineError`).
+
+**`applyAllRules()`** — no argument; runs forward chaining over the whole base and returns a `Promise<number>` (the count of derived facts produced).
 
 > **Dual of ChainResolver**: `RuleEngine` anticipates (at write time), `ChainResolver` computes on demand
 > (at query time). Both can share the same rules.
@@ -312,6 +418,20 @@ import { PingPongReasoner } from '@damba/libxn';
 const result = await new PingPongReasoner(kb, llm).run('Is Alice an ancestor of Diana?', { seedSubject: 'alice' });
 result.conclusion;   // grounded answer ; result.transcript = the full exchange
 ```
+
+**`new PingPongReasoner(kb, llm, opts?)`** — `kb` the `KnowledgeBase` (the grounding), `llm` an `LlmPort` (the provider, mockable), `opts?` default settings `{ algebra?, maxRounds?, writeBack?, confidence?, tools? }`.
+
+**`run(question, opts?)`** — runs the bounded exchange:
+
+| Option (`opts?`) | Role | Default |
+|---|---|---|
+| `maxRounds?` | maximum number of exchanges | `3` |
+| `writeBack?` | re-inject verified hypotheses into the KB | `true` |
+| `confidence?` | confidence policy passed to `ChainResolver` (`'min'`/`'product'`) | inherited from the constructor |
+| `seedSubject?` | starting subject: its known facts seed the LLM | `undefined` |
+| `systemPrompt?` | system prompt sent to the LLM each round | `PINGPONG_SYSTEM_RULES` |
+
+Returns a `Promise<PingPongResult>` whose key fields are `conclusion` (the grounded answer), `transcript` (the full readable exchange), `rounds`, `factsLearned`, `grounded` (`true` = every claim was checked against QPath) and `stopped` (`'concluded' | 'maxRounds' | 'stalled'`).
 
 > Details and safeguards: see [PingPong reasoning](pingpong-reasoning).
 
@@ -340,6 +460,11 @@ const store = new VectorGridStore(new QdrantVectorStore('http://localhost:6333')
 await store.save('my-kb', kb.grid.serialize());     // persist
 const hits = await store.searchSimilarPaths('my-kb', queryPath, 5);
 ```
+
+- **`new QdrantVectorStore(url?)`** — a single argument, the Qdrant server URL (default `'http://localhost:6333'`). This is the concrete **adapter**; it implements the `VectorStore` interface.
+- **`new VectorGridStore(store)`** — a single argument: any `VectorStore` adapter (Qdrant, pgvector, in-memory…). The façade depends only on the interface.
+- **`store.save(key, snapshot)`** — `key` the scope/collection, `snapshot` a `GridSnapshot` (output of `kb.grid.serialize()`). Returns a `Promise<void>`.
+- **`store.searchSimilarPaths(key, queryPath, limit?)`** — `key` the scope, `queryPath` the query path (`Direction[]`), `limit?` the number of neighbors (default `10`). Returns a `Promise<Array<{ id, score, value, classCounts }>>`: the closest leaves, with their similarity **score**, the ingested `value` and the `classCounts`.
 
 > QPath depends on **no** particular vector database: Qdrant is just an adapter. For pgvector, Pinecone, an
 > in-memory store… you provide another adapter, **the core does not change** (see

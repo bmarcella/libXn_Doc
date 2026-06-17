@@ -94,6 +94,63 @@ await promoteFacts(dev.primary, prod, 'v1');  // PROD switches to premium
 rollbackRelease(prod, 'v1');                  // back to the previous (archived) state
 ```
 
+This example uses seven core APIs. Here is precisely what each one expects.
+
+**`new ToolRegistry().register(tool)`** — declares a side-effecting capability. `register` takes **one**
+argument, a `Tool` object, and **returns the registry itself** (chainable: `.register(a).register(b)`).
+The fields of `tool`:
+
+| Field | Role | Default |
+|---|---|---|
+| `name` | the tool's unique identifier (case-insensitive); this is what a `(step, action, name)` fact targets | — (required) |
+| `description` | short description — used for selection (by an LLM author) and in docs | — (required) |
+| `run` | the executed function: `async (input: Record<string, unknown>) => ToolResult`. `input` receives the step's `arg.*` (keys without the `arg.` prefix) | — (required) |
+| `resolves?` | predicates the tool can resolve (deterministic binding on cache-miss) — unused for an `action`-driven flow | `undefined` |
+| `ephemeral?` | if `true`, returned facts are **never** memorized (volatile data) | `false` |
+
+`run`'s return value, a **`ToolResult`**, has four all-optional fields: `text?` (human-readable text
+echoed in the trace), `value?` (a direct, non-memorized answer), `facts?` (`[s, p, o][]` re-injected
+into memory) and `ephemeral?` (per-call override). In the flow examples we only return `{ text }`: the
+tool acts, and its text shows up in the trace.
+
+**`new KnowledgeBase(grid)`** — the memory. A single argument: the QPath **grid** used as working
+memory. `new XNeuroneGrid(undefined, { headless: true })` builds it in server mode: `undefined` =
+default encoder, `{ headless: true }` = no Three.js rendering (Node).
+
+**`kb.tell(s, p, o)`** — writes a fact. Only the first three arguments (subject, predicate, object) are
+used here; two optional arguments follow (`source?` for provenance, `flags?` for the `major`/`closed`/…
+flags — see [Fact types](/fact-types)). `tell` is `async`.
+
+**`new FlowRunner(kb, tools)`** — the executor. Two arguments: the **`kb`** (where the flow's facts
+live) and `tools` (the `ToolRegistry` of capabilities). The second is **optional** (default: an empty
+registry) — a flow with no `action` runs without tools.
+
+**`runner.run(flow)`** — runs the named flow from its `(flow, entry, …)` fact. The `flow` argument is
+the **flow name** (the subject that carries `entry`). A second `opts?` argument is optional:
+
+| Option | Role | Default |
+|---|---|---|
+| `maxSteps` | global step budget — guarantees halting even on a cycle | `1000` |
+| `context` | per-call execution context: `{ event?, item? }`, substituted for the `$event` / `$item` tokens in `arg.*` (UI binding with no race between concurrent flows) | `undefined` (no substitution) |
+
+`run` is `async` and **returns the trace**: a `FlowStep[]`, each step carrying `{ step, kind, detail }`
+(the step, its kind `condition`/`switch`/`loop`/`action`/`goto`/`end`, and a readable detail including
+the trigger).
+
+**`new LayeredKnowledgeBase(primary, parents)`** — the layered dev view. Two arguments: `primary` (the
+**write** KB, the dev overlay) and `parents` (an array of **read-only** KBs, from most to least specific
+— here `[prod]`). The second is optional (default `[]`). Reads: most specific wins; writes: only into
+`primary`. The `.primary` field re-exposes that overlay (it's what you promote).
+
+**`promoteFacts(from, to, releaseId)`** — copies into prod the facts it doesn't yet have. Three
+arguments: `from` (the source KB, here `dev.primary`), `to` (the target, `prod`) and `releaseId` (the
+release tag, attached as provenance `release:<id>` → this is what makes `rollback` possible). `async`,
+returns the **number** of facts actually applied (duplicates already present are skipped).
+
+**`rollbackRelease(kb, releaseId)`** — reverts a release. Two arguments: the `kb` and the exact
+`releaseId` passed to the promotion. Retracts (archives, never erases) every fact carrying that
+provenance; returns the **number** retracted. Synchronous.
+
 Each trace step carries its **trigger** (the fact that routed it); execution is bounded (step budget
 + `max_iter`) and **replayable**.
 
@@ -137,6 +194,13 @@ await new FlowRunner(kb, tools).run('inscription');
 
 **Result.** The order lives in the `next` facts; inserting or removing a step is a few
 `tell` / `retract`, never a redeploy.
+
+> 💡 **`kb.retract(s, p, o)`** takes the **exact** triplet to unhook (the first three arguments
+> identify the fact). Two optional arguments follow: `reason?` (archival reason — nothing is ever
+> erased, only marked `retracted_at`) and `now?` (timestamp, default `Date.now()`). Synchronous,
+> returns `true` if a fact matched. To **re-point** a single-valued control predicate (`next`, `then`,
+> `entry`…), you must `retract` the old one **then** `tell` the new one — a plain `tell` would add a 2nd
+> value, and the first inserted would win.
 
 ### 2. Condition — branch on a fact (`if` / `then` / `else`)
 
@@ -437,6 +501,57 @@ if (!p.validation.ok) {
 }
 ```
 
+The arguments of the three APIs in this safe authoring flow.
+
+**`new FlowAuthor(llm)`** — the authoring harness. A single argument: `llm`, an **`LlmPort`** (the same
+port as PingPong) — an object exposing `complete(prompt, opts?)`. In prod it's Claude via the backend;
+in tests, a mock. The core depends on no transport.
+
+**`author.propose(demand, opts?)`** — asks the LLM for facts, writes them to dev, validates. The first
+argument `demand` is the **natural-language request**. The second, `opts?`, is optional:
+
+| Option | Role | Default |
+|---|---|---|
+| `prod` | the prod layer (read-only) under the dev overlay — to validate the **post-promotion state** | `undefined` (dev only) |
+| `tools` | tool registry — checks that each `action` references an **existing** tool | `undefined` |
+| `allowedTools` | iterable of the tools **allowed** in this environment (the LLM may invoke only those) | `undefined` (no permission restriction) |
+| `flow` | expected flow name; otherwise **inferred** from the `(?, entry, ?)` fact | inferred |
+| `requireElse` | require an `else` on every condition (otherwise just a warning) | `false` |
+| `systemPrompt` | custom system prompt | `FLOW_AUTHORING_RULES` (the core's rules) |
+
+`propose` is `async` and returns a **`FlowProposal`**: `facts` (the KEPT facts — flow predicates only —
+written to dev), `rejected` (facts with a **non-flow** predicate, dropped by anti-injection), `flow?`
+(inferred name), `validation` (the verdict, a `FlowValidationResult`), `dev` (the
+`LayeredKnowledgeBase` overlay to pass to the gate) and `raw` (the LLM's raw response, for auditing).
+
+**`formatFlowIssues(result)`** — renders a `FlowValidationResult` readable. A single argument (the
+validation result); returns a multi-line **string** (`[error] step : message`), or `(no problem)` when
+everything is green.
+
+**`promoteFlowIfValid(dev, prod, flow, releaseId, opts?)`** — the dev→prod **gate**. Five arguments:
+
+| Argument | Role | Default |
+|---|---|---|
+| `dev` | the **layered** view (overlay + prod) — the state prod will have AFTER promotion, hence what is validated | — (required) |
+| `prod` | the production KB, target of the promotion | — (required) |
+| `flow` | name of the flow to validate then promote | — (required) |
+| `releaseId` | release tag (provenance `release:<id>`, reversible via `rollbackRelease`) | — (required) |
+| `opts?` | validation options `ValidateFlowOptions` (see below) — typically `{ tools, allowedTools }` | `{}` |
+
+`async`, returns a **`PromoteFlowResult`**: `promoted` (boolean — promoted only if valid), `applied`
+(number of facts written to prod, `0` if refused) and `validation` (the full `FlowValidationResult`).
+If invalid, **nothing** is written to prod.
+
+> 💡 **`ValidateFlowOptions` — the safety contract.** These options drive `validateFlow` (called under
+> the hood by `promoteFlowIfValid`, `promoteFlow` and `FlowAuthor.propose`):
+> - `tools?` — a `ToolRegistry`: if provided, every `action` must reference a **registered** tool
+>   (otherwise an `unknown-tool` error). Checks **existence**.
+> - `allowedTools?` — an iterable of names: if provided, any `action` outside the list is refused
+>   (`tool-not-allowed`). Checks **permission** — the "side-effects" guardrail on the untrusted writing
+>   side. Orthogonal to `tools`.
+> - `requireElse?` — `boolean` (default `false`): if `true`, a condition without an `else` becomes a
+>   blocking **error** instead of a warning.
+
 Two invariants make this safe:
 
 - **The LLM is an author, not an executor.** It produces facts; `FlowRunner` executes, deterministically
@@ -538,6 +653,17 @@ app.post('/admin/facts', async (req, res) => {
 
 app.listen(3000);
 ```
+
+This example reuses the APIs already covered, with two argument details worth noting:
+
+- **`dev.tell(s, p, o, { kind: 'user' })`** — the **4th** argument of `tell` is the **`source`**
+  (provenance). `{ kind: 'user' }` marks these facts as **human-entered**; common `kind` values are
+  `user`, `import`, `inference`, `tool` (cf. `promoteFacts`, which sets `{ kind: 'import', ref: 'release:…' }`).
+  Provenance is not merely informational: it is what lets `rollbackRelease` find a release's facts.
+- **`promoteFlowIfValid(dev, prod, flow, releaseId, opts)`** is called here with a **dynamic**
+  `releaseId` (`rel-${Date.now()}`) — each promotion is a distinct release, hence individually
+  reversible. `opts` passes `{ tools: toolsFor(res), allowedTools: ALLOWED }`: the `ALLOWED` allowlist
+  is the **per-environment** whitelist (here `['json', 'status']`), not the list of every existing tool.
 
 **Hot reconfiguration, no redeploy**:
 

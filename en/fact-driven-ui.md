@@ -31,6 +31,52 @@ export const App = () => <FactUI app={app} screen="counter" />;
 No `ToolRegistry`, no `FlowRunner`, no store to wire: the **facade** `createFactApp` hides them. You
 write screens as **objects** (sugar) that become facts under the hood.
 
+**The calls in this example, argument by argument:**
+
+`createFactApp(options?)` — builds the app. The options object is **entirely optional**:
+
+| Argument | Role | Default |
+|---|---|---|
+| `options.kb?` | the `KnowledgeBase` to use — pass a `LayeredKnowledgeBase` for dev/prod or per-user variants | a fresh KB on a **headless** grid (`new XNeuroneGrid(undefined, { headless: true })`) |
+| `options.http?` | the **HTTP port** (`(url, init?) => Promise<unknown>`) that enables the `http` tool; without it the `http` tool is **not** registered | — (none; no network calls) |
+
+`app.components(map)` — a single argument, `map`, an object `{ fact name → React component }` (e.g. `{ Card, Text, Button }`): the key is the name used in `component` facts, the value the component that renders it. **Synchronous and chainable** (returns `app`).
+
+`app.state(initial)` — a single argument: the initial state as `{ subject: { predicate: value } }`. A value may be `string | number | boolean` (stored as a string) **or an array** (`string[]`/`number[]`) which seeds a multi-valued **list**. `await` it (it writes to the KB).
+
+`app.screen(name, spec)`:
+
+- **`name`** — the screen name (the root subject of the facts, e.g. `'counter'`); this is what you pass to `<FactUI screen="…">`.
+- **`spec`** — the `ScreenSpec` (declarative object converted to facts). Fields detailed in the table below.
+
+`app.flow(name, steps)`:
+
+- **`name`** — the flow name (invoked by events like `on: { click: 'inc' }`, run by `FlowRunner`).
+- **`steps`** — an **array of actions** (`ActionSpec`), executed **sequentially**. Each action is `{ do: '<tool>', ...args }`: `do` is the tool name, the other keys become `arg.<k>` (see "Flow actions" below).
+
+`<FactUI app screen>` — the component that renders the screen. **`app`** = the `createFactApp` instance; **`screen`** = the screen name to render (string). It subscribes to the store and re-renders on every mutation.
+
+> 💡 `components`, `action`, `onDispose` are **synchronous and chainable** (they return `app`); `screen`, `flow`, `facts`, `state` are **async** (they write to the KB) — `await` them before the first render.
+
+**The `ScreenSpec` (the object passed to `app.screen` / `template`)** — every field is optional except `component`:
+
+| Field | Role | Default |
+|---|---|---|
+| `component` | **(required)** name of the component to render (registry key) → `(node, component, …)` fact | — |
+| `props?` | **static** props (`string \| number \| boolean`, stored as strings) → `prop.<k>` | `{}` |
+| `bind?` | props **bound to state**; value = "s p" expression → `bind.<k>` | `{}` |
+| `on?` | events → flows; key = event (`click`, `change`), value = flow name → `on_<event>` | `{}` |
+| `showIf?` | conditional render of the **node** ("s p o", a comparator, or `not …`) → `show_if` | — (always rendered) |
+| `forEach?` | list: "s p" expression whose each value yields a row (with `template`) | — |
+| `template?` | `ScreenSpec` template rendered per item (`$item` = the value); requires `forEach` | — |
+| `itemKey?` | stable React key by identity (e.g. `'$item'`); only meaningful with `forEach` | positional id |
+| `children?` | ordered child `ScreenSpec[]` (mutually exclusive with `forEach`/`template`) | `[]` |
+| `onMount?` | **root only**: flow (or list of flows) run on mount → `on_mount` | — |
+| `guard?` | **root only**: page access condition (same grammar as `showIf`) → `guard` | — (no guard) |
+| `denied?` | **root only**: fallback screen if `guard` fails; without it, nothing renders → `denied` | — (renders `null`) |
+
+> ⚠️ `forEach`+`template` and `children` are **mutually exclusive**: a list has no static children (the template is its only descendant). `onMount`/`guard`/`denied` are read **only at the screen root** (ignored on a child node).
+
 ## What the UI does
 
 1. **It draws itself from facts** — `(node, component, "Button")`, `(btn, prop.label, "+1")`,
@@ -117,6 +163,32 @@ if (isRenderable(proposal)) {
 `FlowValidator` over **every** flow in the KB (unbounded loop, dead link, incomplete condition,
 out-of-allowlist tool) — the **dev→prod gate**, before any render.
 
+**The arguments in detail:**
+
+`proposeScreen(llm, demand, opts?)`:
+
+- **`llm`** — an `LlmPort` (`{ complete(prompt, opts?) => Promise<string> }`, mockable in tests). The LLM is **author**, never executor.
+- **`demand`** — the natural-language request (e.g. `'a login screen: email, password, button'`).
+- **`opts?`** — filtering options (all optional):
+
+| Argument | Role | Default |
+|---|---|---|
+| `opts.allowedComponents?` | allowlist of invocable components; a `component` outside it goes to `rejected` | — (any component accepted) |
+| `opts.allowedActions?` | allowlist of **actions** (the object of an `action` predicate) a proposed flow may invoke; recommended in untrusted contexts | — (any action accepted) |
+| `opts.systemPrompt?` | system prompt sent to the LLM | `SCREEN_AUTHORING_RULES` (the fact-format rules, exported) |
+
+The return value is a **`ScreenProposal`**: `{ facts, rejected, screen?, raw }` — `facts` = **kept** triples (write them via `app.facts`), `rejected` = **discarded** triples (anti-injection), `screen` = the screen name inferred from the `render` fact (or `undefined`), `raw` = the LLM's raw response (audit).
+
+`isRenderable(proposal)` — a single argument, the `ScreenProposal`; returns `true` if it carries a screen root (`proposal.screen !== undefined`). Minimal gate before writing.
+
+`app.facts(triples)` — a single argument: an array of `[s, p, o]` triples (typically `proposal.facts`), written **case-preserved**. `await` it (writes to the KB).
+
+`app.checkFlows(opts?)` — validates **every** flow present in the KB. Single option:
+
+- **`opts.allowedTools?`** — an allowlist of tools; any flow invoking a tool outside it is marked invalid. Omitted → only the structural checks (unbounded loop, dead link, incomplete condition) apply.
+
+Returns: `{ ok: boolean, flows: Array<{ flow, result }> }` — `ok` is `true` iff **all** flows are valid; `flows` details each flow and its `FlowValidationResult`.
+
 ### Interactive lists (`$item` in events)
 
 In a `for_each`, a **row's** event knows **its** item via `$item` — so selecting, deleting or
@@ -147,6 +219,18 @@ await app.flow('toggle', [{ do: 'toggle', path: '$item done' }]);   // toggles T
 await app.flow('del', [{ do: 'remove', path: 'tasks item' }]);      // removes the id (value default = $item)
 ```
 
+**The `arg.*` of these actions (an `ActionSpec` = `{ do: '<tool>', ...args }`):**
+
+| Tool (`do`) | Arguments | Effect |
+|---|---|---|
+| `set` | `path` ("s p"), `value` | writes the **single** state value (replaces the previous) |
+| `toggle` | `path` ("s p") | flips a boolean `'true'`/`'false'` |
+| `increment` | `path` ("s p"), `by?` (default **1**) | adds `by` to a numeric state |
+| `append` | `path` ("s p"), `value` | adds a value to a **list** (without removing the others) |
+| `remove` | `path` ("s p"), `value?` (**default = `$item`** of the row) | removes a value from the list |
+
+`$event` (input value) and `$item` (the clicked `for_each` row item) are **substituted automatically** into the `arg.*` by the `FlowRunner` at execution time. `app.kb.tell(s, p, o)` writes a raw triple (the fact's three positions); here it seeds the list of ids and their properties.
+
 ## Page security (RBAC)
 
 `show_if` protects a **node** (a button). To protect a **whole page**, the screen carries a
@@ -169,6 +253,14 @@ await app.screen('login', { component: 'Card', children: [{ component: 'Text', p
 await app.kb.tell('session', 'role', 'admin');  app.store.touch();   // → admin page appears
 await app.kb.retract('session', 'role', 'admin'); app.store.touch(); // → re-locked live (fallback)
 ```
+
+**The low-level calls used here:**
+
+- `app.kb.tell(s, p, o)` — writes the `(subject, predicate, object)` fact; `await` (async, traced by provenance). A 4th `source` option exists (who/where the fact comes from) but is not required.
+- `app.kb.retract(s, p, o, reason?)` — retracts the `(s, p, o)` fact; `reason?` is an optional audit label. Returns `true` if a fact was retracted. **Synchronous** (no `await`).
+- `app.store.touch()` — **no argument**: bumps the store version and notifies React → re-render. Call it **after** a manual `tell`/`retract` (hot-swap), since those writes bypass the tools that notify on their own.
+
+> 💡 `app.kb.ask(s, p)` (used by guards/`show_if` under the hood) takes the **subject** and **predicate** and returns the **array** of known objects (`[]` if none) — pure KB read, zero token.
 
 Consequences: access is **governed and auditable** (provenance/history trace every grant/revoke),
 **hot-swappable** (changing a right redeploys nothing), and **deterministic** (the gate is a pure KB
@@ -196,8 +288,17 @@ export const App = () => <FactRouter app={app} initial="home" />;
 `FactRouter` sets the initial route as a fact on mount, then re-renders on every `navigate`/`back`.
 History is kept as a fact (`route stack`) → `back` is governed and traceable like everything else.
 
+**The arguments in this block:**
+
+- `navigate` action — a single `arg.to`: the target route. Pushes the current route onto history (`route stack`) then writes `(route, current, <to>)`.
+- `back` action — **no argument**: pops history and restores the previous route. No effect if history is empty.
+- `<FactRouter app initial?>` — **`app`** = the instance; **`initial?`** = the screen shown while no route is set (optional: without it, nothing renders until the first `navigate`).
+
 **Lifecycle.** To release an app (close a socket opened outside the model, detach store
 subscribers): `app.onDispose(() => socket.close())` then `app.dispose()`.
+
+- `app.onDispose(fn)` — a single argument, the cleanup function (no argument, no return) run by `dispose()`. Chainable.
+- `app.dispose()` — **no argument**: runs the registered cleanups then detaches store subscribers. **Idempotent** (safe to call again).
 
 ## Styling (CSS)
 
@@ -248,6 +349,23 @@ await app.flow('load', [{ do: 'http', url: '/api/items', list: 'cart item' }]); 
 await app.flow('save', [{ do: 'http', method: 'POST', url: '/api/cart', body: '$event' }]); // POST (body)
 ```
 
+**The `http` port and the `http` action:**
+
+`createFactApp({ http })` — the **port** is `(url, init?) => Promise<unknown>`: `url` is the address, `init?` an object `{ method?, body? }`, and the **resolved** value is the **already-parsed** body (hence `.then(r => r.json())`). It is the only side effect; injected, so mockable in tests.
+
+The `http` flow action accepts these `arg.*`:
+
+| Argument | Role | Default |
+|---|---|---|
+| `url` | the URL to call (`$event` supported) | — (required) |
+| `method?` | HTTP verb | `'GET'` |
+| `body?` | request body (e.g. `'$event'`) | — (no body) |
+| `list?` | target "s p" where to write an **array** of results (via `replaceList`) | — |
+| `set?` | target "s p" where to write a **scalar** | — |
+| `status?` | explicit subject for the `loading`/`error` state | the **subject** (first word) of `list`/`set` |
+
+Side effect: the action writes `(<status>, loading, true/false)` around the call and `(<status>, error, msg)` on failure — **an error never breaks the flow** (recorded, not rethrown).
+
 To **load on mount** (no button), declare the flow as the screen's `onMount` — it is a fact
 `(screen, on_mount, flow)` that `<FactUI>` runs once on mount:
 
@@ -270,6 +388,8 @@ ws.onmessage = (e) => {
 };
 // a `for_each 'feed item'` screen shows the live stream, with no separate state.
 ```
+
+`app.store.replaceList(path, values)` — **`path`** = the target list "s p" (e.g. `'feed item'`); **`values`** = the **array** of strings that **fully** replaces the list (old values are retracted). Writes the facts **then notifies** (re-render) — hence no separate React state. `await` it (async). The store also exposes `set` / `append` / `removeItem` / `increment` / `toggle` following the same "s p" convention.
 
 **Using the data**: anything written as facts (by `http`, the socket, or `app.kb.tell`) is
 immediately available to `bind`/`for_each`/`show_if` — there is **no** separate state to keep in
@@ -323,6 +443,13 @@ const socket = io('https://api.example.com');
 socket.on('feed', (items: string[]) => { void app.store.replaceList('feed item', items); });
 app.action('emit', async (i) => { socket.emit(String(i.event), i.payload); });
 ```
+
+`app.action(name, fn)` — registers a **custom tool** invocable as `{ do: '<name>', … }` in a flow:
+
+- **`name`** — the tool name (the object of an `action` predicate).
+- **`fn`** — the function run: it receives `input` (a `Record<string, unknown>` = the step's `arg.*`, with `$event`/`$item` already resolved), may be `async`, return value ignored. Inside, `app.kb` and `app.store` are accessible to read/mutate facts.
+
+Chainable (returns `app`). Here `i.event` / `i.payload` are the step's `arg.event` / `arg.payload`.
 
 **gRPC / any SDK** → a custom action (the call is not "fetch-shaped"):
 ```ts

@@ -28,6 +28,19 @@ grid.findValuesContaining('chat');     // retrouve par le contenu
 const snap = grid.serialize();          // persistance
 ```
 
+**`new XNeuroneGrid(encoder?, opts?)`** — les deux arguments sont optionnels :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `encoder?` | fonction qui transforme une donnée en paires de bits ; `undefined` = l'encodeur par défaut (`BinaryConverter.toBinaryPairs`) | `undefined` (encodeur par défaut) |
+| `opts?` | `{ headless?: boolean }` — `headless: true` désactive tout rendu 3D (Node/serveur). Sans headless, la grille tente de créer une vue via `XNeuroneGrid.viewFactory` si elle est enregistrée | `{}` (donc `headless: false`) |
+
+**`processData(data, opts?)`** — `data` est la donnée à ingérer (texte, nombre, objet — n'importe quel type) ; `opts?` = `{ skipView?: boolean }` (passer `true` pour ne pas redessiner la vue après l'ingestion). Renvoie une `Promise<void>`.
+
+**`findValuesContaining(query, limit?)`** — `query` est le mot-clé recherché (insensible à la casse) ; `limit?` borne le nombre de résultats (défaut `10`). Renvoie un `string[]` : les **textes originaux ingérés** qui contiennent la requête (pas des triplets atomiques).
+
+**`serialize(opts?)`** — `opts?` = `{ lite?: boolean }` ; `lite: true` ne sérialise que la **topologie** (sans les `value` des nœuds) pour alléger un gros snapshot de visualisation. Renvoie un `GridSnapshot` (objet `{ nodes, edges }`) prêt à persister.
+
 > C'est la **source de vérité** : rapide, en mémoire, déterministe. Headless par défaut côté serveur ; un
 > rendu 3D optionnel se branche via `@damba/libxn-visualization`.
 
@@ -49,6 +62,9 @@ const grid = new XNeuroneGrid(undefined, { headless: true });
 const sample = BinaryConverter.toBinaryPairs({ surface: 120, pieces: 4 });
 await grid.trainClass(sample, 'maison');   // prépare un exemple pour l'apprentissage
 ```
+
+- **`BinaryConverter.toBinaryPairs(data)`** (statique) — `data` est n'importe quelle valeur (primitive, tableau, objet) ; les clés d'objet sont **triées** pour que `{a,b}` et `{b,a}` produisent le même résultat (propriété adressable par contenu). Renvoie un `[number, number][]` (la liste de paires de bits, chacune `0` ou `1`).
+- **`grid.trainClass(pairs, label)`** — `pairs` est la sortie de `toBinaryPairs` (l'exemple encodé) ; `label` est la **classe** (string) à associer à ce chemin. Renvoie une `Promise<void>`. C'est l'étape d'apprentissage : le label est stocké à la feuille atteinte et compté sur tous les ancêtres.
 
 > Le choix de l'encodeur détermine **quelles entrées se ressemblent** pour le graphe. Règle d'or : le même
 > encodeur à l'ingestion et à la requête.
@@ -81,6 +97,22 @@ kb.ask('marc', 'aime');              // ['chocolat']
 kb.askInverse('aime', 'chocolat');   // ['marc']
 ```
 
+**`new KnowledgeBase(grid)`** — un seul argument : la `XNeuroneGrid` qui sert de substrat. Si la grille est déjà peuplée (snapshot rechargé), les index miroir sont reconstruits au passage.
+
+**`tell(s, p, o, source?, flags?)`** — enregistre un fait *(sujet, prédicat, objet)* :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `s` | le **sujet** | — (requis) |
+| `p` | le **prédicat** (la relation) | — (requis) |
+| `o` | l'**objet** (la valeur) | — (requis) |
+| `source?` | la **provenance** du fait (`FactSource`) ; plusieurs `tell` du même fait accumulent leurs sources | `undefined` |
+| `flags?` | drapeaux du fait (`FactFlags` : `closed`, `major`, `companionOf`…) | `undefined` |
+
+Renvoie une `Promise<ContradictionReport | null>` : un rapport **non-null** si l'opposé exact (`p` ↔ `not_p`) existe déjà, sinon `null`.
+
+**`ask(s, p)`** — `s` le sujet, `p` le prédicat ; renvoie le `string[]` des objets connus pour ce couple (lecture directe). **`askInverse(p, o)`** — la lecture inverse : `p` le prédicat, `o` l'objet ; renvoie le `string[]` des sujets `s` tels que *(s, p, o)*.
+
 > Lectures **fiables et déterministes**, mémoire **éditable et auditable**.
 
 ### QPathKeyIndex — recall flou par préfixe
@@ -100,6 +132,9 @@ scopées (`user:<id>:<champ>`), suggestions — chaque fois que l'exact ne suffi
 kb.nearestSubjects('alicia');     // sujets connus au plus long préfixe partagé, du plus proche au moins
 kb.subjectsWithPrefix('user:42'); // toutes les clés scopées sous ce préfixe (requête de plage)
 ```
+
+- **`kb.nearestSubjects(s, limit?)`** — `s` est la clé de référence ; `limit?` borne le nombre de voisins renvoyés (défaut `5`). Renvoie un `KeyHit[]`, c.-à-d. `{ key: string; sharedDepth: number }[]` (la clé voisine + la **profondeur de préfixe de chemin partagé**, en quats), trié du plus proche au moins proche, `s` inclus s'il est connu.
+- **`kb.subjectsWithPrefix(prefix)`** — un seul argument, le préfixe de clé ; renvoie le `string[]` de tous les sujets dont le nom (normalisé) commence par ce préfixe — requête de plage, **zéro balayage**.
 
 > La même représentation de chemin sert l'exact ET l'approché. Le coût d'une recherche par préfixe reste
 > quasi plat quand le nombre de clés grandit (sous-linéaire), là où un balayage croît linéairement. La
@@ -130,6 +165,26 @@ await comp.attach(f, 'compte_12345', 'ouvert_le', '2020-06-01', { cascade: true 
 comp.retractOwner(f);      // rétracte le fait + ses compagnons cascade
 ```
 
+**`new CompanionFacts(kb)`** — un seul argument : la `KnowledgeBase` sur laquelle s'appuyer.
+
+Le **propriétaire** (`owner`) commun à toutes ces méthodes est un `CompanionOwner` : soit `{ entity: '<sujet>' }` (une entité), soit `{ fact: { s, p, o } }` (un triplet précis).
+
+**`attach(owner, s, p, o, opts?)`** — écrit le fait *(s, p, o)* **et** le rattache à `owner` en un appel :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `owner` | le propriétaire (`{ entity }` ou `{ fact }`) | — (requis) |
+| `s`, `p`, `o` | le fait compagnon à écrire | — (requis) |
+| `opts?` | `{ cascade?: boolean; source?: FactSource }` — `cascade: true` lie le cycle de vie du compagnon à celui du propriétaire ; `source` = provenance | `{}` (donc `cascade: false`, source `user`/`companion`) |
+
+Renvoie une `Promise<string>` : l'**id** du fait compagnon créé.
+
+**`tag(owner, s, p, o, opts?)`** — variante **synchrone** d'`attach` pour un fait **déjà existant** (ne l'écrit pas, le marque seulement comme compagnon) ; mêmes arguments, renvoie `void`.
+
+**`profileOf(owner)`** — un seul argument ; renvoie un `Record<string, string[]>`, c.-à-d. `{ prédicat: [valeurs] }` agrégé sur tous les compagnons (alias d'entité fusionnés inclus). **`companionsOf(owner)`** renvoie la liste brute des faits compagnons (`EnumeratedFact[]`).
+
+**`retractOwner(owner, reason?)`** — `reason?` est le motif d'archivage (défaut `'owner retracted'`). Rétracte (archive) le propriétaire et ses compagnons **directs** marqués `cascade`, **sur un seul niveau**. Renvoie `{ retracted: number }` (le nombre de faits rétractés).
+
 > Les compagnons restent des **faits ordinaires** (interrogeables normalement) ; ils sont juste
 > tagués vers leur propriétaire. `cascade` lie leur cycle de vie ; sans lui, ils sont indépendants.
 >
@@ -150,6 +205,8 @@ comp.retractOwner(owner);   // compagnons DIRECTS seulement (un niveau) → 'not
 comp.retractTree(owner);    // tout l'arbre : compagnon d'un compagnon, etc.
 ```
 
+**`retractTree(owner, reason?)`** — même signature que `retractOwner` (`reason?` défaut `'owner tree retracted'`), mais **récursif** : descend tout l'arbre des compagnons en ne suivant que les liens `cascade` (un compagnon non-`cascade` ancre une branche conservée avec son sous-arbre). Sûr contre les cycles. Renvoie aussi `{ retracted: number }`.
+
 **Cas d'usage avancés**
 
 ```ts
@@ -169,6 +226,8 @@ comp.retractOwner(doc);   // purge le document ET toutes ses métadonnées d'un 
 await kb.mergeEntities('bob', 'robert');
 comp.profileOf({ entity: 'robert' });   // renvoie le profil de bob — un seul, sans rien re-taguer
 ```
+
+- **`kb.mergeEntities(a, b, source?)`** — fusionne deux entités en alias l'une de l'autre : `a` et `b` les deux noms, `source?` la provenance optionnelle. Renvoie une `Promise<boolean>` (`true` si la fusion a eu lieu). Après fusion, les lectures suivent les alias — d'où le profil unique.
 
 - **Deux cycles de vie côte à côte** : marque `cascade` ce qui doit mourir avec le propriétaire
   (pièces, métadonnées techniques), laisse le reste indépendant (adresse, préférences).
@@ -210,6 +269,18 @@ if (parsed.kind === 'statement') {
 }
 ```
 
+**`NaturalParser.parse(text)`** (statique) — un seul argument, la phrase à analyser. Renvoie un `ParsedInput`, **union discriminée** par le champ `kind` :
+
+| `kind` | Champs | Signification |
+|---|---|---|
+| `'statement'` | `s`, `p`, `o` | énoncé exploitable → à mémoriser via `kb.tell` |
+| `'what'` | `s`, `p` | question ouverte (« quelle est la… ») — ne rien stocker |
+| `'yesno'` | `s`, `p`, `o` | question oui/non — ne rien stocker |
+| `'list'` | `p`, `o` | demande de liste — ne rien stocker |
+| `'unknown'` | `text` | rien d'exploitable (phrase vague/conversationnelle) |
+
+> 💡 **Toujours tester `parsed.kind === 'statement'`** avant d'écrire : seul ce cas porte un triplet à mémoriser ; tous les autres sont des questions ou du bruit que le parseur refuse d'affirmer.
+
 Le parseur va bien au-delà du « X est Y » scolaire :
 
 ```ts
@@ -224,6 +295,8 @@ NaturalParser.parse('le pingouin ne vole pas');    // → { s:'pingouin', p:'not
 NaturalParser.parseAll('Alice est la mère de Bob. Bob est le père de Carl');
 // → [ {s:'alice',p:'mère_de',o:'bob'}, {s:'bob',p:'père_de',o:'carl'} ]
 ```
+
+**`NaturalParser.parseAll(text)`** (statique) — un seul argument, un message pouvant contenir **plusieurs phrases**. Découpe le texte, ne garde que les énoncés (`kind: 'statement'`) et renvoie directement un `Array<{ s, p, o }>` — donc déjà filtré des questions, prêt à boucler sur `kb.tell`.
 
 > Parseur **permissif et prudent** : il distingue un énoncé d'une **question** (« quel chien… »,
 > même sans « ? ») et d'une **réplique** (« je pense que… ») — qu'il ne mémorise pas. En cas de
@@ -247,6 +320,12 @@ NaturalRuleParser.parse('Si une personne est majeure alors elle peut voter');
 NaturalRuleParser.parse('Tout humain a deux jambes');   // universelle
 // → { dsl: 'X est humain => X a deux_jambes', … }
 ```
+
+**`NaturalRuleParser.parse(text)`** (statique) — un seul argument, la phrase conditionnelle. Renvoie un `ParsedRuleNL | null` :
+- `dsl` — la règle normalisée (`'condition => conclusion'`), prête pour `RuleEngine.addRuleFromText` / `RuleFactory.refine` ;
+- `conditions` / `conclusions` — `Array<{ s, p, o }>`, les triplets de chaque côté de la flèche.
+
+Renvoie **`null`** si la structure est ambiguë ou s'il n'y a pas de variable partagée condition↔conclusion (ce n'est alors pas une vraie règle générale).
 
 Reconnaît « **si … alors …** » / « if … then … », la **flèche** (`=>`/`⇒`/`→`) et l'**universelle**
 « tout/chaque ‹classe› … ». Gère FR/EN, la **négation** (`ne … pas` → `not_*`), les **relations**
@@ -280,6 +359,20 @@ ChainResolver.format(chain!);
 // → "socrate —est→ humain —est→ mortel —a→ fin  (⇒ a = fin, confiance 1.00, via transitive)"
 ```
 
+**`new ChainResolver(kb, algebra?)`** — `kb` la `KnowledgeBase` ; `algebra?` une `PredicateAlgebra` (les règles de composition des prédicats), par défaut `PredicateAlgebra.withDefaults()`.
+
+**`chain(s, targetP, opts?)`** — cherche la chaîne la plus courte (BFS) reliant `s` à un objet via le prédicat composé `targetP` :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `s` | le **sujet** de départ | — (requis) |
+| `targetP` | le **prédicat cible** à atteindre par composition | — (requis) |
+| `opts?` | `{ maxDepth?: number; confidence?: 'min' \| 'product' }` — profondeur max de la chaîne (défaut `4`) et politique d'agrégation de confiance (`'min'` = maillon le plus faible, défaut ; `'product'` = composition probabiliste) | `{}` |
+
+Renvoie une `ReasoningChain | null` (`null` si aucune chaîne valide) — d'où le `chain!` avant `format`.
+
+**`ChainResolver.format(chain)`** (statique) — un seul argument, une `ReasoningChain` (non-null) ; renvoie la `string` lisible montrée en commentaire.
+
 > **Paresseux** : calcule à la demande, à la requête, sans rien stocker. Déterministe et traçable.
 
 ### RuleEngine — déduire de nouveaux faits
@@ -301,6 +394,19 @@ rules.addRuleFromText('X utilise typescript => X comprend javascript');
 await rules.applyAllRules();
 kb.askInverse('comprend', 'javascript');   // inclut les faits déduits
 ```
+
+**`new RuleEngine(kb, persistent?, store?, storageKey?)`** :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `kb` | la `KnowledgeBase` à enrichir | — (requis) |
+| `persistent?` | charge/sauve les règles dans le `store` (`false` = règles en mémoire seule, comme ici) | `true` |
+| `store?` | le `KeyValueStore` de persistance des règles | `new MemoryStore()` |
+| `storageKey?` | clé de persistance (permet de scoper les règles, ex. par conversation) | clé par défaut |
+
+**`addRuleFromText(text, name?, origin?)`** — `text` la règle en DSL (`'condition => conclusion'`) ; `name?` un nom optionnel ; `origin?` ∈ `'manual' | 'induced' | 'document'` (défaut `'manual'`). Renvoie la `Rule` créée, ou **`null`** si le DSL est rejeté (motif dans `rules.lastRefineError`).
+
+**`applyAllRules()`** — sans argument ; applique le chaînage avant sur toute la base et renvoie une `Promise<number>` (le nombre de faits dérivés produits).
 
 > **Dual du ChainResolver** : `RuleEngine` anticipe (à l'écriture), `ChainResolver` calcule à la demande
 > (à la requête). Les deux peuvent partager les mêmes règles.
@@ -324,6 +430,20 @@ import { PingPongReasoner } from '@damba/libxn';
 const result = await new PingPongReasoner(kb, llm).run('Alice est-elle ancêtre de Diana ?', { seedSubject: 'alice' });
 result.conclusion;   // réponse ancrée ; result.transcript = l'échange complet
 ```
+
+**`new PingPongReasoner(kb, llm, opts?)`** — `kb` la `KnowledgeBase` (l'ancrage), `llm` un `LlmPort` (le fournisseur, mockable), `opts?` des réglages par défaut `{ algebra?, maxRounds?, writeBack?, confidence?, tools? }`.
+
+**`run(question, opts?)`** — lance l'échange borné :
+
+| Option (`opts?`) | Rôle | Défaut |
+|---|---|---|
+| `maxRounds?` | nombre maximum d'échanges | `3` |
+| `writeBack?` | réinjecter dans la KB les hypothèses vérifiées | `true` |
+| `confidence?` | politique de confiance passée à `ChainResolver` (`'min'`/`'product'`) | héritée du constructeur |
+| `seedSubject?` | sujet de départ : ses faits connus amorcent le LLM | `undefined` |
+| `systemPrompt?` | prompt système transmis au LLM à chaque round | `PINGPONG_SYSTEM_RULES` |
+
+Renvoie une `Promise<PingPongResult>` dont les champs clés sont `conclusion` (la réponse ancrée), `transcript` (l'échange complet lisible), `rounds`, `factsLearned`, `grounded` (`true` = chaque affirmation a été confrontée à QPath) et `stopped` (`'concluded' | 'maxRounds' | 'stalled'`).
 
 > Détails et garde-fous : voir [PingPong reasoning](pingpong-reasoning).
 
@@ -352,6 +472,11 @@ const store = new VectorGridStore(new QdrantVectorStore('http://localhost:6333')
 await store.save('ma-kb', kb.grid.serialize());     // persiste
 const hits = await store.searchSimilarPaths('ma-kb', queryPath, 5);
 ```
+
+- **`new QdrantVectorStore(url?)`** — un seul argument, l'URL du serveur Qdrant (défaut `'http://localhost:6333'`). C'est l'**adaptateur** concret ; il implémente l'interface `VectorStore`.
+- **`new VectorGridStore(store)`** — un seul argument : n'importe quel adaptateur `VectorStore` (Qdrant, pgvector, en mémoire…). La façade ne dépend que de l'interface.
+- **`store.save(key, snapshot)`** — `key` le scope/collection, `snapshot` un `GridSnapshot` (sortie de `kb.grid.serialize()`). Renvoie une `Promise<void>`.
+- **`store.searchSimilarPaths(key, queryPath, limit?)`** — `key` le scope, `queryPath` le chemin requête (`Direction[]`), `limit?` le nombre de voisins (défaut `10`). Renvoie une `Promise<Array<{ id, score, value, classCounts }>>` : les feuilles les plus proches, avec leur **score** de similarité, la `value` ingérée et les `classCounts`.
 
 > QPath ne dépend d'**aucune** base vectorielle en particulier : Qdrant n'est qu'un adaptateur. Pour
 > pgvector, Pinecone, un store en mémoire… on fournit un autre adaptateur, **le noyau ne change pas**
