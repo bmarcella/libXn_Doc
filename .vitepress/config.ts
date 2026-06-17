@@ -41,6 +41,7 @@ export default defineConfig({
           { text: 'Aperçu', link: '/00-overview' },
           { text: 'Pourquoi QPath', link: '/why-qpath' },
           { text: 'Raisonnement', items: [
+            { text: 'Types de raisonnement', link: '/reasoning-types' },
             { text: 'Flash reasoning', link: '/flash-reasoning' },
             { text: 'PingPong reasoning', link: '/pingpong-reasoning' },
             { text: 'Plot reasoning', link: '/plot-reasoning' },
@@ -77,6 +78,7 @@ export default defineConfig({
               { text: 'Types de faits', link: '/fact-types' },
               { text: "Cas d'usage", link: '/use-cases' },
               { text: 'Exemples', link: '/examples' },
+              { text: 'Types de raisonnement', link: '/reasoning-types' },
               { text: 'Flash reasoning · web · LLM', link: '/flash-reasoning' },
               { text: 'PingPong reasoning', link: '/pingpong-reasoning' },
               { text: 'Plot reasoning', link: '/plot-reasoning' },
@@ -112,6 +114,7 @@ export default defineConfig({
           { text: 'Overview', link: '/en/00-overview' },
           { text: 'Why QPath', link: '/en/why-qpath' },
           { text: 'Reasoning', items: [
+            { text: 'Reasoning types', link: '/en/reasoning-types' },
             { text: 'Flash reasoning', link: '/en/flash-reasoning' },
             { text: 'PingPong reasoning', link: '/en/pingpong-reasoning' },
             { text: 'Plot reasoning', link: '/en/plot-reasoning' },
@@ -148,6 +151,7 @@ export default defineConfig({
               { text: 'Fact types', link: '/en/fact-types' },
               { text: 'Use cases', link: '/en/use-cases' },
               { text: 'Examples', link: '/en/examples' },
+              { text: 'Reasoning types', link: '/en/reasoning-types' },
               { text: 'Flash reasoning · web · LLM', link: '/en/flash-reasoning' },
               { text: 'PingPong reasoning', link: '/en/pingpong-reasoning' },
               { text: 'Plot reasoning', link: '/en/plot-reasoning' },
