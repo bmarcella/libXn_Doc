@@ -146,6 +146,64 @@ reference code** lives in `@damba/libxn-postgres` — start from there and swap 
 > To add **vector search** (pgvector) too, the `VectorStore` adapter follows the same shape on the
 > `libxn_vector` table (the `<=>` operator for cosine).
 
+## Several stores in the same database (prefix / suffix)
+
+By default the adapter creates tables named `libxn_*`. If you want **several stores to share one
+database** — one per product, per customer, per schema version — you can **shift** the table names
+with a **prefix** and/or a **suffix** (both optional). Each store then writes into its own set of
+tables, with no collision.
+
+```ts
+// Two sets of tables in the SAME database: acme_libxn_*  and  beta_libxn_*
+await initLibxnSchema(pgSchemaMigrator(sql), undefined, { prefix: 'acme_' });
+await initLibxnSchema(pgSchemaMigrator(sql), undefined, { prefix: 'beta_' });
+
+const acme = pgFactStore(sql, { prefix: 'acme_' });   // → writes to acme_libxn_fact
+const beta = pgFactStore(sql, { prefix: 'beta_' });   // → writes to beta_libxn_fact
+```
+
+The shift applies to **every factory** (`pgFactStore`, `pgKbStore`, `pgVectorStore`, `pgMediaStore`)
+**and to their indexes**. With no prefix or suffix, nothing changes (names stay `libxn_*`) — it's
+**backward-compatible**.
+
+> **Prefix/suffix vs scope**: two complementary layers of isolation. The **scope** (`user:42`,
+> `org:acme`) isolates the **data** within one set of tables. The **prefix/suffix** isolates the
+> **tables themselves**. To separate tenants *inside* an app, scope is enough
+> ([use case 5](#_5-multi-tenant-isolation-one-memory-per-organization)); prefix/suffix is for when
+> several apps/instances **physically share** a database.
+
+Need the physical names (diagnostics, manual query)? `resolveLibxnTables(naming)` returns them:
+
+```ts
+import { resolveLibxnTables } from '@damba/libxn';
+resolveLibxnTables({ prefix: 'acme_' }).fact;   // 'acme_libxn_fact'
+```
+
+## Joining two FactStores
+
+When two stores share a database, you can **cross them**: `pgFactJoin` matches their (non-retracted)
+facts by **subject** and/or **predicate**, filtered by each side's scope. Useful to enrich an entity
+from one store with facts from another, or to find common subjects.
+
+```ts
+import { pgFactJoin } from '@damba/libxn-postgres';
+
+const join = pgFactJoin(sql,
+  { scope: 'tenantA', naming: { prefix: 'acme_' } },
+  { scope: 'tenantB', naming: { prefix: 'beta_' } });
+
+// Subjects present on both sides, with their email on side A:
+const rows = await join.match({ keys: ['s'], pA: 'email' });
+// → [{ s, pa, oa, pb, ob }, …]
+```
+
+## Search at scale (indexes)
+
+The fact table is **indexed** to stay fast as volume grows, on the three access paths: direct
+(`subject, predicate` → object), **inverse** ("who is *X*?") and **by value**. You have nothing to
+do: `initLibxnSchema` is **idempotent** (`CREATE INDEX IF NOT EXISTS`), so missing indexes are
+created on the next startup, with no manual migration.
+
 ## Use cases
 
 > In these examples, `grid` and `factStore` are created as in the **Create a store** section
