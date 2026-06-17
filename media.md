@@ -28,7 +28,7 @@ const att = await media.attach(
 
 kb.ask('produit#7', 'a_image');      // [att.ref]               ← le lien, en fait
 kb.ask(att.ref, 'alt');              // ['chat sur un canapé']  ← texte trouvable (RAG / recherche)
-await media.get(att.ref);            // { blob: { bytes, mime }, meta: { … } }  ← relire les octets
+await media.get(att.ref);            // { blob: { bytes, mime } | null, meta: { … } }  ← relire les octets (blob null si absent du store)
 ```
 
 ## Rattaché à une entité OU à un fait, supprimé en cascade
@@ -67,6 +67,8 @@ Une vidéo n'a pas un code unique mais une suite d'**images-clés** (keyframes).
 même vidéo, qui devient alors retrouvable dès qu'**une** image-clé ressemble à la requête.
 
 ```ts
+import { VideoEncoder } from '@damba/libxn-encoders';
+
 const { codes, thumbnail } = await VideoEncoder.captureKeyframes(videoEl, 8);
 const att = await media.attach({ entity: 'incident#9' }, 'video',
   { bytes, mime: 'video/mp4' }, { transcript: 'la porte s\'ouvre' });

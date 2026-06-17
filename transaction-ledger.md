@@ -122,7 +122,7 @@ ledger.movementsPage('cli_bob', {
   desc: true, offset: 0, limit: 100, // plus récent d'abord
 });
 
-ledger.movementById('mv:cli_bob:withdraw:200:1700000000000'); // lookup direct, ou undefined
+ledger.movementById('mv:cli_bob:withdraw:200:1700000000000:0'); // lookup direct, ou undefined
 ```
 
 > Tout est **calculé**, jamais dénormalisé : le solde et le décompte d'une page sont repliés à la

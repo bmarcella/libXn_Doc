@@ -214,7 +214,7 @@ Seule la ligne qui crée le `factStore` change — toute ta logique reste identi
 const factStore = new InMemoryFactStore();
 
 // En production (injecté par le backend) :
-const factStore = pgFactStore;            // Postgres
+const factStore = pgFactStore(sql);       // Postgres
 
 // ↓ strictement le même code des deux côtés
 const kb = new DurableKnowledgeBase(grid, factStore, scope);

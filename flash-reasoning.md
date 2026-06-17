@@ -100,7 +100,7 @@ import { ChainResolver } from '@damba/libxn';
 
 const chain = new ChainResolver(kb).chain('socrate', 'a');
 ChainResolver.format(chain!);
-// → "socrate —est→ humain —est→ mortel —a→ fin  (⇒ a = fin, confiance 1.00)"
+// → "socrate —est→ humain —est→ mortel —a→ fin  (⇒ a = fin, confiance 1.00, via transitive)"
 
 // On peut ensuite faire verbaliser CETTE trace par le LLM, sans qu'il invente le chemin :
 await verbalize(`Explique ce raisonnement en une phrase : ${ChainResolver.format(chain!)}`);

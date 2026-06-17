@@ -99,7 +99,7 @@ import { ChainResolver } from '@damba/libxn';
 
 const chain = new ChainResolver(kb).chain('socrates', 'has');
 ChainResolver.format(chain!);
-// → "socrates —is→ human —is→ mortal —has→ end  (⇒ has = end, confidence 1.00)"
+// → "socrates —is→ human —is→ mortal —has→ end  (⇒ has = end, confidence 1.00, via transitive)"
 
 // You can then have the LLM verbalize THIS trace, without it inventing the path:
 await verbalize(`Explain this reasoning in one sentence: ${ChainResolver.format(chain!)}`);

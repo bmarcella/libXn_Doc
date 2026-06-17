@@ -28,7 +28,7 @@ const att = await media.attach(
 
 kb.ask('produit#7', 'a_image');      // [att.ref]            ← the link, as a fact
 kb.ask(att.ref, 'alt');              // ['cat on a couch']   ← findable text (RAG / search)
-await media.get(att.ref);            // { blob: { bytes, mime }, meta: { … } }  ← read the bytes back
+await media.get(att.ref);            // { blob: { bytes, mime } | null, meta: { … } }  ← read the bytes back (blob is null if missing from the store)
 ```
 
 ## Attached to an entity OR a fact, deleted in cascade
@@ -66,6 +66,8 @@ samples `n` keyframes; they're all indexed onto the same video, which then becom
 **one** keyframe resembles the query.
 
 ```ts
+import { VideoEncoder } from '@damba/libxn-encoders';
+
 const { codes, thumbnail } = await VideoEncoder.captureKeyframes(videoEl, 8);
 const att = await media.attach({ entity: 'incident#9' }, 'video',
   { bytes, mime: 'video/mp4' }, { transcript: 'the door opens' });

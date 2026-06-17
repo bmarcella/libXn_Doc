@@ -447,7 +447,9 @@ Deux invariants rendent cela sûr :
   flot (`entry`, `if`/`then`/`else`, `switch`/`case`/`default`, `for_each`/`body`/`max_iter`,
   `action`/`arg`/`next`) est **rejeté d'emblée** : il n'entre jamais dans l'environnement, ne peut
   donc **pas être promu en production**. Le LLM ne peut pas glisser des faits arbitraires (identité,
-  classe, données…) sous couvert d'écrire un flux.
+  classe, données…) sous couvert d'écrire un flux. Ces faits écartés restent **visibles** : ils sont
+  exposés sur `proposal.rejected` et tracés par un avertissement de validation `non-flow-predicate`
+  (visibilité, pas un blocage).
 - **Aucun fait non sûr n'atteint la prod.** `validateFlow` refuse une boucle **non bornée**, un
   **lien mort**, une condition incomplète, ou un **outil interdit** (allowlist par environnement) ;
   le **gate** ne promeut que si tout est vert ; `rollbackRelease` annule une release.
