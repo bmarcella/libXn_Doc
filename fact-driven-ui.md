@@ -50,8 +50,8 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 | État réactif | mutations via tools (`set`/`increment`/`toggle`) → re-render |
 | Événements | `on_click`/`on_change` → flux FlowRunner |
 | Formulaires | `on_change` transmet la saisie → `$event` dans le flux (`set value $event`) |
-| Listes | `for_each "cart item"` + gabarit ; `$item` = la valeur, **disponible aussi dans les events de la ligne** (sélection/suppression par item) |
-| Conditionnel / RBAC | `show_if "s p o"` (lecture KB, 0 token) |
+| Listes | `for_each "cart item"` + gabarit ; `$item` dans events ; `itemKey: '$item'` → clé React par **identité** (pas de remount au réordonnancement) |
+| Conditionnel / RBAC | `show_if` : `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — lecture KB, 0 token |
 | Navigation | tool `navigate` → route + `show_if` pour basculer les panneaux |
 | Données distantes | tool `http` (port injecté, donc mockable) → écrit le résultat en faits |
 | Variantes **dev/prod** | KB injectable : une `LayeredKnowledgeBase` superpose un overlay (le plus spécifique gagne) |

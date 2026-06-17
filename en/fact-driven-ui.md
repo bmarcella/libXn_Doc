@@ -50,8 +50,8 @@ write screens as **objects** (sugar) that become facts under the hood.
 | Reactive state | mutations via tools (`set`/`increment`/`toggle`) → re-render |
 | Events | `on_click`/`on_change` → FlowRunner flows |
 | Forms | `on_change` passes input → `$event` in the flow (`set value $event`) |
-| Lists | `for_each "cart item"` + template ; `$item` = the value, **also available in the row's events** (per-item select/delete) |
-| Conditional / RBAC | `show_if "s p o"` (KB read, zero token) |
+| Lists | `for_each "cart item"` + template ; `$item` in events ; `itemKey: '$item'` → React key by **identity** (no remount on reorder) |
+| Conditional / RBAC | `show_if`: `s p o` (existence), `s p OP v` (`>= <= != > < =`), `not <cond>` — KB read, zero token |
 | Navigation | `navigate` tool → route + `show_if` to switch panels |
 | Remote data | `http` tool (injected, hence mockable) → writes the result as facts |
 | **dev/prod** variants | injectable KB: a `LayeredKnowledgeBase` overlays a dev layer (most specific wins) |
