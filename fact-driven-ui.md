@@ -55,6 +55,7 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 | Sécurité de page (RBAC) | `guard` (même grammaire que `show_if`) gate l'écran entier ; `denied` → écran de repli (login/403) |
 | Navigation | tool `navigate` → route + `show_if` pour basculer les panneaux |
 | Données distantes | tool `http` (port injecté, donc mockable) → écrit le résultat en faits |
+| Chargement & erreurs | `http` écrit `(cible, loading, true/false)` + `(cible, error, msg)` ; une erreur n'interrompt pas le flux → `show_if "x loading = true"` / `show_if "x error"` |
 | CRUD de liste | tools `append` / `remove` (`$event`/`$item`) → ajouter/retirer un item ; `set`/`toggle`/`increment` pour le scalaire |
 | Variantes **dev/prod** | KB injectable : une `LayeredKnowledgeBase` superpose un overlay (le plus spécifique gagne) |
 | Hot-swap | `app.kb.tell(...)` / `retract(...)` puis re-render |
@@ -64,14 +65,26 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 
 Un LLM peut **proposer** un écran à partir d'une demande en langage naturel — mais il est **auteur,
 jamais exécuteur**. `proposeScreen` parse sa réponse en faits, puis **filtre** : seuls les prédicats
-du vocabulaire UI/flux et les **composants autorisés** sont retenus ; le reste part dans `rejected`
-(anti-injection). Le rendu, lui, reste **déterministe**.
+du vocabulaire UI/flux, les **composants autorisés** (`allowedComponents`) et les **actions
+autorisées** (`allowedActions`) sont retenus ; le reste part dans `rejected` (anti-injection). Le
+rendu, lui, reste **déterministe**.
 
 ```ts
-const proposal = await proposeScreen(llm, 'un écran de connexion : email, mot de passe, bouton',
-  { allowedComponents: ['Card', 'Input', 'Button'] });
-if (isRenderable(proposal)) { await app.facts(proposal.facts); } // proposal.rejected = écarté
+const proposal = await proposeScreen(llm, 'un écran de connexion : email, mot de passe, bouton', {
+  allowedComponents: ['Card', 'Input', 'Button'],
+  allowedActions: ['set', 'toggle', 'navigate'],   // ⇐ ce qu'un flux proposé a le droit d'invoquer
+});
+if (isRenderable(proposal)) {
+  await app.facts(proposal.facts);                  // proposal.rejected = écarté
+  const check = app.checkFlows({ allowedTools: ['set', 'toggle', 'navigate'] }); // gate avant rendu
+  if (!check.ok) { /* … boucle non bornée, lien mort, outil interdit → ne pas rendre … */ }
+}
 ```
+
+`allowedActions` ferme la faille évidente : sans elle, le LLM pourrait câbler `action http` +
+`arg.url <exfiltration>`, un `navigate` ou un `set` arbitraire. `app.checkFlows()` lance ensuite
+`FlowValidator` sur **chaque** flux de la KB (boucle non bornée, lien mort, condition incomplète,
+outil hors liste) — le **gate dev→prod**, avant tout rendu.
 
 ### Listes interactives (`$item` dans les events)
 
@@ -85,6 +98,21 @@ await app.screen('panier', {
 });
 await app.flow('pick', [{ do: 'set', path: 'cart selected', value: '$item' }]); // → clic sur 'b' : selected = 'b'
 // suppression par item : { do: 'set', path: '$item removed', value: 'true' } + show_if « cart selected … »
+```
+
+**Identité d'item.** `itemKey: '$item'` clé par la **valeur**. Les doublons (« Lait », « Lait »)
+restent rendus correctement — un suffixe d'occurrence garantit des clés React uniques — mais la
+valeur ne distingue plus les deux lignes : une suppression par valeur viserait les deux. Pour une
+identité robuste (doublons supprimables un à un, propriétés par ligne), modélise chaque item en
+**entité** : la liste porte des **ids** et le gabarit binde leurs propriétés.
+
+```ts
+// la liste = des ids ; chaque id a ses faits → $item résout l'id, on binde ses propriétés
+await app.kb.tell('tasks', 'item', 't1'); await app.kb.tell('t1', 'label', 'Lait');
+await app.kb.tell('tasks', 'item', 't2'); await app.kb.tell('t2', 'label', 'Lait'); // même libellé, id distinct
+// gabarit : { component:'Row', bind:{ text:'$item label' }, on:{ click:'toggle' } } + itemKey:'$item'
+await app.flow('toggle', [{ do: 'toggle', path: '$item done' }]);   // bascule CETTE ligne (par id)
+await app.flow('del', [{ do: 'remove', path: 'tasks item' }]);      // retire l'id (value défaut = $item)
 ```
 
 ## Sécurité de page (RBAC)
@@ -195,6 +223,27 @@ ws.onmessage = (e) => {
 **Utiliser les données** : tout ce qui est écrit en faits (par `http`, le socket, ou `app.kb.tell`)
 est immédiatement disponible aux `bind`/`for_each`/`show_if` — il n'y a **pas** d'état séparé à
 synchroniser : la KB *est* l'état.
+
+**Chargement & erreurs (en faits).** Le tool `http` écrit l'état de la requête : `(cible, loading,
+true)` au départ, `(cible, loading, false)` à la fin, et `(cible, error, message)` en cas d'échec.
+La `cible` est le sujet de `list`/`set` (ex. `cart`), ou un `arg.status` explicite. **Une erreur
+n'interrompt jamais le flux** (elle est consignée, pas relancée) — fini les rejets non gérés. On
+affiche spinner et message par de simples `show_if` :
+
+```ts
+await app.flow('load', [{ do: 'http', url: '/api/cart', list: 'cart item' }]);
+await app.screen('shop', {
+  component: 'Card', onMount: 'load',
+  children: [
+    { component: 'Spinner', showIf: 'cart loading = true' },        // pendant la requête
+    { component: 'Text', bind: { text: 'cart error' }, showIf: 'cart error' }, // si échec (existence : « s p »)
+    { component: 'List', forEach: 'cart item', template: { component: 'Item', props: { text: '$item' } } },
+  ],
+});
+```
+
+> `show_if "cart error"` (deux mots) teste l'**existence** d'une valeur ; `show_if "cart loading =
+> true"` compare. Les deux sont des lectures KB à 0 token.
 
 ## Intégrations (axios, socket.io, gRPC, Tailwind, MUI…)
 

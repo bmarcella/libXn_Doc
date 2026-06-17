@@ -55,6 +55,7 @@ write screens as **objects** (sugar) that become facts under the hood.
 | Page security (RBAC) | `guard` (same grammar as `show_if`) gates the whole screen ; `denied` → fallback screen (login/403) |
 | Navigation | `navigate` tool → route + `show_if` to switch panels |
 | Remote data | `http` tool (injected, hence mockable) → writes the result as facts |
+| Loading & errors | `http` writes `(target, loading, true/false)` + `(target, error, msg)` ; an error never breaks the flow → `show_if "x loading = true"` / `show_if "x error"` |
 | List CRUD | `append` / `remove` tools (`$event`/`$item`) → add/remove an item ; `set`/`toggle`/`increment` for scalars |
 | **dev/prod** variants | injectable KB: a `LayeredKnowledgeBase` overlays a dev layer (most specific wins) |
 | Hot-swap | `app.kb.tell(...)` / `retract(...)` then re-render |
@@ -64,14 +65,25 @@ write screens as **objects** (sugar) that become facts under the hood.
 
 An LLM can **propose** a screen from a natural-language request — but it is **author, never
 executor**. `proposeScreen` parses its answer into facts, then **filters**: only UI/flow-vocabulary
-predicates and **allowed components** are kept; the rest goes to `rejected` (anti-injection). The
-rendering itself stays **deterministic**.
+predicates, **allowed components** (`allowedComponents`) and **allowed actions** (`allowedActions`)
+are kept; the rest goes to `rejected` (anti-injection). The rendering itself stays **deterministic**.
 
 ```ts
-const proposal = await proposeScreen(llm, 'a login screen: email, password, button',
-  { allowedComponents: ['Card', 'Input', 'Button'] });
-if (isRenderable(proposal)) { await app.facts(proposal.facts); } // proposal.rejected = discarded
+const proposal = await proposeScreen(llm, 'a login screen: email, password, button', {
+  allowedComponents: ['Card', 'Input', 'Button'],
+  allowedActions: ['set', 'toggle', 'navigate'],   // ⇐ what a proposed flow may invoke
+});
+if (isRenderable(proposal)) {
+  await app.facts(proposal.facts);                  // proposal.rejected = discarded
+  const check = app.checkFlows({ allowedTools: ['set', 'toggle', 'navigate'] }); // gate before render
+  if (!check.ok) { /* … unbounded loop, dead link, forbidden tool → don't render … */ }
+}
 ```
+
+`allowedActions` closes the obvious hole: without it the LLM could wire `action http` +
+`arg.url <exfiltration>`, a `navigate`, or an arbitrary `set`. `app.checkFlows()` then runs
+`FlowValidator` over **every** flow in the KB (unbounded loop, dead link, incomplete condition,
+out-of-allowlist tool) — the **dev→prod gate**, before any render.
 
 ### Interactive lists (`$item` in events)
 
@@ -85,6 +97,21 @@ await app.screen('cart', {
 });
 await app.flow('pick', [{ do: 'set', path: 'cart selected', value: '$item' }]); // click on 'b': selected = 'b'
 // per-item delete: { do: 'set', path: '$item removed', value: 'true' } + show_if "cart selected …"
+```
+
+**Item identity.** `itemKey: '$item'` keys by the **value**. Duplicates ("Milk", "Milk") still
+render correctly — an occurrence suffix keeps React keys unique — but the value no longer tells the
+two rows apart: a delete-by-value would hit both. For robust identity (individually removable
+duplicates, per-row properties), model each item as an **entity**: the list holds **ids** and the
+template binds their properties.
+
+```ts
+// the list = ids; each id has its own facts → $item resolves to the id, bind its properties
+await app.kb.tell('tasks', 'item', 't1'); await app.kb.tell('t1', 'label', 'Milk');
+await app.kb.tell('tasks', 'item', 't2'); await app.kb.tell('t2', 'label', 'Milk'); // same label, distinct id
+// template: { component:'Row', bind:{ text:'$item label' }, on:{ click:'toggle' } } + itemKey:'$item'
+await app.flow('toggle', [{ do: 'toggle', path: '$item done' }]);   // toggles THIS row (by id)
+await app.flow('del', [{ do: 'remove', path: 'tasks item' }]);      // removes the id (value default = $item)
 ```
 
 ## Page security (RBAC)
@@ -195,6 +222,27 @@ ws.onmessage = (e) => {
 **Using the data**: anything written as facts (by `http`, the socket, or `app.kb.tell`) is
 immediately available to `bind`/`for_each`/`show_if` — there is **no** separate state to keep in
 sync: the KB *is* the state.
+
+**Loading & errors (as facts).** The `http` tool writes the request state: `(target, loading, true)`
+at the start, `(target, loading, false)` at the end, and `(target, error, message)` on failure. The
+`target` is the subject of `list`/`set` (e.g. `cart`), or an explicit `arg.status`. **An error never
+breaks the flow** (it is recorded, not rethrown) — no more unhandled rejections. Spinner and message
+are plain `show_if`s:
+
+```ts
+await app.flow('load', [{ do: 'http', url: '/api/cart', list: 'cart item' }]);
+await app.screen('shop', {
+  component: 'Card', onMount: 'load',
+  children: [
+    { component: 'Spinner', showIf: 'cart loading = true' },        // during the request
+    { component: 'Text', bind: { text: 'cart error' }, showIf: 'cart error' }, // on failure (existence: "s p")
+    { component: 'List', forEach: 'cart item', template: { component: 'Item', props: { text: '$item' } } },
+  ],
+});
+```
+
+> `show_if "cart error"` (two words) tests **existence** of a value; `show_if "cart loading = true"`
+> compares. Both are zero-token KB reads.
 
 ## Integrations (axios, socket.io, gRPC, Tailwind, MUI…)
 
