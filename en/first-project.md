@@ -51,6 +51,54 @@ const vault = new FactVault(bank, { authenticator });
 vault.addGuard(lockoutGuard({ action: 'login', maxFailures: 5, windowMs: 15 * 60_000 })); // anti-bruteforce
 ```
 
+**`new XNeuroneGrid(encoder?, opts?)`** — the in-memory QPath graph (working memory). Two arguments, both optional:
+
+| Argument | Role | Default |
+|---|---|---|
+| `encoder?` | a `(data) => [number, number][]` function encoding input into bit pairs | `undefined` → default encoder (`BinaryConverter.toBinaryPairs`) — hence the explicit `undefined` |
+| `opts?` | options; only `headless?: boolean` is read | `{}`; `headless: true` = **no rendering** (Node/server), use it on the backend |
+
+**`new DurableKnowledgeBase(grid, store, scope)`** — the durable KB. Three required arguments:
+
+| Argument | Role | Default |
+|---|---|---|
+| `grid` | the `XNeuroneGrid` (the in-memory graph) | — |
+| `store` | the `FactStore` where facts are **actually persisted** (here `InMemoryFactStore`, a Postgres adapter in production) | — |
+| `scope` | the **isolation key** for this memory (here `'bank'`); two scopes never see each other | — |
+
+**`new TransactionLedger(kb, opts?)`** — the ledger backed by the KB. `kb` required; `opts` (`LedgerOptions`) optional. Fields used here:
+
+| Option | Role | Default |
+|---|---|---|
+| `name?` | name/role of the ledger (`'Customer accounts'`) | — |
+| `unit?` | **default** unit of amounts (`'USD'`) — a ledger isn't necessarily money (`pts`, `kWh`…) | — |
+| `types?` / `floor?` / `ceiling?` / `limits?` / `allowNegative?` / `now?` | pre-configured types, floor/ceiling, velocity limits, allow-negative, injectable clock | — |
+
+**`new FactVault(kb, opts?)`** — the access layer (secrets + audit). `kb` required; `opts` optional:
+
+| Option | Role | Default |
+|---|---|---|
+| `authenticator?` | your `FactAuthenticator` (checks the password, issues a `Session`) | `undefined` |
+| `cipher?` | at-rest encryption of secrets (`CipherPort`) | `PlaintextCipher` (⚠️ no real encryption) |
+| `now?` | injectable clock (audit/timestamps) | `() => Date.now()` |
+| `insecureAllowUnauthenticated?` | dev/test only: accept any session without an `authenticator` | `false` (fail-closed) |
+
+> 🔒 **Fail-closed.** Without an `authenticator`, no session reveals a secret. `insecureAllowUnauthenticated: true` opens the vault to any session — **never in production**.
+
+A `FactAuthenticator` (an interface **you** implement) has two methods: `authenticate(principal, credential)` returns a `Session` (`{ principal, issuedAt, expiresAt?, token? }`) or `null` on rejection, and `verify(session)` tells whether the session is still valid.
+
+**`lockoutGuard(opts)`** returns a `FactGuard` (anti-bruteforce lockout). Options:
+
+| Option | Role | Default |
+|---|---|---|
+| `action` | the watched action (`'login'`) | — (required) |
+| `maxFailures` | failures before locking | — (required) |
+| `windowMs` | sliding window in ms (`15 * 60_000` = 15 min) | — (required) |
+| `failureOutcome?` | label of the outcome counted as a failure | `'échec'` |
+| `name?` | guard name | `lockout:<action>` |
+
+`vault.addGuard(guard)` registers that guard (a single argument, the `FactGuard` returned above).
+
 ## 3. Sign up — identity + secret (access layer)
 
 Signup stores the **identity** (ordinary facts), the password **hash** (never in clear) and a
@@ -69,6 +117,13 @@ async function signup(email: string, password: string) {
 }
 ```
 
+The KB write/read calls:
+
+- **`bank.ask(s, p)`** → `string[]`: every object known for the (subject `s`, predicate `p`) pair. **Empty** array if nothing — hence `.length` to test existence. Two required arguments.
+- **`bank.tell(s, p, o, source?, flags?)`** → records the fact `(s, p, o)` (write-through: persisted on its own). `source?` = provenance (`{ kind, ref? }`, default `{ kind: 'user' }`); `flags?` = flags (`{ secret?, closed?, major?… }`). Returns a contradiction report or `null`.
+- **`vault.setSecret(s, p, plainO, source?)`**: writes `(s, p, plainO)` **encrypted at rest** and flagged `secret` (hidden from normal reads). `plainO` is the **clear** value (encryption is applied for you); `source?` optional (default `{ kind: 'user', ref: 'vault' }`).
+- **`bank.flush()`**: waits until deferred writes have landed in the store (writes are flushed in the background — `flush` guarantees durability before continuing).
+
 ## 4. Log in
 
 `vault.login` runs the guards (anti-bruteforce lockout), authenticates, and **emits a timestamped
@@ -80,6 +135,12 @@ async function login(email: string, password: string) {
   return r.session;   // null if bad credentials or locked account
 }
 ```
+
+**`vault.login(principal, credential)`** — two required arguments: the identity (`principal`, here `user:<email>`) and the proof (`credential`, the clear password). Returns a `LoginResult` `{ session, reason, guardReason? }`:
+
+- `session`: the `Session` issued by your `authenticator`, or **`null`** on failure;
+- `reason`: `'bad-credential'` (wrong credentials), `'denied'` (refused by a guard, e.g. lockout) or `null` on success;
+- `guardReason?`: detailed reason when a guard refuses.
 
 ## 5. Everything else — **by chatting**
 
@@ -136,6 +197,32 @@ async function handle(userId: string, message: string): Promise<string> {
   }
 }
 ```
+
+The ledger operations used here:
+
+**`ledger.open(account, cfg?)`** → `Promise<void>`: declares an account. `account` required; `cfg` (`AccountConfig`) optional — `unit?` (else the ledger's default unit), `initialBalance?`, `floor?` (default `0`), `ceiling?`, `limits?`.
+
+**`ledger.deposit(account, amount, meta?)`** → `Promise<PostResult>`: credits `amount`. `meta` optional (`{ type?, by?, ref? }`). The result:
+
+| Field | Meaning |
+|---|---|
+| `ok` | was the operation accepted? |
+| `reason` | refusal reason (`'below-floor'`, `'above-ceiling'`, `'velocity-exceeded'`…) or `null` on success |
+| `balance` | balance **after** the operation |
+| `movement?` | the created movement (if accepted) |
+
+**`ledger.transfer(from, to, amount, meta?)`** → `Promise<TransferResult>`: debits `from`, credits `to`, **pre-validated on both sides** (all or nothing). Four arguments (`meta?` optional). The result:
+
+| Field | Meaning |
+|---|---|
+| `ok` | transfer accepted? |
+| `reason` | refusal reason or `null` |
+| `side?` | offending side on refusal (`'from'` / `'to'`) |
+| `fromBalance` / `toBalance` | both account balances after the operation |
+
+**`ledger.balance(account)`** → `number`: balance **recomputed** by folding movements (never stored). A single argument.
+
+**`ledger.movementsPage(account, query?)`** → `Page<Movement>`: a page of movements. `query` (`MovementQuery`) optional — here `{ limit: 5, desc: true }` (5 most recent first). Useful fields: `limit?`/`offset?` (pagination), `kind?` (`'deposit'`/`'withdraw'`), `desc?` (most recent first). The `Page<Movement>` return exposes `items` (the array of `Movement` `{ id, kind, amount, at, ref?… }`), `total` (before slicing), `offset`, `limit`, `hasMore`.
 
 ### The Express API
 

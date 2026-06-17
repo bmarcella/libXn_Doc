@@ -23,6 +23,27 @@ memory.ask('user', 'prefers');          // ['tea']
 memory.askInverse('uses', 'typescript'); // ['project-x']
 ```
 
+The constructors and methods used here:
+
+- **`new XNeuroneGrid(encoder?, opts?)`** — the QPath grid (the in-memory graph).
+  - `encoder?` *(optional)* — a function turning a value into bit pairs. At `undefined`, QPath uses the
+    default encoder (`BinaryConverter.toBinaryPairs`). Pass it only for custom encoding.
+  - `opts?` *(optional, default `{}`)* — options; `{ headless: true }` = **no 3D rendering** (Node /
+    server / Web Worker). Without the flag, the grid tries to attach a Three.js visualizer.
+- **`new KnowledgeBase(grid)`** — the fact base laid **on top of** the grid. Single argument: the
+  `grid` that acts as working memory.
+
+Then three read/write methods:
+
+| Method | Role | Default |
+|---|---|---|
+| `tell(s, p, o, source?, flags?)` | writes the `(subject, predicate, object)` fact; returns a `Promise`. `source?` attaches provenance (who/where from), `flags?` the flags (`closed`, `major`…). | `source`/`flags` = none |
+| `ask(s, p)` | **direct** read: objects known for `(subject, predicate)`. Returns `string[]` (empty if none). | — |
+| `askInverse(p, o)` | **inverse** read: every **subject** such that `(s, p, o)`. Returns `string[]`. | — |
+
+> 💡 `tell` is async (`await`) because the grid may persist; `ask`/`askInverse` are synchronous and
+> **zero-token** — they read an in-memory index.
+
 **How to integrate.** Before replying, the agent queries QPath for its context; afterward, it writes new
 facts. The memory stays **auditable and editable** — you can read and fix what it knows.
 
@@ -42,6 +63,12 @@ kb.askInverse('likes', 'chocolate');                            // ['marc', 'jul
 kb.askIntersect([['likes', 'chocolate'], ['lives_in', 'montreal']]); // ['marc']
 ```
 
+`askIntersect` crosses several conditions:
+
+- **`askIntersect(conditions)`** — `conditions` is an array of `[predicate, object]` pairs
+  (type `Array<[string, string]>`). Returns the **subjects satisfying ALL** conditions (intersection)
+  as a `string[]`. An empty input returns `[]`.
+
 **Domains.** Product catalogs, user profiles, business ontologies, lightweight CRM, FAQ engines.
 
 ## 3. Recommendation & similarity
@@ -50,6 +77,14 @@ kb.askIntersect([['likes', 'chocolate'], ['lives_in', 'montreal']]); // ['marc']
 kb.askSimilar('marc', 3).map(r => r.subject);  // subjects closest to 'marc'
 kb.askCompare('marc', 'julie');                // common + distinctive facts
 ```
+
+The two matching methods:
+
+- **`askSimilar(s, topN?)`** — `s` the reference subject; `topN?` the number of neighbors to return
+  (**default 5**). Returns a sorted array `Array<{ subject, similarity, commonFacts }>`:
+  `similarity` ∈ [0, 1] (share of `(p, o)` facts in common), `commonFacts` their count.
+- **`askCompare(s1, s2)`** — two subjects to compare. Returns an object `{ common, onlyIn1, onlyIn2 }`,
+  each a list of `{ p, o }`: the shared facts, then those specific to `s1` and to `s2`.
 
 **Domains.** "Similar profiles", "related products", record matching.
 
@@ -69,6 +104,29 @@ ChainResolver.format(chain!);
 // → "case-42 —is→ resident —entitled_to→ benefit-A  (⇒ entitled_to = benefit-A, confidence 1.00, via transitive)"
 ```
 
+The chain resolver:
+
+- **`new ChainResolver(kb, algebra?)`** — `kb` the base to walk; `algebra?` the predicate algebra
+  defining transitivity/composition (**default** `PredicateAlgebra.withDefaults()`, covering the common
+  cases). Provide your own `algebra` only for custom composition rules.
+- **`chain(s, targetP, opts?)`** — finds the **shortest** fact chain linking subject `s` to an object
+  via the (possibly composed) predicate `targetP`.
+
+| Argument | Role | Default |
+|---|---|---|
+| `s` | starting subject | — |
+| `targetP` | (composed) predicate to reach | — |
+| `opts.maxDepth` | max depth (number of links) | `4` |
+| `opts.confidence` | confidence aggregation: `'min'` (weakest link) or `'product'` (uncertainties compound) | `'min'` |
+
+  `chain` returns a `ReasoningChain` (the trace), or **`null`** if no valid chain exists — hence the
+  `chain!` (non-null assertion) in the example.
+- **`ChainResolver.format(chain)`** — **static** method; turns a `ReasoningChain` into a readable string
+  (the annotated arrow above).
+
+> 💡 `ChainResolver` is **lazy** (reasoning on demand, nothing materialized), unlike the `RuleEngine`
+> below which derives facts **at write time**.
+
 **Domains.** Eligibility (insurance, social benefits), compliance, clinical decision support, legal
 reasoning — anywhere you must show **why**.
 
@@ -82,6 +140,24 @@ await rules.applyAllRules();
 
 kb.askInverse('understands', 'javascript'); // includes every TS user (derived fact)
 ```
+
+The rule engine:
+
+- **`new RuleEngine(kb, persistent?, store?, storageKey?)`**
+
+| Argument | Role | Default |
+|---|---|---|
+| `kb` | the base to read conditions from and write derived facts to | — |
+| `persistent?` | persist the rules (reload them on startup); `false` = in-memory rules only, as here | `true` |
+| `store?` | the key-value store backing rule persistence | `new MemoryStore()` |
+| `storageKey?` | storage key (lets you scope rules, e.g. per conversation) | `STORAGE_KEY` |
+
+- **`addRuleFromText(text, name?, origin?)`** — `text` is the rule in DSL form (`condition =>
+  consequence`). `name?` an optional label; `origin?` the provenance
+  (`'manual' | 'induced' | 'document'`, **default `'manual'`**). Returns the created `Rule`, or
+  **`null`** if the text is rejected (reason in `rules.lastRefineError`).
+- **`applyAllRules()`** — applies all rules (forward chaining) and materializes the derived facts.
+  Returns a `Promise<number>`: the **number of new facts** derived.
 
 **Domains.** Rule engines, access policies, conditional workflows, risk scoring.
 
@@ -106,6 +182,19 @@ await grid.trainClass(BinaryConverter.toBinaryPairs({ area: 35, rooms: 1 }), 'st
 
 grid.predictClass(BinaryConverter.toBinaryPairs({ area: 110, rooms: 4 })).label; // 'house'
 ```
+
+Learning and prediction on the grid:
+
+- **`BinaryConverter.toBinaryPairs(data)`** — **static** method; encodes any value (primitive, array,
+  object) into `[number, number][]` (the bit pairs → directions) that the grid consumes. Single
+  argument: `data`.
+- **`trainClass(pairs, label)`** — learns one example: `pairs` the encoded vector, `label` the
+  associated class (string). Returns `Promise<void>`; its effect is to bump class counters along the
+  path.
+- **`predictClass(pairs)`** — predicts the class of an encoded `pairs`. Returns an object
+  `{ label, probability, depth, samples, distribution }`: `label` the dominant class (or `undefined`
+  if nothing was learned on that path), `probability` its share, `depth` the depth reached, `samples`
+  the number of examples at the node, and `distribution` the full label breakdown.
 
 **Domains.** Fast tagging/triage, embedded scoring, ML prototyping with no infrastructure.
 

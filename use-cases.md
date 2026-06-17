@@ -23,6 +23,28 @@ memory.ask('utilisateur', 'préfère');        // ['le thé']
 memory.askInverse('utilise', 'typescript');  // ['projet-x']
 ```
 
+Les constructeurs et méthodes utilisés ici :
+
+- **`new XNeuroneGrid(encoder?, opts?)`** — la grille QPath (le graphe en mémoire).
+  - `encoder?` *(optionnel)* — fonction qui transforme une donnée en paires de bits. À `undefined`,
+    QPath prend l'encodeur par défaut (`BinaryConverter.toBinaryPairs`). On ne le passe que pour un
+    encodage sur-mesure.
+  - `opts?` *(optionnel, défaut `{}`)* — options ; `{ headless: true }` = **sans rendu 3D** (Node /
+    serveur / Web Worker). Sans ce drapeau, la grille tente d'attacher un visualiseur Three.js.
+- **`new KnowledgeBase(grid)`** — la base de faits posée **sur** la grille. Argument unique : la
+  `grid` qui sert de mémoire de travail.
+
+Puis trois méthodes de lecture/écriture :
+
+| Méthode | Rôle | Défaut |
+|---|---|---|
+| `tell(s, p, o, source?, flags?)` | écrit le fait `(sujet, prédicat, objet)` ; renvoie une `Promise`. `source?` attache la provenance (qui/d'où), `flags?` les drapeaux (`closed`, `major`…). | `source`/`flags` = aucun |
+| `ask(s, p)` | lecture **directe** : objets connus pour `(sujet, prédicat)`. Renvoie `string[]` (vide si rien). | — |
+| `askInverse(p, o)` | lecture **inverse** : tous les **sujets** tels que `(s, p, o)`. Renvoie `string[]`. | — |
+
+> 💡 `tell` est asynchrone (`await`) car la grille peut persister ; `ask`/`askInverse` sont
+> synchrones et à **0 token** — elles lisent un index en mémoire.
+
 **Comment l'intégrer.** Avant de répondre, l'agent interroge QPath pour son contexte ; après, il y écrit
 les nouveaux faits. La mémoire reste **auditable et corrigeable** — on peut lire et éditer ce qu'il sait.
 
@@ -42,6 +64,12 @@ kb.askInverse('aime', 'chocolat');                            // ['marc', 'julie
 kb.askIntersect([['aime', 'chocolat'], ['habite', 'montreal']]); // ['marc']
 ```
 
+`askIntersect` croise plusieurs conditions :
+
+- **`askIntersect(conditions)`** — `conditions` est un tableau de paires `[prédicat, objet]`
+  (type `Array<[string, string]>`). Renvoie les **sujets qui satisfont TOUTES** les conditions
+  (intersection), sous forme de `string[]`. Un tableau vide en entrée renvoie `[]`.
+
 **Domaines.** Catalogues produits, profils utilisateurs, ontologies métier, CRM léger, moteurs de FAQ.
 
 ## 3. Recommandation & similarité
@@ -50,6 +78,15 @@ kb.askIntersect([['aime', 'chocolat'], ['habite', 'montreal']]); // ['marc']
 kb.askSimilar('marc', 3).map(r => r.subject);  // les sujets les plus proches de 'marc'
 kb.askCompare('marc', 'julie');                // facts communs + distinctifs
 ```
+
+Les deux méthodes de rapprochement :
+
+- **`askSimilar(s, topN?)`** — `s` le sujet de référence ; `topN?` le nombre de voisins à retourner
+  (**défaut 5**). Renvoie un tableau trié `Array<{ subject, similarity, commonFacts }>` :
+  `similarity` ∈ [0, 1] (proportion de faits `(p, o)` partagés), `commonFacts` leur nombre.
+- **`askCompare(s1, s2)`** — deux sujets à comparer. Renvoie un objet
+  `{ common, onlyIn1, onlyIn2 }`, chacun étant une liste de `{ p, o }` : les faits communs, puis ceux
+  propres à `s1` et à `s2`.
 
 **Domaines.** « Profils similaires », « produits proches », rapprochement de dossiers, matching.
 
@@ -69,6 +106,29 @@ ChainResolver.format(chain!);
 // → "dossier-42 —est→ résident —a_droit→ prestation-A  (⇒ a_droit = prestation-A, confiance 1.00, via transitive)"
 ```
 
+Le résolveur de chaînes :
+
+- **`new ChainResolver(kb, algebra?)`** — `kb` la base à parcourir ; `algebra?` l'algèbre de prédicats
+  qui définit la transitivité/composition (**défaut** `PredicateAlgebra.withDefaults()`, qui couvre les
+  cas courants). On ne fournit son propre `algebra` que pour des règles de composition sur-mesure.
+- **`chain(s, targetP, opts?)`** — cherche la **plus courte** chaîne de faits reliant le sujet `s` à un
+  objet via le prédicat (éventuellement composé) `targetP`.
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `s` | sujet de départ | — |
+| `targetP` | prédicat (composé) à atteindre | — |
+| `opts.maxDepth` | profondeur max (nombre de maillons) | `4` |
+| `opts.confidence` | agrégation de la confiance : `'min'` (maillon le plus faible) ou `'product'` (les incertitudes se composent) | `'min'` |
+
+  `chain` renvoie une `ReasoningChain` (la trace), ou **`null`** si aucune chaîne valide n'existe — d'où
+  le `chain!` (assertion non-nul) dans l'exemple.
+- **`ChainResolver.format(chain)`** — méthode **statique** ; transforme une `ReasoningChain` en chaîne
+  de caractères lisible (la flèche annotée ci-dessus).
+
+> 💡 `ChainResolver` est **paresseux** (raisonnement à la demande, rien n'est matérialisé), à l'inverse
+> du `RuleEngine` ci-dessous qui dérive les faits **à l'écriture**.
+
 **Domaines.** Éligibilité (assurance, prestations sociales), conformité, aide à la décision médicale,
 raisonnement juridique — partout où il faut montrer **pourquoi**.
 
@@ -82,6 +142,24 @@ await rules.applyAllRules();
 
 kb.askInverse('comprend', 'javascript'); // inclut tous les utilisateurs de TS (fait dérivé)
 ```
+
+Le moteur de règles :
+
+- **`new RuleEngine(kb, persistent?, store?, storageKey?)`**
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `kb` | la base où lire les conditions et écrire les faits dérivés | — |
+| `persistent?` | persister les règles (les recharger au démarrage) ; `false` = règles en mémoire seulement, comme ici | `true` |
+| `store?` | le magasin clé-valeur de persistance des règles | `new MemoryStore()` |
+| `storageKey?` | clé de stockage (permet de scoper les règles, ex. par conversation) | `STORAGE_KEY` |
+
+- **`addRuleFromText(text, name?, origin?)`** — `text` est la règle en DSL (« si…alors… » →
+  `condition => conséquence`). `name?` un libellé optionnel ; `origin?` la provenance
+  (`'manual' | 'induced' | 'document'`, **défaut `'manual'`**). Renvoie la `Rule` créée, ou **`null`**
+  si le texte est rejeté (raison dans `rules.lastRefineError`).
+- **`applyAllRules()`** — applique toutes les règles (chaînage avant) et matérialise les faits dérivés.
+  Renvoie une `Promise<number>` : le **nombre de nouveaux faits** dérivés.
 
 **Domaines.** Moteurs de règles, politiques d'accès, workflows conditionnels, scoring de risque.
 
@@ -106,6 +184,19 @@ await grid.trainClass(BinaryConverter.toBinaryPairs({ surface: 35, pieces: 1 }),
 
 grid.predictClass(BinaryConverter.toBinaryPairs({ surface: 110, pieces: 4 })).label; // 'maison'
 ```
+
+L'apprentissage et la prédiction par la grille :
+
+- **`BinaryConverter.toBinaryPairs(data)`** — méthode **statique** ; encode n'importe quelle donnée
+  (primitive, tableau, objet) en `[number, number][]` (les paires de bits → directions) que la grille
+  consomme. Argument unique : `data`.
+- **`trainClass(pairs, label)`** — apprend un exemple : `pairs` le vecteur encodé, `label` la classe
+  associée (string). Renvoie une `Promise<void>` ; l'effet est d'incrémenter les compteurs de classe
+  le long du chemin.
+- **`predictClass(pairs)`** — prédit la classe d'un `pairs` encodé. Renvoie un objet
+  `{ label, probability, depth, samples, distribution }` : `label` la classe dominante (ou `undefined`
+  si rien d'appris sur ce chemin), `probability` sa proportion, `depth` la profondeur atteinte,
+  `samples` le nombre d'exemples au nœud, et `distribution` la répartition complète des labels.
 
 **Domaines.** Tri/étiquetage rapide, scoring embarqué, prototypage ML sans infrastructure.
 

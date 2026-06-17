@@ -51,6 +51,54 @@ const vault = new FactVault(bank, { authenticator });
 vault.addGuard(lockoutGuard({ action: 'login', maxFailures: 5, windowMs: 15 * 60_000 })); // anti-bruteforce
 ```
 
+**`new XNeuroneGrid(encoder?, opts?)`** — le graphe QPath en mémoire (mémoire de travail). Deux arguments, tous deux optionnels :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `encoder?` | fonction `(data) => [number, number][]` qui encode l'entrée en paires de bits | `undefined` → encodeur par défaut (`BinaryConverter.toBinaryPairs`) — d'où le `undefined` explicite |
+| `opts?` | options ; seul `headless?: boolean` est lu | `{}` ; `headless: true` = **sans rendu** (Node/serveur), à mettre côté backend |
+
+**`new DurableKnowledgeBase(grid, store, scope)`** — la KB durable. Trois arguments, tous requis :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `grid` | la `XNeuroneGrid` (le graphe en mémoire) | — |
+| `store` | le `FactStore` où les faits sont **réellement persistés** (ici `InMemoryFactStore`, en prod un adaptateur Postgres) | — |
+| `scope` | la **clé d'isolation** de cette mémoire (ici `'bank'`) ; deux scopes ne se voient jamais | — |
+
+**`new TransactionLedger(kb, opts?)`** — le grand livre adossé à la KB. `kb` requis ; `opts` (`LedgerOptions`) optionnel. Champs utilisés ici :
+
+| Option | Rôle | Défaut |
+|---|---|---|
+| `name?` | nom/rôle du livre (`'Comptes clients'`) | — |
+| `unit?` | unité **par défaut** des montants (`'USD'`) — un livre n'est pas forcément de l'argent (`pts`, `kWh`…) | — |
+| `types?` / `floor?` / `ceiling?` / `limits?` / `allowNegative?` / `now?` | types pré-configurés, plancher/plafond, limites de vélocité, négatif autorisé, horloge injectable | — |
+
+**`new FactVault(kb, opts?)`** — la couche d'accès (secrets + audit). `kb` requis ; `opts` optionnel :
+
+| Option | Rôle | Défaut |
+|---|---|---|
+| `authenticator?` | ton `FactAuthenticator` (vérifie le mot de passe, émet une `Session`) | `undefined` |
+| `cipher?` | chiffrement au repos des secrets (`CipherPort`) | `PlaintextCipher` (⚠️ pas de chiffrement réel) |
+| `now?` | horloge injectable (audit/horodatage) | `() => Date.now()` |
+| `insecureAllowUnauthenticated?` | dev/test seulement : accepte toute session sans `authenticator` | `false` (fail-closed) |
+
+> 🔒 **Fail-closed.** Sans `authenticator`, aucune session ne révèle de secret. `insecureAllowUnauthenticated: true` ouvre le coffre à toute session — **jamais en production**.
+
+Un `FactAuthenticator` (interface que **tu** implémentes) a deux méthodes : `authenticate(principal, credential)` renvoie une `Session` (`{ principal, issuedAt, expiresAt?, token? }`) ou `null` si rejet, et `verify(session)` dit si la session est encore valide.
+
+**`lockoutGuard(opts)`** renvoie un `FactGuard` (verrou anti-bruteforce). Options :
+
+| Option | Rôle | Défaut |
+|---|---|---|
+| `action` | l'action surveillée (`'login'`) | — (requis) |
+| `maxFailures` | nombre d'échecs avant blocage | — (requis) |
+| `windowMs` | fenêtre glissante en ms (`15 * 60_000` = 15 min) | — (requis) |
+| `failureOutcome?` | libellé de l'issue comptée comme échec | `'échec'` |
+| `name?` | nom de la garde | `lockout:<action>` |
+
+`vault.addGuard(guard)` enregistre cette garde (un seul argument, le `FactGuard` renvoyé ci-dessus).
+
 ## 3. S'inscrire — identité + secret (couche d'accès)
 
 L'inscription stocke l'**identité** (faits ordinaires), le **hash** du mot de passe (jamais en clair)
@@ -69,6 +117,13 @@ async function signup(email: string, password: string) {
 }
 ```
 
+Les appels d'écriture/lecture de la KB :
+
+- **`bank.ask(s, p)`** → `string[]` : tous les objets connus pour le couple (sujet `s`, prédicat `p`). Tableau **vide** si rien — d'où le `.length` pour tester l'existence. Deux arguments, requis.
+- **`bank.tell(s, p, o, source?, flags?)`** → enregistre le fait `(s, p, o)` (write-through : persisté tout seul). `source?` = provenance (`{ kind, ref? }`, défaut `{ kind: 'user' }`) ; `flags?` = drapeaux (`{ secret?, closed?, major?… }`). Renvoie un rapport de contradiction ou `null`.
+- **`vault.setSecret(s, p, plainO, source?)`** : écrit `(s, p, plainO)` **chiffré au repos** et marqué `secret` (masqué des lectures normales). `plainO` est la valeur **en clair** (le chiffrement est appliqué pour toi) ; `source?` optionnel (défaut `{ kind: 'user', ref: 'vault' }`).
+- **`bank.flush()`** : attend que les écritures différées soient bien en base (les écritures sont répercutées en tâche de fond — `flush` garantit la durabilité avant de continuer).
+
 ## 4. Se connecter
 
 `vault.login` applique les gardes (verrou anti-bruteforce), authentifie, et **émet un fait d'audit
@@ -80,6 +135,12 @@ async function login(email: string, password: string) {
   return r.session;   // null si mauvais identifiants ou compte verrouillé
 }
 ```
+
+**`vault.login(principal, credential)`** — deux arguments requis : l'identité (`principal`, ici `user:<email>`) et la preuve (`credential`, le mot de passe en clair). Renvoie un `LoginResult` `{ session, reason, guardReason? }` :
+
+- `session` : la `Session` émise par ton `authenticator`, ou **`null`** en cas d'échec ;
+- `reason` : `'bad-credential'` (mauvais identifiants), `'denied'` (refusé par une garde, ex. verrou) ou `null` si succès ;
+- `guardReason?` : motif détaillé quand une garde refuse.
 
 ## 5. Tout le reste — **en chattant**
 
@@ -136,6 +197,32 @@ async function handle(userId: string, message: string): Promise<string> {
   }
 }
 ```
+
+Les opérations du grand livre utilisées ici :
+
+**`ledger.open(account, cfg?)`** → `Promise<void>` : déclare un compte. `account` requis ; `cfg` (`AccountConfig`) optionnel — `unit?` (sinon l'unité par défaut du livre), `initialBalance?`, `floor?` (plancher, défaut `0`), `ceiling?`, `limits?`.
+
+**`ledger.deposit(account, amount, meta?)`** → `Promise<PostResult>` : crédite `amount`. `meta` optionnel (`{ type?, by?, ref? }`). Le résultat :
+
+| Champ | Sens |
+|---|---|
+| `ok` | l'opération a-t-elle été acceptée ? |
+| `reason` | motif du refus (`'below-floor'`, `'above-ceiling'`, `'velocity-exceeded'`…) ou `null` si succès |
+| `balance` | solde **après** l'opération |
+| `movement?` | le mouvement créé (si accepté) |
+
+**`ledger.transfer(from, to, amount, meta?)`** → `Promise<TransferResult>` : débite `from`, crédite `to`, **prévalidé des deux côtés** (tout ou rien). Quatre arguments (`meta?` optionnel). Le résultat :
+
+| Champ | Sens |
+|---|---|
+| `ok` | virement accepté ? |
+| `reason` | motif du refus ou `null` |
+| `side?` | côté en cause si refus (`'from'` / `'to'`) |
+| `fromBalance` / `toBalance` | soldes des deux comptes après l'opération |
+
+**`ledger.balance(account)`** → `number` : solde **recalculé** par repli des mouvements (jamais stocké). Un seul argument.
+
+**`ledger.movementsPage(account, query?)`** → `Page<Movement>` : page de mouvements. `query` (`MovementQuery`) optionnel — ici `{ limit: 5, desc: true }` (5 plus récents d'abord). Champs utiles : `limit?`/`offset?` (pagination), `kind?` (`'deposit'`/`'withdraw'`), `desc?` (plus récent d'abord). Le retour `Page<Movement>` expose `items` (le tableau de `Movement` `{ id, kind, amount, at, ref?… }`), `total` (avant découpe), `offset`, `limit`, `hasMore`.
 
 ### L'API Express
 
