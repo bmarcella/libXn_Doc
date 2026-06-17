@@ -155,6 +155,7 @@ tables, with no collision.
 
 ```ts
 // Two sets of tables in the SAME database: acme_libxn_*  and  beta_libxn_*
+// undefined = keep the standard schema; { prefix } = the name shift.
 await initLibxnSchema(pgSchemaMigrator(sql), undefined, { prefix: 'acme_' });
 await initLibxnSchema(pgSchemaMigrator(sql), undefined, { prefix: 'beta_' });
 
@@ -162,9 +163,27 @@ const acme = pgFactStore(sql, { prefix: 'acme_' });   // → writes to acme_libx
 const beta = pgFactStore(sql, { prefix: 'beta_' });   // → writes to beta_libxn_fact
 ```
 
+**Why that `undefined`?** `initLibxnSchema` takes **three** arguments —
+`initLibxnSchema(migrator, spec?, naming?)`:
+
+| Argument | Role | Here |
+|---|---|---|
+| `migrator` | the adapter that speaks SQL | `pgSchemaMigrator(sql)` |
+| `spec?` | the **table model** to materialize | defaults to LibXN's standard schema (`LIBXN_SCHEMA`) — only pass it for a custom schema |
+| `naming?` | the **name shift** `{ prefix?, suffix? }` | what we're setting here |
+
+Since the shift is the **3rd** argument, we leave the 2nd as `undefined` to mean "keep the standard
+schema, just apply this prefix." (The `pgFactStore(sql, { prefix })` that follows takes only **two**
+arguments: `sql` then the same naming — that's what aligns the store with the tables you created.)
+
 The shift applies to **every factory** (`pgFactStore`, `pgKbStore`, `pgVectorStore`, `pgMediaStore`)
 **and to their indexes**. With no prefix or suffix, nothing changes (names stay `libxn_*`) — it's
 **backward-compatible**.
+
+> ⚠️ **Same naming on both sides.** The naming passed to `initLibxnSchema` (which *creates* the
+> tables) and the one passed to `pgFactStore`/`pgKbStore`/… (which *read/write* them) must be
+> **identical** — otherwise the store points at tables that don't exist. In practice, define the
+> naming **once** in a constant and reuse it everywhere.
 
 > **Prefix/suffix vs scope**: two complementary layers of isolation. The **scope** (`user:42`,
 > `org:acme`) isolates the **data** within one set of tables. The **prefix/suffix** isolates the
@@ -188,6 +207,7 @@ from one store with facts from another, or to find common subjects.
 ```ts
 import { pgFactJoin } from '@damba/libxn-postgres';
 
+// Describe each side: its scope + its naming (the table set it lives in).
 const join = pgFactJoin(sql,
   { scope: 'tenantA', naming: { prefix: 'acme_' } },
   { scope: 'tenantB', naming: { prefix: 'beta_' } });
@@ -197,12 +217,38 @@ const rows = await join.match({ keys: ['s'], pA: 'email' });
 // → [{ s, pa, oa, pb, ob }, …]
 ```
 
+The options of `match(...)`:
+
+| Option | Meaning | Default |
+|---|---|---|
+| `keys` | join columns — `['s']` (same subject), `['s','p']` (same subject **and** predicate) | `['s']` |
+| `pA` | keep only side-A facts with this predicate (e.g. `'email'`) | — (no filter) |
+| `pB` | same on side B | — |
+
+Each returned row is `{ s, pa, oa, pb, ob }`: the common subject `s`, then the **p**redicate and
+**o**bject from each side (`a` = first store, `b` = second). The join is an **INNER JOIN**: only
+subjects present **on both sides** come out, and **retracted** facts are excluded automatically. You
+can of course cross **two scopes of the same store** (same naming on both sides) — e.g. compare two
+users' memories.
+
+> 🔒 **Read-only, same database.** `pgFactJoin` only **reads**; it changes nothing. Both stores must
+> live in the **same** database (same `sql`) — it's a SQL join, not a network call between two servers.
+
 ## Search at scale (indexes)
 
-The fact table is **indexed** to stay fast as volume grows, on the three access paths: direct
-(`subject, predicate` → object), **inverse** ("who is *X*?") and **by value**. You have nothing to
-do: `initLibxnSchema` is **idempotent** (`CREATE INDEX IF NOT EXISTS`), so missing indexes are
-created on the next startup, with no manual migration.
+Past a few thousand facts, a full table scan gets slow. The fact table is therefore **indexed** on
+the three access paths the reasoning actually uses:
+
+| Index | Path | Typical question |
+|---|---|---|
+| `(scope, s, p)` | **direct**: subject + predicate → object | "what is Alice's city?" (`ask`) |
+| `(scope, p, o)` | **inverse**: predicate + object → subjects | "who lives in Port-au-Prince?" (`askInverse`) |
+| `(scope, o)` | **by value**: object alone | "where does this value appear?" |
+
+You have **nothing to do**: `initLibxnSchema` is **idempotent** (`CREATE INDEX IF NOT EXISTS`), so
+missing indexes are created on the next startup, with no manual migration — including on an existing
+database (already-populated tables are simply indexed on the fly). **Vector** search (pgvector, the
+`libxn_vector` table) is a separate path: cosine similarity via the `<=>` operator.
 
 ## Use cases
 

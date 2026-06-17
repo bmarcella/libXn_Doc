@@ -156,6 +156,7 @@ alors dans son propre jeu de tables, sans collision.
 
 ```ts
 // Deux jeux de tables dans la MÊME base : acme_libxn_*  et  beta_libxn_*
+// undefined = on garde le schéma standard ; { prefix } = le décalage de noms.
 await initLibxnSchema(pgSchemaMigrator(sql), undefined, { prefix: 'acme_' });
 await initLibxnSchema(pgSchemaMigrator(sql), undefined, { prefix: 'beta_' });
 
@@ -163,9 +164,27 @@ const acme = pgFactStore(sql, { prefix: 'acme_' });   // → écrit dans acme_li
 const beta = pgFactStore(sql, { prefix: 'beta_' });   // → écrit dans beta_libxn_fact
 ```
 
+**Pourquoi ce `undefined` ?** `initLibxnSchema` prend **trois** arguments —
+`initLibxnSchema(migrator, spec?, naming?)` :
+
+| Argument | Rôle | Valeur courante |
+|---|---|---|
+| `migrator` | l'adaptateur qui parle SQL | `pgSchemaMigrator(sql)` |
+| `spec?` | le **modèle de tables** à matérialiser | par défaut le schéma standard de LibXN (`LIBXN_SCHEMA`) — tu ne le passes que si tu as un schéma sur-mesure |
+| `naming?` | le **décalage de noms** `{ prefix?, suffix? }` | ce qu'on veut régler ici |
+
+Comme le décalage est le **3ᵉ** argument, on laisse le 2ᵉ à `undefined` pour dire « garde le schéma
+standard, applique juste ce préfixe ». (Le `pgFactStore(sql, { prefix })` qui suit, lui, n'a que
+**deux** arguments : `sql` puis le même naming — c'est ce qui aligne le store sur les tables créées.)
+
 Le décalage s'applique **à toutes les fabriques** (`pgFactStore`, `pgKbStore`, `pgVectorStore`,
 `pgMediaStore`) et **à leurs index**. Sans préfixe ni suffixe, rien ne change (les noms restent
 `libxn_*`) — c'est **rétrocompatible**.
+
+> ⚠️ **Le même naming des deux côtés.** Le naming passé à `initLibxnSchema` (qui *crée* les tables)
+> et celui passé à `pgFactStore`/`pgKbStore`/… (qui les *lisent/écrivent*) doivent être **identiques** —
+> sinon le store pointe des tables qui n'existent pas. En pratique, définis le naming **une fois**
+> dans une constante et réutilise-la partout.
 
 > **Préfixe/suffixe vs scope** : ce sont deux niveaux d'isolation complémentaires. Le **scope**
 > (`user:42`, `org:acme`) isole les **données** dans un même jeu de tables. Le **préfixe/suffixe**
@@ -189,6 +208,7 @@ enrichir une entité d'un store avec les faits d'un autre, ou trouver les sujets
 ```ts
 import { pgFactJoin } from '@damba/libxn-postgres';
 
+// On décrit chaque côté : son scope + son naming (le jeu de tables où il vit).
 const join = pgFactJoin(sql,
   { scope: 'tenantA', naming: { prefix: 'acme_' } },
   { scope: 'tenantB', naming: { prefix: 'beta_' } });
@@ -198,12 +218,39 @@ const rows = await join.match({ keys: ['s'], pA: 'email' });
 // → [{ s, pa, oa, pb, ob }, …]
 ```
 
+Les options de `match(...)` :
+
+| Option | Sens | Défaut |
+|---|---|---|
+| `keys` | colonnes de jointure — `['s']` (même sujet), `['s','p']` (même sujet **et** même prédicat) | `['s']` |
+| `pA` | ne garder que les faits du côté A ayant ce prédicat (ex. `'email'`) | — (aucun filtre) |
+| `pB` | idem côté B | — |
+
+Chaque ligne retournée est `{ s, pa, oa, pb, ob }` : le sujet commun `s`, puis le **p**rédicat et
+l'**o**bjet de chaque côté (`a` = premier store, `b` = second). La jointure est un **INNER JOIN** :
+seuls les sujets présents **des deux côtés** ressortent, et les faits **rétractés** sont exclus
+automatiquement. Tu peux bien sûr croiser **deux scopes du même store** (même naming des deux côtés) —
+par exemple comparer la mémoire de deux utilisateurs.
+
+> 🔒 **Lecture seule, même base.** `pgFactJoin` ne fait que **lire** ; il ne modifie rien. Les deux
+> stores doivent vivre dans la **même** base (même `sql`) — c'est une jointure SQL, pas un appel réseau
+> entre deux serveurs.
+
 ## Recherche à grande échelle (index)
 
-La table des faits est **indexée** pour rester rapide quand le volume grossit, sur les trois chemins
-d'accès : direct (`sujet, prédicat` → objet), **inverse** (« qui est *X* ? ») et **par valeur**. Tu
-n'as rien à faire : `initLibxnSchema` est **idempotent** (`CREATE INDEX IF NOT EXISTS`), donc les
-index manquants sont créés au prochain démarrage, sans migration manuelle.
+Au-delà de quelques milliers de faits, un balayage complet de table devient lent. La table des faits
+est donc **indexée** sur les trois chemins d'accès réellement utilisés par le raisonnement :
+
+| Index | Chemin | Question typique |
+|---|---|---|
+| `(scope, s, p)` | **direct** : sujet + prédicat → objet | « quelle est la ville d'Alice ? » (`ask`) |
+| `(scope, p, o)` | **inverse** : prédicat + objet → sujets | « qui habite à Port-au-Prince ? » (`askInverse`) |
+| `(scope, o)` | **par valeur** : objet seul | « où apparaît cette valeur ? » |
+
+Tu n'as **rien à faire** : `initLibxnSchema` est **idempotent** (`CREATE INDEX IF NOT EXISTS`), donc
+les index manquants sont créés au prochain démarrage, sans migration manuelle — y compris sur une base
+existante (les tables déjà remplies sont simplement indexées au vol). La recherche **vectorielle**
+(pgvector, table `libxn_vector`) est un chemin séparé : similarité cosinus via l'opérateur `<=>`.
 
 ## Cas d'usage
 
