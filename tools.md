@@ -37,6 +37,10 @@ import { ToolRegistry } from '@damba/libxn';
 const tools = new ToolRegistry().register(weather);
 ```
 
+> Sous le capot, c'est `ingestToolResult(kb, result, opts?)` (exporté) qui écrit les faits d'un
+> `ToolResult` dans la KB **avec leur provenance** ; les deux déclencheurs ci-dessous l'utilisent
+> (`resolveWithTools` et le coup `TOOL` de PingPong).
+
 ## Deux façons de déclencher un outil
 
 ### 1. Déterministe (liaison de prédicat) — sans LLM

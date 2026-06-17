@@ -445,7 +445,8 @@ Two invariants make this safe:
   (`entry`, `if`/`then`/`else`, `switch`/`case`/`default`, `for_each`/`body`/`max_iter`,
   `action`/`arg`/`next`) is **rejected up front**: it never enters the environment, hence **cannot be
   promoted to production**. The LLM cannot slip in arbitrary facts (identity, class, data…) under the
-  guise of writing a flow.
+  guise of writing a flow. These discarded facts stay **visible**: they are exposed on
+  `proposal.rejected` and traced by a `non-flow-predicate` validation warning (visibility, not a block).
 - **No unsafe fact reaches prod.** `validateFlow` rejects an **unbounded** loop, a **dangling link**, an
   incomplete condition, or a **forbidden tool** (per-environment allowlist); the **gate** promotes only
   if everything is green; `rollbackRelease` reverts a release.

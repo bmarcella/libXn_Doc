@@ -28,7 +28,7 @@ par les mêmes primitives, **le raisonnement opère sur la pile entière sans le
 | Opération | Comportement |
 |-----------|--------------|
 | **Lecture** d'un `(sujet, prédicat)` | la **première couche** qui connaît ce couple répond ; les couches du dessous ne sont pas consultées pour ce couple |
-| **Écriture** (`tell`, `retract`, `confirm`, `edit`) | **toujours** dans la couche primaire ; les parents restent intacts |
+| **Écriture** (`tell`, `retract`, `confirm`, `editFact`) | **toujours** dans la couche primaire ; les parents restent intacts |
 | **Énumérations** (sujets, prédicats…) | **union** de toutes les couches, dédupliquée, priorité au spécifique |
 | **Raisonnement** (`reason`, héritage, Plot, Insight, règles, flux) | opère sur la **pile entière**, de façon transparente |
 

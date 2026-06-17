@@ -37,6 +37,10 @@ import { ToolRegistry } from '@damba/libxn';
 const tools = new ToolRegistry().register(weather);
 ```
 
+> Under the hood, `ingestToolResult(kb, result, opts?)` (exported) is what writes a `ToolResult`'s
+> facts into the KB **with their provenance**; both triggers below use it (`resolveWithTools` and
+> PingPong's `TOOL` move).
+
 ## Two ways to trigger a tool
 
 ### 1. Deterministic (predicate binding) — no LLM

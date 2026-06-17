@@ -122,7 +122,7 @@ ledger.movementsPage('cli_bob', {
   desc: true, offset: 0, limit: 100, // newest first
 });
 
-ledger.movementById('mv:cli_bob:withdraw:200:1700000000000'); // direct lookup, or undefined
+ledger.movementById('mv:cli_bob:withdraw:200:1700000000000:0'); // direct lookup, or undefined
 ```
 
 > Everything is **computed**, never denormalized: a balance and a page's count are folded on the

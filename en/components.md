@@ -261,7 +261,7 @@ import { ChainResolver } from '@damba/libxn';
 
 const chain = new ChainResolver(kb).chain('socrates', 'has');
 ChainResolver.format(chain!);
-// → "socrates —is→ human —is→ mortal —has→ end  (⇒ has = end, confidence 1.00)"
+// → "socrates —is→ human —is→ mortal —has→ end  (⇒ has = end, confidence 1.00, via transitive)"
 ```
 
 > **Lazy**: computes on demand, at query time, storing nothing. Deterministic and traceable.

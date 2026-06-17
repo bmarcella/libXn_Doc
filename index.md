@@ -35,5 +35,5 @@ features:
   - title: 100% recall, sous la milliseconde
     details: Benchmark intégré (npm run bench) — récupération exacte, règles, jointures multi-variables, comparaisons numériques, agrégats et quantificateurs à 100% de recall, ~0.07 ms/requête.
   - title: Isomorphe & zéro dépendance
-    details: Tourne en Node, navigateur, Web Worker, Deno. dependencies&#58; {}. Périphérie (Three.js, pgvector, embeddings) branchée via des ports.
+    details: Tourne en Node, navigateur, Web Worker. dependencies&#58; {}. Périphérie (Three.js, pgvector, embeddings) branchée via des ports.
 ---

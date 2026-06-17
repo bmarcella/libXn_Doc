@@ -27,7 +27,7 @@ same primitives, **reasoning operates over the whole stack without knowing it**.
 | Operation | Behavior |
 |-----------|----------|
 | **Read** of a `(subject, predicate)` | the **first layer** that knows this pair answers; lower layers are not consulted for that pair |
-| **Write** (`tell`, `retract`, `confirm`, `edit`) | **always** to the primary layer; parents stay intact |
+| **Write** (`tell`, `retract`, `confirm`, `editFact`) | **always** to the primary layer; parents stay intact |
 | **Enumerations** (subjects, predicates…) | **union** of all layers, deduplicated, priority to the specific |
 | **Reasoning** (`reason`, inheritance, Plot, Insight, rules, flows) | operates over the **whole stack**, transparently |
 

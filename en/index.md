@@ -35,5 +35,5 @@ features:
   - title: 100% recall, sub-millisecond
     details: Built-in benchmark (npm run bench) — exact retrieval, rules, multi-variable joins, numeric comparisons, aggregates and quantifiers at 100% recall, ~0.07 ms/query.
   - title: Isomorphic & zero-dependency
-    details: Runs in Node, the browser, Web Workers, Deno. dependencies&#58; {}. Periphery (Three.js, pgvector, embeddings) plugs in via ports.
+    details: Runs in Node, the browser, Web Workers. dependencies&#58; {}. Periphery (Three.js, pgvector, embeddings) plugs in via ports.
 ---
