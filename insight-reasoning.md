@@ -48,6 +48,45 @@ for (const i of insights.scan({ focus: ['x'] })) {
 // [warning] gap — diana est le seul « employé » sans « salaire »
 ```
 
+Détail des fonctions employées ci-dessus.
+
+**`new XNeuroneGrid(encoder?, opts?)`** — le graphe QPath en mémoire (le « moteur » sous la KB).
+
+- `encoder?` — l'encodeur input → bitstream. **Optionnel** : `undefined` (le placeholder de tous les exemples) prend l'encodeur **par défaut** du noyau. Tu ne le passes que pour un encodage sur-mesure.
+- `opts?` — un objet `{ headless?: boolean }`. **Défaut `{}`** (= avec rendu). `headless: true` désactive le rendu Three.js : indispensable côté **Node/serveur** (pas de DOM) et pour les tests.
+
+**`new KnowledgeBase(grid)`** — la couche de faits `(sujet, prédicat, objet)` posée sur la grille.
+
+- `grid` — la `XNeuroneGrid` qui sert de mémoire de travail. **Seul argument**, requis. Si la grille est pré-remplie (snapshot rechargé), le constructeur **reconstruit ses index** au passage.
+
+**`kb.tell(s, p, o, source?, flags?)`** — enregistre un fait. Asynchrone.
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `s` | le **sujet** (ex. `'x'`, `'diana'`) | — (requis) |
+| `p` | le **prédicat** (ex. `'aime'`, `'salaire'`) ; un `not_<p>` exprime la **négation** du même prédicat | — (requis) |
+| `o` | l'**objet** / la valeur (ex. `'thé'`, `'3000'`) | — (requis) |
+| `source?` | la **provenance** du fait — un objet `{ kind, ref? }`. `kind` vaut `'user'` (saisie/chat), `'document'`, `'web'`, `'tool'`, `'llm-verified'`, `'inference'` ou `'import'` ; `ref?` est une URL / un id de document / un nom d'outil | — (aucune provenance) |
+| `flags?` | drapeaux atomiques posés dans la **même** écriture (ex. `{ secret: true }`, `closed`, `major`) | — (aucun drapeau) |
+
+> 💡 **`{ kind: 'user' }` n'est pas obligatoire** — c'est le `source` (optionnel). On le renseigne ici pour marquer que ces faits viennent de l'utilisateur, ce qui rend les aperçus plus parlants (« décision contestée », fraîcheur…). Sans lui, `tell` fonctionne tout autant.
+>
+> **Forme de retour** : `tell` renvoie une `Promise<ContradictionReport | null>` — `null` si tout va bien, un **rapport de contradiction** si l'opposé exact (`p` ↔ `not_p`) existait déjà. (`InsightEngine` détecte aussi ces contradictions *a posteriori* via `scan`, donc ignorer ce retour reste sûr.)
+
+**`new InsightEngine(kb)`** — le moteur de déduction proactive.
+
+- `kb` — la `KnowledgeBase` à surveiller. **Seul argument**, requis. Le moteur ne stocke rien lui-même : il **lit** la KB à chaque `scan` (déterministe, 0 token).
+
+**`insights.scan(opts?)`** — balaie la mémoire et renvoie les aperçus.
+
+| Option (`opts`) | Rôle | Défaut |
+|---|---|---|
+| `focus?` | sujets prioritaires (la conversation en cours) — **active** les anticipations ciblées et **priorise** ces sujets dans le tri | `[]` (aucun focus → pas d'anticipations) |
+| `maxInsights?` | plafond du nombre d'aperçus retournés (alertes d'abord) | `10` |
+| `alertsOnly?` | `true` coupe les anticipations `info` (ne garde que les alertes `warning`) | `false` |
+
+> **Forme de retour** : un **tableau `Insight[]`** trié (alertes `warning` d'abord, puis anticipations touchant le focus, puis le reste, tronqué à `maxInsights`). Chaque `Insight` porte : `kind` (`'contradiction'` \| `'plot-incoherence'` \| `'anomaly'` \| `'gap'` \| `'stale'` \| `'suggestion'`), `severity` (`'warning'` \| `'info'`), `text` (phrase lisible prête pour le chat), `about` (les sujets concernés) et `key` (clé stable de déduplication — voir ci-dessous). L'appel sans argument, `scan()`, équivaut à `scan({})`.
+
 **Déduplication entre scans** — chaque aperçu porte une **clé stable** (`i.key`) : l'hôte garde ce
 qu'il a déjà montré et n'alerte **qu'une fois**.
 

@@ -64,6 +64,56 @@ kb.ask('config', 'theme');     // ['clair']   ← the overlay shadows the base
 base.ask('config', 'theme');   // ['sombre']  ← the base stays intact
 ```
 
+### The functions in this example, argument by argument
+
+**`new XNeuroneGrid(undefined, { headless: true })`** — builds the in-memory QPath graph that backs each `KnowledgeBase`.
+
+- `encoder?` (1st arg, here `undefined`): the encoder that turns a value into bit pairs. Optional — `undefined` keeps the **default encoder** (`BinaryConverter.toBinaryPairs`), which handles primitives/arrays/objects. Pass it only for a custom encoding.
+- `opts?` (2nd arg, here `{ headless: true }`): `{ headless?: boolean }`. `headless: true` = **no rendering** (Node/server); no Three.js view is attached. By default (`headless` absent/`false`), the grid tries to attach the renderer registered via `XNeuroneGrid.viewFactory` if one exists. In a layered context you are **always headless**: the grid is merely a working memory.
+
+**`new KnowledgeBase(grid)`** — wraps a grid to expose the fact model (`tell`/`ask`/`reason`…).
+
+- `grid` (only argument, required): the `XNeuroneGrid` that carries the graph. If the grid pre-exists (a reloaded snapshot), the constructor **rebuilds its indices** on the way in. A `KnowledgeBase` = a grid + an index/reasoning layer.
+
+**`new LayeredKnowledgeBase(primary, parents?)`** — stacks several `KnowledgeBase`s read as one.
+
+| Argument | Role | Default |
+|---|---|---|
+| `primary` | the **write** layer (the most specific — conversation/user). **All** writes (`tell`, `retract`, `confirm`, `editFact`) land here. | — (required) |
+| `parents?` | the **read-only parent** layers, ordered **from most to least specific** (`[user, organization, generic]`). The effective stack is `[primary, ...parents]`. | `[]` (no parent layer) |
+
+> 💡 A `LayeredKnowledgeBase` **is** a `KnowledgeBase` (it extends it): pass it anywhere a KB is expected. Its own internal grid is headless and empty — every method that touches the graph is overridden to query the stack.
+
+**`await base.tell('config', 'theme', 'sombre')`** — records a `(subject, predicate, object)` fact.
+
+| Argument | Role | Default |
+|---|---|---|
+| `s` | the fact's **subject** | — (required) |
+| `p` | the **predicate** (the relation) | — (required) |
+| `o` | the **object** (the value) | — (required) |
+| `source?` | the **provenance** (`{ kind, ref?, at?, confidence? }`) — where the fact comes from (`user`, `document`, `web`, `tool`…) | — (no provenance) |
+| `flags?` | the **flags** (`{ closed?, major?, secret?, group?, companionOf? }`) — decided 🔒, load-bearing ⭐, secret 🔑, access group, companion fact | — (no flags) |
+
+> On a `LayeredKnowledgeBase`, `tell` always routes to `primary` — the parents stay intact. The return value is `Promise<ContradictionReport | null>`: `null` if all is well, otherwise a report describing the direct contradiction detected at write time.
+
+**`kb.ask('config', 'theme')`** — reads the values of a `(subject, predicate)` pair.
+
+- `s` (required): the subject to look up.
+- `p` (required): the predicate to look up.
+
+Returns a `string[]`: the list of known objects for that pair (empty if none). On the stack, the **first layer** that knows the pair answers (most specific wins); lower layers are not consulted for that pair.
+
+**`kb.reason('tweety', 'est')`** — reasons over the whole stack (direct facts + transitive/inheritance chains).
+
+| Argument | Role | Default |
+|---|---|---|
+| `s` | the starting subject | — (required) |
+| `p` | the predicate to follow | — (required) |
+| `depth?` | maximum chain depth (number of transitive hops explored) | `3` |
+| `visited?` | internal set of already-visited subjects (cycle guard) — recursive use, **do not pass** in a normal call | `new Set()` |
+
+Returns a `ReasoningChain | null`: `null` if there is no conclusion; otherwise `{ steps, conclusion: { s, p, o }, confidence, via }` where `via` is `'direct'` (fact found as-is) or `'transitive'` (derived through a chain), and `confidence` is the minimum of the steps' confidences ("the chain is only as strong as its weakest link").
+
 > The same `kb` object is passed to `reason`, `PlotReasoner`, `InsightEngine`, `RuleEngine`,
 > `FlowRunner`… : they reason over the stack with no special code. That's polymorphism — a
 > `LayeredKnowledgeBase` **is** a `KnowledgeBase`.

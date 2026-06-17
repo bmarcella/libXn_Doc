@@ -36,6 +36,18 @@ async function verbalize(prompt: string): Promise<string> {
 }
 ```
 
+The `new ChatAnthropic({...})` constructor (external `@langchain/anthropic` package) takes an options object:
+
+| Argument | Role | Default |
+|---|---|---|
+| `model` | the model id to call (e.g. `'claude-sonnet-4-6'`) | depends on the package version |
+| `apiKey` | the API key; read from the environment, never hard-coded | `process.env.ANTHROPIC_API_KEY` if omitted |
+| `temperature` | generation randomness; `0` = deterministic output (the LLM only reformulates, it doesn't invent) | depends on the package |
+
+`model.invoke(prompt)` takes the **prompt text** (string) and returns a message object; the text is
+extracted via `res.content` (hence the `String(res.content)` that normalizes it to a string). Our
+`verbalize` function thus exposes only what QPath needs: a `prompt(text) → string`.
+
 > Any LangChain model works (`ChatOpenAI`, `ChatOllama`, `ChatMistralAI`…) as long as it exposes
 > `invoke()`. QPath stays provider-independent.
 
@@ -51,6 +63,15 @@ async function searchWeb(query: string): Promise<string[]> {
   return JSON.parse(raw).map((r: any) => `${r.title} — ${r.content}`);
 }
 ```
+
+The `new TavilySearchResults({...})` constructor (external `@langchain/community` package):
+
+- **`maxResults`** — the maximum number of web results returned per query (here `5`). Higher gives more
+  material to feed back, but makes the call costlier.
+- **`apiKey`** — the Tavily API key, read from the environment (`process.env.TAVILY_API_KEY`).
+
+`web.invoke(query)` takes the **search query** (string) and returns a **JSON string** (hence the
+`JSON.parse(raw)`): an array of result objects, of which we only use `title` and `content` here.
 
 ## 3. Flash reasoning: QPath first, web as backup, LLM to finish
 
@@ -87,6 +108,37 @@ async function flashAnswer(question: string, subject: string, predicate: string)
 }
 ```
 
+The QPath functions used above:
+
+`new XNeuroneGrid(undefined, { headless: true })` — builds the in-memory graph:
+
+| Argument | Role | Default |
+|---|---|---|
+| `encoder?` | the input → binary-pairs encoder; `undefined` = default encoder (`BinaryConverter.toBinaryPairs`) | `undefined` |
+| `opts.headless?` | `true` = no renderer attached (Node/server); in visual mode a `viewFactory` must be registered | `false` |
+
+`new KnowledgeBase(grid)` — takes **a single argument**, the QPath grid to reason over; it rebuilds its
+indices at construction (useful when the grid comes from a reloaded snapshot).
+
+`kb.ask(subject, predicate)` — two arguments, the **subject** and the **predicate**; returns the
+**array of objects** `string[]` stored for that pair (alias merging included), `[]` if none. This is the
+deterministic zero-token read.
+
+`kb.tell(s, p, o, source?, flags?)` — records a fact. The first three (subject, predicate, object) are
+required; `source?` attaches provenance and `flags?` the flags (`closed`, `major`…) — both optional and
+omitted here. Async; returns a `ContradictionReport` if the exact opposite already exists, otherwise
+`null`.
+
+`NaturalParser.parse(text)` — **static** method, a single argument (free text). Returns a `ParsedInput`
+discriminated by `kind`:
+- `'statement'` → `{ kind, s, p, o }` (an assertion, the only case we store here);
+- `'what'` / `'yesno'` / `'list'` → a **question** (never stored);
+- `'unknown'` → `{ kind, text }` (not interpretable).
+
+> 💡 We only `tell` when `kind === 'statement'`: a question (`what`/`yesno`/`list`) must never pollute
+> the memory. Checking `parsed.kind` before accessing `parsed.s/p/o` is mandatory — those fields don't
+> exist on the other variants (TypeScript enforces this).
+
 **What you gain.** The next time a similar question is asked, QPath answers on its own — **zero token,
 zero web call**. The LLM is only used for form, and it's *grounded*: it cannot contradict the memory.
 
@@ -104,6 +156,25 @@ ChainResolver.format(chain!);
 // You can then have the LLM verbalize THIS trace, without it inventing the path:
 await verbalize(`Explain this reasoning in one sentence: ${ChainResolver.format(chain!)}`);
 ```
+
+`new ChainResolver(kb, algebra?)` — builds the chain resolver:
+
+- **`kb`** — the `KnowledgeBase` to traverse (required).
+- **`algebra?`** — the composed-predicate algebra (transitivity, inverses…); defaults to
+  `PredicateAlgebra.withDefaults()`. Optional — only pass it for custom composition rules.
+
+`chain(s, targetP, opts?)` — finds the **shortest chain** linking subject `s` to an object via the
+composed predicate `targetP`. Returns a `ReasoningChain` (the links, the conclusion, the confidence, the
+`via`) or **`null`** if no chain exists (hence the `chain!` asserting non-nullity when you know it
+exists). The options:
+
+| Argument | Role | Default |
+|---|---|---|
+| `opts.maxDepth` | max chain depth (number of links) | `4` |
+| `opts.confidence` | confidence aggregation: `'min'` (the weakest link, logical) or `'product'` (probabilistic composition) | `'min'` |
+
+`ChainResolver.format(chain)` — **static** method; takes a (non-null) `ReasoningChain` and returns a
+**human-readable one-line trace** (`"socrates —is→ human … (⇒ has = end, confidence 1.00, via transitive)"`).
 
 > **Honest confidence, even against the grain.** When a chain follows a relation in the **inverse**
 > direction, its confidence reflects that of the real underlying fact — not an assumed certainty. A
@@ -143,6 +214,15 @@ async function reason(subject: string, predicate: string, question: string): Pro
   );
 }
 ```
+
+`kb.askDeep(s, maxDepth?)` — **multi-predicate BFS**: everything QPath knows about subject `s` by
+following any predicate up to `maxDepth` hops.
+
+- **`s`** — the starting subject (required).
+- **`maxDepth?`** — the maximum number of hops; defaults to `3` (here we pass `2`).
+
+Returns an array `{ value: string; via: string[] }[]`: each reachable object with the **predicate chain**
+(`via`) leading to it — hence `f.via.join(' → ')` and `f.value` when building the prompt.
 
 **The rule.** Whatever *can* be solved by QPath is — deterministic, free, proven. The LLM only handles
 the **residue** the symbolic layer doesn't cover, and stays **grounded**: it explicitly separates the

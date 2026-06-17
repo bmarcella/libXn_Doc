@@ -94,6 +94,92 @@ Le résultat contient la **conclusion**, la **transcription** (chaque coup + ver
 appris** (réinjectés), et `grounded` — vrai uniquement si **aucun** fait non vérifié par QPath n'a été
 écrit en mémoire (un outil externe ajoutant des faits non confrontés le passe à `false`).
 
+### Détail des appels
+
+#### Le port `LlmPort.complete(prompt, opts?)`
+
+C'est **le seul** point de contact avec un modèle de langage : tu l'implémentes une fois (LangChain,
+proxy backend, mock de test…) et QPath l'appelle à chaque round.
+
+- `prompt` — la consigne du round, **construite par le raisonneur** (question + faits connus + verdicts
+  précédents + budget de coups restants). Tu ne le composes pas toi-même : tu le transmets tel quel à
+  ton modèle.
+- `opts?.systemPrompt` — *optionnel*. Le system prompt à appliquer (par défaut les règles du jeu, voir
+  l'option `systemPrompt` de `run`). Si ton client LLM sépare system et user, passe-le en rôle
+  *system* ; sinon préfixe-le au `prompt`.
+- **Retour** : une `Promise<string>` — le **texte brut** de la réponse du modèle, **non parsé**. Le
+  raisonneur s'occupe de le décoder en un coup (`ASK` / `HYPOTHESIS` / `TOOL` / `CONCLUDE`).
+
+#### `new KnowledgeBase(grid)`
+
+- `grid` — la **grille QPath** (`XNeuroneGrid`) qui sert de mémoire de travail en RAM. En Node/serveur,
+  on l'instancie en `headless` : `new XNeuroneGrid(undefined, { headless: true })` (le 1ᵉʳ argument
+  `undefined` = encodeur par défaut ; `headless: true` = sans rendu Three.js).
+
+#### `kb.tell(s, p, o)`
+
+Enregistre un fait `(sujet, prédicat, objet)`. La signature complète accepte deux arguments optionnels
+de provenance/drapeaux non utilisés ici — `kb.tell(s, p, o, source?, flags?)` :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `s` | le **sujet** du fait (ex. `'alice'`) | — (requis) |
+| `p` | le **prédicat** / la relation (ex. `'est_parent_de'`) | — (requis) |
+| `o` | l'**objet** / la valeur (ex. `'charlie'`) | — (requis) |
+| `source?` | provenance du fait (`{ kind, ref }`) — qui l'a affirmé, pour l'audit | — (aucune) |
+| `flags?` | drapeaux du fait (`closed` 🔒, `major` ⭐, `secret` 🔑…) | — (aucun) |
+
+> 💡 Le **retour** de `tell` est une `Promise<ContradictionReport | null>` : `null` quand tout va bien,
+> ou un rapport décrivant la contradiction si le fait en heurte un autre déjà connu.
+
+#### `new PingPongReasoner(kb, llm, opts?)`
+
+Le constructeur prend la mémoire, le port LLM et des options de **construction** (réutilisées par tous
+les `run` de cette instance, sauf si `run` les surcharge) :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `kb` | la `KnowledgeBase` à interroger / enrichir | — (requis) |
+| `llm` | le `LlmPort` qui joue le « coup créatif » | — (requis) |
+| `opts.algebra?` | l'algèbre de prédicats (synonymes, inverses, transitivité) passée au `ChainResolver` | `PredicateAlgebra.withDefaults()` |
+| `opts.maxRounds?` | nombre maximum d'échanges par défaut | `3` |
+| `opts.writeBack?` | réinjecter par défaut les hypothèses vérifiées dans la KB | `true` |
+| `opts.confidence?` | politique de confiance transmise au `ChainResolver` | — (aucune) |
+| `opts.tools?` | un `ToolRegistry` autorisant les coups `TOOL <nom>` (recherche, calcul…) | — (aucun outil) |
+
+#### `reasoner.run(question, opts?)`
+
+Lance **un** échange ping-pong borné. Les options de `run` **surchargent** celles du constructeur pour
+cet appel précis (`PingPongOptions`) :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `question` | la question à résoudre, en langage naturel | — (requis) |
+| `opts.maxRounds?` | nombre maximum d'échanges pour cet appel | celui du constructeur (`3`) |
+| `opts.writeBack?` | réinjecter les hypothèses vérifiées dans la KB | celui du constructeur (`true`) |
+| `opts.confidence?` | politique de confiance pour le `ChainResolver` | celle du constructeur |
+| `opts.seedSubject?` | **sujet de départ** : ses faits connus sont donnés au LLM comme socle initial | — (aucun socle) |
+| `opts.systemPrompt?` | system prompt transmis au LLM à chaque round | `PINGPONG_SYSTEM_RULES` |
+
+> 💡 **Composer, ne pas remplacer.** Pour garder l'identité produit de l'hôte pendant l'échange,
+> concatène : `systemPrompt: identité + '\n' + PINGPONG_SYSTEM_RULES`. Remplacer entièrement les règles
+> ferait perdre au LLM soit son identité, soit le protocole du jeu.
+
+#### La forme du résultat (`PingPongResult`)
+
+`run` renvoie une `Promise<PingPongResult>` :
+
+| Champ | Sens |
+|---|---|
+| `question` | la question d'origine (échoée) |
+| `conclusion` | la **réponse finale**, ancrée sur les verdicts QPath |
+| `rounds` | le détail round par round (coup du LLM + verdict + trace + faits appris) |
+| `transcript` | l'échange complet, lisible (qui a joué quoi, et le verdict de QPath) — auditable |
+| `llmCalls` | nombre d'appels au LLM réellement effectués |
+| `factsLearned` | les faits `{ s, p, o }` écrits en mémoire pendant l'échange (réutilisables à 0 token ensuite) |
+| `grounded` | `true` uniquement si **aucun** fait non vérifié par QPath n'a été écrit (voir Ancrage) |
+| `stopped` | pourquoi l'échange s'est arrêté : `'concluded'` (le LLM a conclu), `'maxRounds'` (limite atteinte) ou `'stalled'` (le LLM piétine — coup illisible ou répété) |
+
 ::: tip
 Le détail interne du protocole n'est pas documenté publiquement. Pour un accès technique ou un
 partenariat, contactez l'auteur. Voir aussi [Flash reasoning](flash-reasoning) et

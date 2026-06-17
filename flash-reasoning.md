@@ -36,6 +36,18 @@ async function verbalize(prompt: string): Promise<string> {
 }
 ```
 
+Le constructeur `new ChatAnthropic({...})` (paquet externe `@langchain/anthropic`) prend un objet d'options :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `model` | l'identifiant du modèle à appeler (ex. `'claude-sonnet-4-6'`) | dépend de la version du paquet |
+| `apiKey` | la clé d'API ; à lire depuis l'environnement, jamais en dur | `process.env.ANTHROPIC_API_KEY` si omis |
+| `temperature` | l'aléa de génération ; `0` = sortie déterministe (le LLM ne fait que reformuler, il n'invente pas) | dépend du paquet |
+
+`model.invoke(prompt)` accepte le **texte du prompt** (string) et renvoie un objet message ; on en
+extrait le texte via `res.content` (d'où le `String(res.content)` qui le normalise en chaîne). Notre
+fonction `verbalize` n'expose donc que ce dont QPath a besoin : un `prompt(text) → string`.
+
 > N'importe quel modèle LangChain marche (`ChatOpenAI`, `ChatOllama`, `ChatMistralAI`…) : il suffit
 > qu'il expose `invoke()`. QPath reste indépendant du fournisseur.
 
@@ -51,6 +63,15 @@ async function searchWeb(query: string): Promise<string[]> {
   return JSON.parse(raw).map((r: any) => `${r.title} — ${r.content}`);
 }
 ```
+
+Le constructeur `new TavilySearchResults({...})` (paquet externe `@langchain/community`) :
+
+- **`maxResults`** — le nombre maximum de résultats web renvoyés par requête (ici `5`). Plus c'est
+  haut, plus on a de matière à ré-injecter, mais plus l'appel est coûteux.
+- **`apiKey`** — la clé d'API Tavily, lue depuis l'environnement (`process.env.TAVILY_API_KEY`).
+
+`web.invoke(query)` prend la **requête de recherche** (string) et renvoie une **chaîne JSON** (d'où le
+`JSON.parse(raw)`) : un tableau d'objets résultats dont on n'utilise ici que `title` et `content`.
 
 ## 3. Flash reasoning : QPath d'abord, web en secours, LLM pour finir
 
@@ -87,6 +108,37 @@ async function flashAnswer(question: string, subject: string, predicate: string)
 }
 ```
 
+Les fonctions QPath utilisées ci-dessus :
+
+`new XNeuroneGrid(undefined, { headless: true })` — construit le graphe en mémoire :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `encoder?` | l'encodeur input → paires binaires ; `undefined` = encodeur par défaut (`BinaryConverter.toBinaryPairs`) | `undefined` |
+| `opts.headless?` | `true` = aucun rendu attaché (Node/serveur) ; en mode visuel un `viewFactory` doit être enregistré | `false` |
+
+`new KnowledgeBase(grid)` — prend **un seul argument**, la grille QPath à raisonner par-dessus ; il
+reconstruit ses index au démarrage (utile si la grille vient d'un snapshot rechargé).
+
+`kb.ask(subject, predicate)` — deux arguments, le **sujet** et le **prédicat** ; renvoie le **tableau
+des objets** `string[]` stockés pour ce couple (fusion d'alias incluse), `[]` si rien. C'est la lecture
+déterministe à 0 token.
+
+`kb.tell(s, p, o, source?, flags?)` — enregistre un fait. Les trois premiers (sujet, prédicat, objet)
+sont requis ; `source?` attache la provenance et `flags?` les drapeaux (`closed`, `major`…) — tous deux
+optionnels et omis ici. Asynchrone ; renvoie un `ContradictionReport` si l'opposé exact existe déjà,
+sinon `null`.
+
+`NaturalParser.parse(text)` — méthode **statique**, un seul argument (le texte libre). Renvoie un
+`ParsedInput` discriminé par `kind` :
+- `'statement'` → `{ kind, s, p, o }` (une affirmation, le seul cas qu'on stocke ici) ;
+- `'what'` / `'yesno'` / `'list'` → une **question** (jamais stockée) ;
+- `'unknown'` → `{ kind, text }` (non interprétable).
+
+> 💡 On ne `tell` que sur `kind === 'statement'` : une question (`what`/`yesno`/`list`) ne doit jamais
+> polluer la mémoire. Tester `parsed.kind` avant d'accéder à `parsed.s/p/o` est obligatoire — ces
+> champs n'existent pas sur les autres variantes (TypeScript le vérifie).
+
 **Ce qu'on gagne.** La 2ᵉ fois qu'on pose une question proche, QPath répond seul — **0 token, 0 appel
 web**. Le LLM n'est sollicité que pour la forme, et il est *grounded* : il ne peut pas contredire la
 mémoire.
@@ -105,6 +157,26 @@ ChainResolver.format(chain!);
 // On peut ensuite faire verbaliser CETTE trace par le LLM, sans qu'il invente le chemin :
 await verbalize(`Explique ce raisonnement en une phrase : ${ChainResolver.format(chain!)}`);
 ```
+
+`new ChainResolver(kb, algebra?)` — construit le résolveur de chaînes :
+
+- **`kb`** — la `KnowledgeBase` à parcourir (requis).
+- **`algebra?`** — l'algèbre de prédicats composés (transitivité, inverses…) ; par défaut
+  `PredicateAlgebra.withDefaults()`. Optionnel — à ne passer que pour des règles de composition
+  sur-mesure.
+
+`chain(s, targetP, opts?)` — cherche la **chaîne la plus courte** reliant le sujet `s` à un objet via
+le prédicat composé `targetP`. Renvoie un `ReasoningChain` (les maillons, la conclusion, la confiance,
+le `via`) ou **`null`** si aucune chaîne n'existe (d'où le `chain!` qui affirme la non-nullité quand on
+sait qu'elle existe). Les options :
+
+| Argument | Rôle | Défaut |
+|---|---|---|
+| `opts.maxDepth` | profondeur max de la chaîne (nombre de maillons) | `4` |
+| `opts.confidence` | agrégation de la confiance : `'min'` (le maillon le plus faible, logique) ou `'product'` (composition probabiliste) | `'min'` |
+
+`ChainResolver.format(chain)` — méthode **statique** ; prend un `ReasoningChain` (non-null) et renvoie
+une **trace lisible en une ligne** (`"socrate —est→ humain … (⇒ a = fin, confiance 1.00, via transitive)"`).
 
 > **Confiance honnête, même à contre-sens.** Quand une chaîne emprunte une relation dans le sens
 > **inverse**, sa confiance reflète celle du fait sous-jacent réel — pas une certitude supposée. Une
@@ -144,6 +216,15 @@ async function reason(subject: string, predicate: string, question: string): Pro
   );
 }
 ```
+
+`kb.askDeep(s, maxDepth?)` — recherche **BFS multi-prédicat** : tout ce que QPath sait du sujet `s` en
+suivant n'importe quel prédicat jusqu'à `maxDepth` sauts.
+
+- **`s`** — le sujet de départ (requis).
+- **`maxDepth?`** — le nombre maximum de sauts ; par défaut `3` (ici on passe `2`).
+
+Renvoie un tableau `{ value: string; via: string[] }[]` : chaque objet atteignable avec la **chaîne de
+prédicats** (`via`) qui y mène — d'où le `f.via.join(' → ')` et `f.value` dans la construction du prompt.
 
 **La règle.** Tout ce qui *peut* être résolu par QPath l'est — déterministe, gratuit, prouvé. Le LLM
 n'intervient que sur le **résidu** que le symbolique ne couvre pas, et reste **ancré** : il sépare
