@@ -50,7 +50,7 @@ les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des f
 | État réactif | mutations via tools (`set`/`increment`/`toggle`) → re-render |
 | Événements | `on_click`/`on_change` → flux FlowRunner |
 | Formulaires | `on_change` transmet la saisie → `$event` dans le flux (`set value $event`) |
-| Listes | `for_each "cart item"` + gabarit (`$item` = la valeur) |
+| Listes | `for_each "cart item"` + gabarit ; `$item` = la valeur, **disponible aussi dans les events de la ligne** (sélection/suppression par item) |
 | Conditionnel / RBAC | `show_if "s p o"` (lecture KB, 0 token) |
 | Navigation | tool `navigate` → route + `show_if` pour basculer les panneaux |
 | Données distantes | tool `http` (port injecté, donc mockable) → écrit le résultat en faits |
@@ -69,6 +69,20 @@ du vocabulaire UI/flux et les **composants autorisés** sont retenus ; le reste 
 const proposal = await proposeScreen(llm, 'un écran de connexion : email, mot de passe, bouton',
   { allowedComponents: ['Card', 'Input', 'Button'] });
 if (isRenderable(proposal)) { await app.facts(proposal.facts); } // proposal.rejected = écarté
+```
+
+### Listes interactives (`$item` dans les events)
+
+Dans un `for_each`, l'event d'une **ligne** connaît **son** item via `$item` — donc sélectionner,
+supprimer ou éditer une ligne précise se fait sans gymnastique :
+
+```ts
+await app.screen('panier', {
+  component: 'List', forEach: 'cart item',
+  template: { component: 'Row', props: { label: '$item' }, on: { click: 'pick' } },
+});
+await app.flow('pick', [{ do: 'set', path: 'cart selected', value: '$item' }]); // → clic sur 'b' : selected = 'b'
+// suppression par item : { do: 'set', path: '$item removed', value: 'true' } + show_if « cart selected … »
 ```
 
 ## Mise en forme (CSS)

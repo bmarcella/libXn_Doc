@@ -50,7 +50,7 @@ write screens as **objects** (sugar) that become facts under the hood.
 | Reactive state | mutations via tools (`set`/`increment`/`toggle`) → re-render |
 | Events | `on_click`/`on_change` → FlowRunner flows |
 | Forms | `on_change` passes input → `$event` in the flow (`set value $event`) |
-| Lists | `for_each "cart item"` + a template (`$item` = the value) |
+| Lists | `for_each "cart item"` + template ; `$item` = the value, **also available in the row's events** (per-item select/delete) |
 | Conditional / RBAC | `show_if "s p o"` (KB read, zero token) |
 | Navigation | `navigate` tool → route + `show_if` to switch panels |
 | Remote data | `http` tool (injected, hence mockable) → writes the result as facts |
@@ -69,6 +69,20 @@ rendering itself stays **deterministic**.
 const proposal = await proposeScreen(llm, 'a login screen: email, password, button',
   { allowedComponents: ['Card', 'Input', 'Button'] });
 if (isRenderable(proposal)) { await app.facts(proposal.facts); } // proposal.rejected = discarded
+```
+
+### Interactive lists (`$item` in events)
+
+In a `for_each`, a **row's** event knows **its** item via `$item` — so selecting, deleting or
+editing a specific row needs no gymnastics:
+
+```ts
+await app.screen('cart', {
+  component: 'List', forEach: 'cart item',
+  template: { component: 'Row', props: { label: '$item' }, on: { click: 'pick' } },
+});
+await app.flow('pick', [{ do: 'set', path: 'cart selected', value: '$item' }]); // click on 'b': selected = 'b'
+// per-item delete: { do: 'set', path: '$item removed', value: 'true' } + show_if "cart selected …"
 ```
 
 ## Styling (CSS)
