@@ -36,6 +36,11 @@ kb.tripletOf(f.id);         // { s, p, o } d'un id
   (voir l'axe « provenance » ci-dessous) ; seul `kind` est obligatoire.
 - `.closed(v?)` / `.major(v?)` — posent un drapeau. L'argument booléen est **optionnel et vaut `true`**
   par défaut ; passe `false` pour retirer le drapeau (ex. `.major(false)`).
+- `.lockSubject(v?)` / `.lockObject(v?)` — **verrous de côté** (cf. « 4 états de verrou » ci-dessous).
+  `.lockSubject()` fige le **sujet** (le *qui* ; l'objet reste modifiable) ; `.lockObject()` fige
+  l'**objet** (la *valeur* ; le sujet reste modifiable). Argument booléen **optionnel, `true` par défaut**.
+- `.lock(state)` — pose l'état nommé d'un coup. `state` est `'open' | 'subject_locked' | 'object_locked' | 'closed'`
+  (type `FactLock`) — il **remplace** les trois drapeaux de verrou de façon cohérente.
 - `.group(g)` — rattache le fait au groupe d'accès nommé `g` (chaîne obligatoire).
 - `.save()` — écrit le triplet **+** sa provenance **+** ses drapeaux en attente, en un seul appel.
   C'est `async` (la persistance peut être distante) : `await`-le. Retour : le même `FactRef` (chaînable) ;
@@ -65,8 +70,27 @@ Posés via le handle (`.closed()/.major()/.group()`) ou `kb.setFlags(...)`. Lus 
 | Drapeau | Sert à | Posé par |
 |---|---|---|
 | *(aucun)* | fait ordinaire | par défaut |
-| **`closed` 🔒** | **décidé** : sort de la revérification, gagne face à une contestation | `.closed()` |
+| **`closed` 🔒** | **décidé** : sort de la revérification, gagne face à une contestation (= les deux côtés figés) | `.closed()` |
+| **`leftClosed`** | **sujet figé** : le *qui* ne peut être remplacé (objet modifiable) | `.lockSubject()` |
+| **`rightClosed`** | **objet figé** : la *valeur* ne peut être remplacée (sujet modifiable) | `.lockObject()` |
 | **`major` ⭐** | **structurant** : prioritaire dans le RAG / les alertes | `.major()` |
+
+### Les 4 états de verrou (`FactLock`)
+
+Un fait *(sujet, prédicat, objet)* peut **figer chaque côté indépendamment**. Les drapeaux de
+côté dérivent un état nommé, lu par `kb.lockOf(s, p, o)` et posé par `kb.setLock(s, p, o, state)` :
+
+| État (`FactLock`) | Sujet | Objet | Signification |
+|---|---|---|---|
+| `open` | modifiable | modifiable | défaut — rien n'est figé |
+| `object_locked` | **modifiable** | figé | la *valeur* est gravée, on peut changer le sujet |
+| `subject_locked` | figé | **modifiable** | le *qui* est gravé, on peut mettre à jour l'objet |
+| `closed` 🔒 | figé | figé | décidé — équivaut à `leftClosed ∧ rightClosed` |
+
+Ces verrous gouvernent la **supplantation sous contrainte d'unicité** (cf. plus bas) : figer un
+côté force le **rejet** de toute écriture qui modifierait *ce* côté, **par direction** — `object_locked`
+bloque le remplacement de la valeur (`leftUnique`) mais autorise la réattribution du sujet
+(`rightUnique`), et inversement. `closed` reste la rétro-compatibilité « décidé » (les deux à la fois).
 | **`secret` 🔑** | **confidentiel** : chiffré au repos, masqué des lectures normales | [`FactVault.setSecret`](/access-layer) |
 | **`group`** | rattaché à un **groupe d'accès** (permissions) | `.group('finances')` / [`FactAccessControl`](/access-layer) |
 | **`companionOf`** | **fait compagnon** d'un propriétaire (profil) | [`CompanionFacts.attach`](/components) |
@@ -338,7 +362,7 @@ await kb.tell('alice', 'has_email', 'a@x.com');         // ✅ idempotent — m�
 À retenir :
 
 - **Idempotence** : réasserter le **même** triplet n'est jamais un conflit (ça ajoute juste une source).
-- **`closed` prime** : si la valeur existante est verrouillée (🔒 `closed`), toute écriture concurrente est **rejetée**, même sous `replace`.
+- **Un côté verrouillé prime** : si le fait existant est figé **dans la direction** modifiée (🔒 `closed`, ou le verrou de côté correspondant — `object_locked` pour `leftUnique`, `subject_locked` pour `rightUnique`), l'écriture concurrente est **rejetée**, même sous `replace`.
 - **Rétrocompatible** : sans `declareUnique`, le prédicat reste multi-valué (rien ne change).
 - **`tell` renvoie** désormais soit une contradiction de négation, soit une violation d'unicité — distinguées par `report.kind` (`'negation'` vs `'uniqueness'`).
 - **À déclarer au démarrage** (comme `defineSymbols`) ; pour une unicité **globale inter-tenant**, c'est l'index `unique` côté [persistance](/persistence) qui s'en charge (les deux se composent).

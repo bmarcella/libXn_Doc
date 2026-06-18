@@ -36,6 +36,11 @@ kb.tripletOf(f.id);         // { s, p, o } of an id
   (see the "provenance" axis below); only `kind` is required.
 - `.closed(v?)` / `.major(v?)` — set a flag. The boolean argument is **optional and defaults to `true`**;
   pass `false` to clear the flag (e.g. `.major(false)`).
+- `.lockSubject(v?)` / `.lockObject(v?)` — **side locks** (see "4 lock states" below). `.lockSubject()`
+  freezes the **subject** (the *who*; the object stays editable); `.lockObject()` freezes the **object**
+  (the *value*; the subject stays editable). Boolean argument **optional, defaults to `true`**.
+- `.lock(state)` — set the named state at once. `state` is `'open' | 'subject_locked' | 'object_locked' | 'closed'`
+  (type `FactLock`) — it **replaces** the three lock flags coherently.
 - `.group(g)` — attaches the fact to the access group named `g` (required string).
 - `.save()` — writes the triplet **+** its provenance **+** its pending flags in a single call. It is
   `async` (persistence may be remote): `await` it. Returns: the same `FactRef` (chainable); `f.id` is then
@@ -65,8 +70,27 @@ Set via the handle (`.closed()/.major()/.group()`) or `kb.setFlags(...)`. Read v
 | Flag | For | Set by |
 |---|---|---|
 | *(none)* | ordinary fact | by default |
-| **`closed` 🔒** | **decided**: leaves re-verification, wins a challenge | `.closed()` |
+| **`closed` 🔒** | **decided**: leaves re-verification, wins a challenge (= both sides frozen) | `.closed()` |
+| **`leftClosed`** | **subject frozen**: the *who* can't be replaced (object editable) | `.lockSubject()` |
+| **`rightClosed`** | **object frozen**: the *value* can't be replaced (subject editable) | `.lockObject()` |
 | **`major` ⭐** | **structuring**: prioritized in RAG / alerts | `.major()` |
+
+### The 4 lock states (`FactLock`)
+
+A fact *(subject, predicate, object)* can **freeze each side independently**. The side flags derive
+a named state, read with `kb.lockOf(s, p, o)` and set with `kb.setLock(s, p, o, state)`:
+
+| State (`FactLock`) | Subject | Object | Meaning |
+|---|---|---|---|
+| `open` | editable | editable | default — nothing frozen |
+| `object_locked` | **editable** | frozen | the *value* is engraved, the subject can change |
+| `subject_locked` | frozen | **editable** | the *who* is engraved, the object can be updated |
+| `closed` 🔒 | frozen | frozen | decided — equals `leftClosed ∧ rightClosed` |
+
+These locks govern **overriding under a uniqueness constraint** (see below): freezing a side forces
+**rejection** of any write that would change *that* side, **per direction** — `object_locked` blocks
+replacing the value (`leftUnique`) but allows reassigning the subject (`rightUnique`), and vice versa.
+`closed` remains the "decided" backward-compatible shorthand (both at once).
 | **`secret` 🔑** | **confidential**: encrypted at rest, hidden from normal reads | [`FactVault.setSecret`](/en/access-layer) |
 | **`group`** | attached to an **access group** (permissions) | `.group('finance')` / [`FactAccessControl`](/en/access-layer) |
 | **`companionOf`** | **companion fact** of an owner (profile) | [`CompanionFacts.attach`](/en/components) |
@@ -337,7 +361,7 @@ await kb.tell('alice', 'has_email', 'a@x.com');         // ✅ idempotent — sa
 Keep in mind:
 
 - **Idempotence**: re-asserting the **same** triplet is never a conflict (it just adds a source).
-- **`closed` wins**: if the existing value is locked (🔒 `closed`), any competing write is **rejected**, even under `replace`.
+- **A locked side wins**: if the existing fact is frozen **in the modified direction** (🔒 `closed`, or the matching side lock — `object_locked` for `leftUnique`, `subject_locked` for `rightUnique`), the competing write is **rejected**, even under `replace`.
 - **Backward-compatible**: without `declareUnique`, the predicate stays multi-valued (nothing changes).
 - **`tell` now returns** either a negation contradiction or a uniqueness violation — told apart by `report.kind` (`'negation'` vs `'uniqueness'`).
 - **Declare at startup** (like `defineSymbols`); for **cross-tenant global** uniqueness, the `unique` index on the [persistence](/en/persistence) side handles it (the two compose).
