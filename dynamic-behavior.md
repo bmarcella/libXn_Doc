@@ -132,10 +132,15 @@ est le **nom du flux** (le sujet qui porte `entry`). Un second argument `opts?` 
 |---|---|---|
 | `maxSteps` | budget de pas global — garantit l'arrêt même sur un cycle | `1000` |
 | `context` | contexte d'exécution propre à l'appel : `{ event?, item? }`, substitué aux jetons `$event` / `$item` des `arg.*` (binding UI sans course entre flux concurrents) | `undefined` (aucune substitution) |
+| `allowedTools` | **allowlist au RUNTIME** : itérable des outils autorisés à s'exécuter. Une `action` hors liste est **tracée comme refusée et ignorée** (le flux continue), sans l'exécuter — garde d'exécution qui **double** la validation (`FlowValidator`, qui contrôle *avant*) | `undefined` (aucune restriction) |
 
 `run` est `async` et **retourne la trace** : un `FlowStep[]`, chaque pas portant `{ step, kind, detail }`
 (l'étape, son type `condition`/`switch`/`loop`/`action`/`goto`/`end`, et un détail lisible incluant le
 déclencheur).
+
+> **Isolation des erreurs d'outil.** Si un outil **lève** pendant une `action`, l'erreur est **capturée
+> et tracée** (`… → (erreur outil : …)`) — elle n'interrompt **pas** le flux, qui poursuit à l'étape
+> suivante. Un outil défaillant ne fait jamais tomber tout le comportement.
 
 **`new LayeredKnowledgeBase(primary, parents)`** — la vue dev en couches. Deux arguments : `primary`
 (la KB d'**écriture**, la surcouche dev) et `parents` (un tableau de KB **en lecture seule**, de la

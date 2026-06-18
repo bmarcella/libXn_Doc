@@ -132,10 +132,15 @@ the **flow name** (the subject that carries `entry`). A second `opts?` argument 
 |---|---|---|
 | `maxSteps` | global step budget — guarantees halting even on a cycle | `1000` |
 | `context` | per-call execution context: `{ event?, item? }`, substituted for the `$event` / `$item` tokens in `arg.*` (UI binding with no race between concurrent flows) | `undefined` (no substitution) |
+| `allowedTools` | **RUNTIME allowlist**: iterable of tools permitted to run. An `action` outside the list is **traced as denied and skipped** (the flow continues), without running it — an execution guard that **doubles** validation (`FlowValidator`, which checks *beforehand*) | `undefined` (no restriction) |
 
 `run` is `async` and **returns the trace**: a `FlowStep[]`, each step carrying `{ step, kind, detail }`
 (the step, its kind `condition`/`switch`/`loop`/`action`/`goto`/`end`, and a readable detail including
 the trigger).
+
+> **Tool-error isolation.** If a tool **throws** during an `action`, the error is **caught and traced**
+> (`… → (erreur outil : …)`) — it does **not** abort the flow, which continues to the next step. A
+> failing tool never brings the whole behavior down.
 
 **`new LayeredKnowledgeBase(primary, parents)`** — the layered dev view. Two arguments: `primary` (the
 **write** KB, the dev overlay) and `parents` (an array of **read-only** KBs, from most to least specific
