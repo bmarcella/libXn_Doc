@@ -37,3 +37,7 @@ features:
   - title: Isomorphic & zero-dependency
     details: Runs in Node, the browser, Web Workers. dependencies&#58; {}. Periphery (Three.js, pgvector, embeddings) plugs in via ports.
 ---
+
+::: info npm release — December 21, 2026 at 21:12
+The **QPath / LibXN** code (`@damba/libxn`) will be **published on npm on December 21, 2026 at 21:12**.
+:::

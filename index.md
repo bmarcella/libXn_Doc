@@ -37,3 +37,7 @@ features:
   - title: Isomorphe & zéro dépendance
     details: Tourne en Node, navigateur, Web Worker. dependencies&#58; {}. Périphérie (Three.js, pgvector, embeddings) branchée via des ports.
 ---
+
+::: info Publication npm — 21 décembre 2026 à 21h12
+Le code de **QPath / LibXN** (`@damba/libxn`) sera **publié sur npm le 21 décembre 2026 à 21h12**.
+:::

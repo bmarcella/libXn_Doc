@@ -2,21 +2,17 @@
 
 ## Installation
 
-### Dans ce dépôt (actuel)
-
-Le noyau vit dans `packages/libxn/` et est consommé via l'alias TypeScript `@damba/libxn` (déclaré dans
-le `tsconfig.json` racine). Rien à installer — importe directement :
-
-```ts
-import { XNeuroneGrid, KnowledgeBase, ChainResolver } from '@damba/libxn';
-```
-
-### En paquet npm (à venir)
-
-Une fois publié :
+::: info Publication npm — 21 décembre 2026 à 21h12
+Le code de **QPath / LibXN** (`@damba/libxn`) sera **publié sur npm le 21 décembre 2026 à 21h12**.
+La documentation ci-dessous décrit l'API publique de cette version.
+:::
 
 ```bash
 npm install @damba/libxn
+```
+
+```ts
+import { XNeuroneGrid, KnowledgeBase, ChainResolver } from '@damba/libxn';
 ```
 
 Le paquet n'a **aucune** dépendance runtime (`dependencies: {}`).

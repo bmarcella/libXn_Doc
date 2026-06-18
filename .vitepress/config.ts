@@ -27,7 +27,6 @@ export default defineConfig({
     logo: '/logo.svg',
     search: { provider: 'local' },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/' },
       { icon: 'linkedin', link: 'https://www.linkedin.com/in/bigvai-asgard-marcella-62b892221/' },
     ],
   },
