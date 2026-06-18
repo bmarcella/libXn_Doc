@@ -245,7 +245,7 @@ overlay without touching **prod**, then promote.
 The control flow (conditions, loops, actions) lives in facts; **adding a fact changes behavior with no
 redeploy**, tested in dev and promoted to prod **under validation**.
 
-**Domains.** Deterministic low-code, advanced feature flags, hot-reconfigurable apps. → [Dynamic behavior](dynamic-behavior).
+**Domains.** Deterministic low-code, advanced feature flags, hot-reconfigurable apps. → [Factflow](dynamic-behavior).
 
 ---
 

@@ -184,7 +184,7 @@ mémoire distante, et au coup `TOOL` du PingPong.
 
 ## Et l'exécution de flux ?
 
-**`FlowRunner`** ([Code dynamique](/dynamic-behavior)) n'est **pas** un mode de raisonnement mais un
+**`FlowRunner`** ([Factflow](/dynamic-behavior)) n'est **pas** un mode de raisonnement mais un
 **exécuteur d'actions** : un flot de contrôle (si/alors, switch, boucle bornée) stocké en faits. Ses
 **conditions** sont, elles, des lectures QPath à 0 token — il s'appuie donc sur le raisonnement ci-dessus
 pour décider, puis agit.

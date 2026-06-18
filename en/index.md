@@ -22,7 +22,7 @@ hero:
       text: Overview
       link: /en/00-overview
     - theme: alt
-      text: Dynamic behavior
+      text: Factflow
       link: /en/dynamic-behavior
 
 features:

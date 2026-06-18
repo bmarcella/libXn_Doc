@@ -5,7 +5,7 @@ retrieves and reasons — with no language model at its core, **deterministicall
 
 > **The Damba thesis.** Beyond memory: **an application's behavior IS governed facts** — flows,
 > rules, limits, fraud checks live in facts you query, govern and evolve **at runtime, without
-> redeploying**, deterministically and traceably. See **[dynamic behavior](dynamic-behavior)** and the
+> redeploying**, deterministically and traceably. See **[Factflow](dynamic-behavior)** and the
 > **[ledger](transaction-ledger)** showcase (`npm run example:ledger`).
 
 ::: info LibXN & QPath

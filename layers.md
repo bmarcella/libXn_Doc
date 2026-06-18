@@ -15,7 +15,7 @@ par les mêmes primitives, **le raisonnement opère sur la pile entière sans le
 ## À quoi ça sert
 
 - **Dev / prod** : la prod en base (lecture seule), une **surcouche dev** où l'on teste de nouveaux
-  faits — sans toucher la prod (voir [Code dynamique](dynamic-behavior)).
+  faits — sans toucher la prod (voir [Factflow](dynamic-behavior)).
 - **Multi-locataire** : des **valeurs par défaut** au niveau organisation, **surchargées** par
   utilisateur. Personne ne duplique les défauts ; chacun n'écrit que ses exceptions.
 - **Contexte de conversation** : ce qui est dit dans l'échange en cours vit dans la couche la plus
@@ -127,7 +127,7 @@ Retourne une `ReasoningChain | null` : `null` si aucune conclusion ; sinon `{ st
 - **Garder les couches basses stables et curées** ; concentrer le churn dans la surcouche.
 - **Isoler par compte / locataire** : une surcouche par utilisateur ou tenant ; ne **jamais** partager la couche haute entre comptes (la réinitialiser au changement de compte) — anti-fuite inter-comptes.
 - **Piles peu profondes** : chaque lecture sonde les couches jusqu'à trouver ; éviter les empilements inutiles.
-- **Cycle dev → prod** : tester dans la surcouche, puis **promouvoir** les faits validés vers la base (release taguée, annulable) — voir [Code dynamique](dynamic-behavior).
+- **Cycle dev → prod** : tester dans la surcouche, puis **promouvoir** les faits validés vers la base (release taguée, annulable) — voir [Factflow](dynamic-behavior).
 
 ## Quand l'utiliser
 

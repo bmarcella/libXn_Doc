@@ -1,4 +1,4 @@
-# Code dynamique
+# Factflow
 
 Un mode où **le comportement de l'application vit dans des faits**, pas dans du code figé. Le flot
 de contrôle — conditions, aiguillages, boucles, actions — est stocké comme des faits ordinaires, et
@@ -705,4 +705,4 @@ en faits** a évolué, sous validation et gate.
 | Propriétés, classes, attributs (« qui est quoi ») | déduction symbolique classique |
 | « Pourquoi », « qu'est-ce qui a mené à », « dans quel ordre » | Plot Reasoning |
 | Raisonnement ouvert validé pas à pas | PingPong |
-| **Comportement applicatif modifiable à chaud, testé en dev puis promu en prod** | **Code dynamique** |
+| **Comportement applicatif modifiable à chaud, testé en dev puis promu en prod** | **Factflow** |

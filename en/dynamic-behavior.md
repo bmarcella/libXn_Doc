@@ -1,4 +1,4 @@
-# Dynamic behavior
+# Factflow
 
 A mode where **the application's behavior lives in facts**, not in frozen code. The control flow —
 conditions, switches, loops, actions — is stored as ordinary facts, and an executor walks them.
@@ -698,4 +698,4 @@ evolved — under validation and the gate.
 | Properties, classes, attributes ("who is what") | classic symbolic deduction |
 | "Why", "what led to", "in what order" | Plot Reasoning |
 | Open-ended reasoning validated step by step | PingPong |
-| **Hot-editable app behavior, tested in dev then promoted to prod** | **Dynamic behavior** |
+| **Hot-editable app behavior, tested in dev then promoted to prod** | **Factflow** |

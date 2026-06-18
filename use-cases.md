@@ -242,12 +242,12 @@ tester des faits dans une surcouche **dev** sans toucher la **prod**, puis promo
 
 **Domaines.** SaaS multi-tenant, personnalisation, environnements. → [Sous-couches](layers).
 
-## 14. Code dynamique : le comportement de l'app dans des faits
+## 14. Factflow : le comportement de l'app dans des faits
 
 Le flot de contrôle (conditions, boucles, actions) vit dans des faits ; **ajouter un fait change le
 comportement sans redéployer**, testé en dev et promu en prod **sous validation**.
 
-**Domaines.** Low-code déterministe, feature flags avancés, apps reconfigurables à chaud. → [Code dynamique](dynamic-behavior).
+**Domaines.** Low-code déterministe, feature flags avancés, apps reconfigurables à chaud. → [Factflow](dynamic-behavior).
 
 ---
 

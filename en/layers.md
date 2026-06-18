@@ -15,7 +15,7 @@ same primitives, **reasoning operates over the whole stack without knowing it**.
 ## What it's for
 
 - **Dev / prod**: prod as the base (read-only), a **dev overlay** where you test new facts — without
-  touching prod (see [Dynamic behavior](dynamic-behavior)).
+  touching prod (see [Factflow](dynamic-behavior)).
 - **Multi-tenant**: **default values** at the organization level, **overridden** per user. No one
   duplicates the defaults; each writes only their exceptions.
 - **Conversation context**: what is said in the current exchange lives in the topmost layer, on top
@@ -126,7 +126,7 @@ Returns a `ReasoningChain | null`: `null` if there is no conclusion; otherwise `
 - **Keep the lower layers stable and curated**; concentrate churn in the overlay.
 - **Isolate per account / tenant**: one overlay per user or tenant; **never** share the top layer across accounts (reset it on account switch) — anti cross-account leak.
 - **Shallow stacks**: each read probes layers until it finds a match; avoid needless stacking.
-- **Dev → prod cycle**: test in the overlay, then **promote** the validated facts to the base (tagged release, reversible) — see [Dynamic behavior](dynamic-behavior).
+- **Dev → prod cycle**: test in the overlay, then **promote** the validated facts to the base (tagged release, reversible) — see [Factflow](dynamic-behavior).
 
 ## When to use it
 

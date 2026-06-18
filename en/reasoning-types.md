@@ -182,7 +182,7 @@ API, and the PingPong `TOOL` move.
 
 ## What about flow execution?
 
-**`FlowRunner`** ([Dynamic behavior](/en/dynamic-behavior)) is **not** a reasoning mode but an **action
+**`FlowRunner`** ([Factflow](/en/dynamic-behavior)) is **not** a reasoning mode but an **action
 executor**: a control flow (if/then, switch, bounded loop) stored as facts. Its **conditions**, however,
 are 0-token QPath lookups — so it relies on the reasoning above to decide, then acts.
 
