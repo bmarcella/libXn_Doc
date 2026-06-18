@@ -28,6 +28,7 @@ export default defineConfig({
     search: { provider: 'local' },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/' },
+      { icon: 'linkedin', link: 'https://www.linkedin.com/in/bigvai-asgard-marcella-62b892221/' },
     ],
   },
   locales: {
@@ -67,6 +68,7 @@ export default defineConfig({
             { text: 'Guide de démarrage', link: '/04-guides/getting-started' },
             { text: 'Architecture', link: '/04-guides/architecture' },
           ] },
+          { text: 'Auteur', link: '/author' },
         ],
         sidebar: [
           {
@@ -95,6 +97,7 @@ export default defineConfig({
               { text: 'Démarrer', link: '/04-guides/getting-started' },
               { text: 'Architecture', link: '/04-guides/architecture' },
               { text: 'Premier projet (Express)', link: '/first-project' },
+              { text: 'Auteur', link: '/author' },
             ],
           },
         ],
@@ -140,6 +143,7 @@ export default defineConfig({
             { text: 'Getting started', link: '/en/04-guides/getting-started' },
             { text: 'Architecture', link: '/en/04-guides/architecture' },
           ] },
+          { text: 'Author', link: '/en/author' },
         ],
         sidebar: [
           {
@@ -168,6 +172,7 @@ export default defineConfig({
               { text: 'Getting started', link: '/en/04-guides/getting-started' },
               { text: 'Architecture', link: '/en/04-guides/architecture' },
               { text: 'First project (Express)', link: '/en/first-project' },
+              { text: 'Author', link: '/en/author' },
             ],
           },
         ],
