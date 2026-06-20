@@ -125,8 +125,8 @@ Valeurs possibles de `kind` : `user` · `document` · `web` · `tool` · `llm-ve
 | Type | Sert à | Créer | Utiliser |
 |---|---|---|---|
 | **Négation** `not_p` | **nier** (preuve, pas une absence) | `kb.fact('pingouin','not_vole','vrai').save()` | `kb.checkInherited(...)` → `'no'` |
-| **Identité** `même_que` | deux noms = même entité | `kb.mergeEntities('bob','robert')` | lectures fusionnées |
-| **Non-identité** `distinct_de` | « pas le même Jean » | `kb.splitEntity(...)` | bloque une fusion |
+| **Identité** `same_as` | deux noms = même entité | `kb.mergeEntities('bob','robert')` | lectures fusionnées |
+| **Non-identité** `distinct_from` | « pas le même Jean » | `kb.splitEntity(...)` | bloque une fusion |
 | **Classe** `est` | `chat est animal` → héritage | `kb.fact('chat','est','animal').save()` | `kb.classesOf`, `kb.askInherited` |
 
 **Les opérations de ce tableau, en détail :**
@@ -134,13 +134,13 @@ Valeurs possibles de `kind` : `user` · `document` · `web` · `tool` · `llm-ve
 - `kb.mergeEntities(a, b, source?)` — déclare que deux noms désignent la **même** entité. `a` et `b` sont
   les deux sujets (chaînes obligatoires) ; `source` est une provenance `FactSource` optionnelle (défaut :
   `{ kind: 'user', ref: 'fusion' }`). Retour : `Promise<boolean>` — `false` si la fusion est **refusée**
-  (mêmes noms, ou une non-identité `distinct_de` existe déjà entre eux), `true` sinon.
+  (mêmes noms, ou une non-identité `distinct_from` existe déjà entre eux), `true` sinon.
 - `kb.splitEntity(from, factsToMove, opts?)` — scinde une entité en deux (« pas le même Jean »). `from`
   est le sujet d'origine ; `factsToMove` est la **liste des faits à déplacer** vers la nouvelle entité,
   chacun `{ p, o }` (le sujet est implicitement `from`) ; `opts` est optionnel —
   `{ discriminantNew?, discriminantOld? }` pose un libellé lisible sur chaque entité. Retour :
   `Promise<string>` — l'**id du nouveau sujet** créé. Les faits déplacés sont rétractés côté `from`
-  (archivés, pas effacés) et un `distinct_de` est posé dans les **deux** sens.
+  (archivés, pas effacés) et un `distinct_from` est posé dans les **deux** sens.
 - `kb.checkInherited(s, p, o, maxDepth?)` — vérifie un triplet **avec héritage et exceptions**. Les trois
   premiers arguments sont le triplet à tester ; `maxDepth` borne la remontée d'héritage (défaut **6**).
   Retour : `{ verdict: 'yes' | 'no' | 'unknown'; answer? }` — `'yes'` (affirmé, direct ou hérité),
@@ -214,9 +214,9 @@ kb.matchFacts({ p: 'age', o: '40' });             // [{ s, p, o }, …]
 > dans le filtre.
 
 > **Vocabulaire moteur exclu par défaut.** Les calculs et fonctions texte **ignorent** les faits dont
-> le prédicat est interne (`même_que`, `distinct_de`, `not_*`, `est`/`est_un`/`is`) — `compute({ s: 'bob' })`
-> ne compte pas les `même_que` créés par une fusion. Pour les réintégrer : `{ …, excludeReserved: false }`.
-> Test direct : `KnowledgeBase.isReservedPredicate('même_que') // true`.
+> le prédicat est interne (`same_as`, `distinct_from`, `not_*`, `est`/`est_un`/`is`) — `compute({ s: 'bob' })`
+> ne compte pas les `same_as` créés par une fusion. Pour les réintégrer : `{ …, excludeReserved: false }`.
+> Test direct : `KnowledgeBase.isReservedPredicate('same_as') // true`.
 
 Fonctions (valeurs possibles de `fn`) : **`count` · `sum` · `avg` · `min` · `max` · `median` ·
 `variance` · `stddev` · `range`** (variance/écart-type **populationnels**).

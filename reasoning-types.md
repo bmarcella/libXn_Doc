@@ -1,6 +1,6 @@
 # Types de raisonnement
 
-Damba ne « raisonne » pas d'une seule façon. QPath offre une **famille de modes de raisonnement**,
+QPath ne « raisonne » pas d'une seule façon. QPath offre une **famille de modes de raisonnement**,
 tous appliqués à la même représentation — des faits `(sujet, prédicat, objet)` indexés dans la grille.
 Chaque mode a un **coût en tokens explicite** : soit **0 token** (déterministe, calculé sur les faits),
 soit **LLM** (uniquement quand le déterministe ne suffit pas).
@@ -13,21 +13,21 @@ soit **LLM** (uniquement quand le déterministe ne suffit pas).
 
 ## Tableau récapitulatif
 
-| Famille | Mode / API | Coût | Répond à |
-|---|---|---|---|
-| Lecture directe | `ask`, `askInverse`, `askWithCounts` | **0** | « Quelle est la valeur de (s, p) ? », « Qui a (p, o) ? » |
-| Héritage & transitivité | `reason`, `classesOf`, `askInherited`, `checkInherited`, `askDeep`, `isA` | **0** | « X est-il un Y ? », « X hérite-t-il de cet attribut ? » (avec exceptions) |
-| Backward chaining | `ChainResolver` + `PredicateAlgebra` | **0** | « Relie X à un objet par le prédicat composé P » (plus courte chaîne) |
-| Forward chaining | `RuleEngine` (+ `RuleInducer`, `RelationTaxonomy`) | **0** | « Dès qu'on sait A, on en déduit B » (règles si…alors) |
-| Ensemblistes | `askIntersect`, `askUnion`, `askDifference`, `askCompare`, `askSimilar` | **0** | « Qui satisfait A ET B ? », « En quoi X et Y diffèrent ? » |
-| Numériques & quantificateurs | `askNumeric`, `aggregate`, `aggregateAll`, `compute`, `stats`, `forAll`, `exists` | **0** | « Combien ? Moyenne ? Tous/au moins un ? » |
-| Temporel | `valueAsOf`, `factAsOf`, `historyOf`, `statusOf` | **0** | « Qu'était la valeur à telle date ? A-t-elle changé ? Est-elle périmée ? » |
-| Questions en langage naturel | `deterministicAnswer` | **0** | « Combien de… ? Moyenne de… ? Historique de… ? » |
-| Causal & narratif | `PlotReasoner` (`why`, `consequencesOf`, `timeline`, `incoherences`) | **0** | « Pourquoi ? Quelles conséquences ? Dans quel ordre ? » |
-| Proactif (sans question) | `InsightEngine`, `findContradictions` | **0** | « Qu'est-ce qui cloche / manque / se contredit ? » |
-| Vérification & fraîcheur | `FactVerifier` | **0** mécanique (+ canaux) | « Ce fait tient-il encore ? » |
-| Analogie structurelle | `PathAlgebra` | **0** | « A est à B ce que C est à… ? » |
-| **Hybride LLM ↔ QPath** | `PingPongReasoner` | **LLM** (ancré) | Questions ouvertes ; chaque pas vérifié par QPath |
+| Famille                      | Mode / API                                                                        | Coût                       | Répond à                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------- | -------------------------- | -------------------------------------------------------------------------- |
+| Lecture directe              | `ask`, `askInverse`, `askWithCounts`                                              | **0**                      | « Quelle est la valeur de (s, p) ? », « Qui a (p, o) ? »                   |
+| Héritage & transitivité      | `reason`, `classesOf`, `askInherited`, `checkInherited`, `askDeep`, `isA`         | **0**                      | « X est-il un Y ? », « X hérite-t-il de cet attribut ? » (avec exceptions) |
+| Backward chaining            | `ChainResolver` + `PredicateAlgebra`                                              | **0**                      | « Relie X à un objet par le prédicat composé P » (plus courte chaîne)      |
+| Forward chaining             | `RuleEngine` (+ `RuleInducer`, `RelationTaxonomy`)                                | **0**                      | « Dès qu'on sait A, on en déduit B » (règles si…alors)                     |
+| Ensemblistes                 | `askIntersect`, `askUnion`, `askDifference`, `askCompare`, `askSimilar`           | **0**                      | « Qui satisfait A ET B ? », « En quoi X et Y diffèrent ? »                 |
+| Numériques & quantificateurs | `askNumeric`, `aggregate`, `aggregateAll`, `compute`, `stats`, `forAll`, `exists` | **0**                      | « Combien ? Moyenne ? Tous/au moins un ? »                                 |
+| Temporel                     | `valueAsOf`, `factAsOf`, `historyOf`, `statusOf`                                  | **0**                      | « Qu'était la valeur à telle date ? A-t-elle changé ? Est-elle périmée ? » |
+| Questions en langage naturel | `deterministicAnswer`                                                             | **0**                      | « Combien de… ? Moyenne de… ? Historique de… ? »                           |
+| Causal & narratif            | `PlotReasoner` (`why`, `consequencesOf`, `timeline`, `incoherences`)              | **0**                      | « Pourquoi ? Quelles conséquences ? Dans quel ordre ? »                    |
+| Proactif (sans question)     | `InsightEngine`, `findContradictions`                                             | **0**                      | « Qu'est-ce qui cloche / manque / se contredit ? »                         |
+| Vérification & fraîcheur     | `FactVerifier`                                                                    | **0** mécanique (+ canaux) | « Ce fait tient-il encore ? »                                              |
+| Analogie structurelle        | `PathAlgebra`                                                                     | **0**                      | « A est à B ce que C est à… ? »                                            |
+| **Hybride LLM ↔ QPath**      | `PingPongReasoner`                                                                | **LLM** (ancré)            | Questions ouvertes ; chaque pas vérifié par QPath                          |
 
 Les sections ci-dessous **définissent** chaque famille. Les modes qui ont leur propre page y renvoient.
 
@@ -81,7 +81,7 @@ prédicats. Voir aussi **[Flash reasoning](/flash-reasoning)**.
 À l'inverse : dès qu'un fait est écrit, on **dérive** ses conséquences. Voir **[Composants](/components)**.
 
 - **`RuleEngine`** — règles multi-variables façon Datalog : `X est humain ; X habite france => X parle
-  francais`. À chaque `tell`, les règles qui matchent ajoutent leurs conclusions comme **faits dérivés**
+francais`. À chaque `tell`, les règles qui matchent ajoutent leurs conclusions comme **faits dérivés**
   (provenance tracée), avec garde-fous contre les cascades infinies.
 - **`RuleInducer`** — **découvre** des règles candidates en minant les régularités de la base (avec
   support, confiance et **contre-exemples** explicites) — à valider par un humain. 0 token.
@@ -189,6 +189,6 @@ mémoire distante, et au coup `TOOL` du PingPong.
 **conditions** sont, elles, des lectures QPath à 0 token — il s'appuie donc sur le raisonnement ci-dessus
 pour décider, puis agit.
 
-> En résumé : Damba est **précis par construction** (le raisonnement déterministe couvre l'immense
+> En résumé : QPath est **précis par construction** (le raisonnement déterministe couvre l'immense
 > majorité des questions, à 0 token) **et** augmenté d'intelligence **à la demande** (le LLM, ancré, pour
 > l'ouvert) — le tout **auditable** (chaque conclusion porte sa chaîne et sa provenance).
