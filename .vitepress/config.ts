@@ -40,6 +40,7 @@ export default defineConfig({
         nav: [
           { text: 'Aperçu', link: '/00-overview' },
           { text: 'Pourquoi QPath', link: '/why-qpath' },
+          { text: 'Connaissance discrète', link: '/discrete-knowledge' },
           { text: 'Performance & garanties', link: '/performance' },
           { text: 'Raisonnement', items: [
             { text: 'Types de raisonnement', link: '/reasoning-types' },
@@ -76,6 +77,7 @@ export default defineConfig({
             items: [
               { text: 'Aperçu', link: '/00-overview' },
               { text: 'Pourquoi QPath', link: '/why-qpath' },
+              { text: 'Connaissance discrète', link: '/discrete-knowledge' },
               { text: 'Performance & garanties', link: '/performance' },
               { text: 'Composants clés', link: '/components' },
               { text: 'Types de faits', link: '/fact-types' },
@@ -117,6 +119,7 @@ export default defineConfig({
         nav: [
           { text: 'Overview', link: '/en/00-overview' },
           { text: 'Why QPath', link: '/en/why-qpath' },
+          { text: 'Discrete knowledge', link: '/en/discrete-knowledge' },
           { text: 'Performance & guarantees', link: '/en/performance' },
           { text: 'Reasoning', items: [
             { text: 'Reasoning types', link: '/en/reasoning-types' },
@@ -153,6 +156,7 @@ export default defineConfig({
             items: [
               { text: 'Overview', link: '/en/00-overview' },
               { text: 'Why QPath', link: '/en/why-qpath' },
+              { text: 'Discrete knowledge', link: '/en/discrete-knowledge' },
               { text: 'Performance & guarantees', link: '/en/performance' },
               { text: 'Key components', link: '/en/components' },
               { text: 'Fact types', link: '/en/fact-types' },
