@@ -43,8 +43,9 @@ export default defineConfig({
             { text: 'Pourquoi QPath', link: '/why-qpath' },
             { text: 'Connaissance discrète', link: '/discrete-knowledge' },
             { text: 'Compréhension', link: '/comprehension' },
+            { text: 'Performance & garanties', link: '/performance' },
+            { text: 'Auteur', link: '/author' },
           ] },
-          { text: 'Performance & garanties', link: '/performance' },
           { text: 'Raisonnement', items: [
             { text: 'Types de raisonnement', link: '/reasoning-types' },
             { text: 'Flash reasoning', link: '/flash-reasoning' },
@@ -75,7 +76,6 @@ export default defineConfig({
             { text: 'Guide de démarrage', link: '/04-guides/getting-started' },
             { text: 'Architecture', link: '/04-guides/architecture' },
           ] },
-          { text: 'Auteur', link: '/author' },
         ],
         sidebar: [
           {
@@ -132,8 +132,9 @@ export default defineConfig({
             { text: 'Why QPath', link: '/en/why-qpath' },
             { text: 'Discrete knowledge', link: '/en/discrete-knowledge' },
             { text: 'Comprehension', link: '/en/comprehension' },
+            { text: 'Performance & guarantees', link: '/en/performance' },
+            { text: 'Author', link: '/en/author' },
           ] },
-          { text: 'Performance & guarantees', link: '/en/performance' },
           { text: 'Reasoning', items: [
             { text: 'Reasoning types', link: '/en/reasoning-types' },
             { text: 'Flash reasoning', link: '/en/flash-reasoning' },
@@ -163,7 +164,6 @@ export default defineConfig({
             { text: 'Getting started', link: '/en/04-guides/getting-started' },
             { text: 'Architecture', link: '/en/04-guides/architecture' },
           ] },
-          { text: 'Author', link: '/en/author' },
         ],
         sidebar: [
           {
