@@ -70,6 +70,54 @@ The fetched candidate **never** touches the reference memory directly:
 > by an **explicit human decision**, and each filled-in fact keeps the URL/identifier of its source —
 > auditable and purgeable.
 
+## API in practice
+
+The `DeductiveGenerator` is instantiated over a `KnowledgeBase`. The external gap resolver (web…) is
+**injected** — absent, generation is **fully offline and deterministic**.
+
+```ts
+import { KnowledgeBase, XNeuroneGrid } from '@damba/libxn';
+import { DeductiveGenerator, type GapResolverPort } from '@damba/libxn-generative';
+
+const kb = new KnowledgeBase(new XNeuroneGrid(undefined, { headless: true }));
+await kb.tell('main.ts', 'compile_to', 'main.js');
+await kb.tell('util.ts', 'compile_to', 'util.js');
+await kb.tell('socrates', 'is', 'human');
+await kb.tell('human', 'has', 'reason');
+
+// EXTERNAL gap resolver (web…) — LAST resort. Absent ⇒ offline, 0 tokens, 0 network.
+const resolver: GapResolverPort = {
+  async resolve(gap) {
+    if (gap.kind === 'fact' && gap.s === 'tokyo' && gap.p === 'country') {
+      return [{ s: 'tokyo', p: 'country', o: 'japan', confidence: 0.88, ref: 'https://…' }];
+    }
+    return [];
+  },
+};
+
+const gen = new DeductiveGenerator(kb, { resolver, seed: 'demo' });
+
+// 1) Structural analogy — deduces "app.js" from the known examples.
+const a = await gen.analogize('app.ts', 'compile_to');
+//    → { items: ['app.js'], trace: [{ via: 'analogy', detail: '…' }] }
+
+// 2) Inheritance — attribute inherited from the class (with exceptions).
+await gen.inherit('socrates', 'has');              // → { items: ['reason'], … }  (via "human")
+
+// 3) Synthetic data — from LEARNED distributions, reproducible with a fixed seed.
+gen.synthesize({ fields: [{ name: 'city', predicate: 'city' }] }, 5);
+
+// 4) GROUNDED gap-fill → QUARANTINE → HUMAN promotion.
+await gen.analogize('tokyo', 'country');           // gap filled via the resolver (memory first)
+gen.pendingPromotions();                           // → [{ s:'tokyo', p:'country', o:'japan', confidence:0.88, ref }]
+kb.ask('tokyo', 'country');                        // → []      (NOTHING in prod before validation)
+await gen.promote('tokyo', 'country', 'japan');    // ← HUMAN action
+kb.ask('tokyo', 'country');                        // → ['japan']  (promoted, with provenance)
+```
+
+> To also search ingested documents and org/user memory before the web, pass concrete KBs as
+> `parents`, and a `scope` for RBAC: `new DeductiveGenerator(kb, { parents, scope, resolver, seed })`.
+
 ## Examples
 
 **1. Structural analogy** — generate by transformation, from known examples:
