@@ -51,3 +51,71 @@ validation…). The order is intentional:
 
 The outcome is summarized for the user, and **everything is reversible** (temporal archive). Memory
 stays **dense and reliable** with no manual upkeep.
+
+## API in practice
+
+Both components operate on a `KnowledgeBase`. They expose a **dry-run** (`scan`, changes nothing) and
+an **apply** step (`collect` / `apply`).
+
+### Garbage Collector
+
+```ts
+import { FactGarbageCollector } from '@damba/libxn';
+
+const gc = new FactGarbageCollector(kb);
+
+// 1) Inspect without removing anything.
+const candidates = gc.scan();
+//    → [{ s, p, o, rule: 'non-entity-subject', reason: '…' }, …]
+
+// 2) Collect: retract (archive) the junk, returns a report.
+const report = gc.collect();
+//    → { scanned, collected: [...], protectedSkipped }
+```
+
+Defaults are **conservative** (language-aware via the language pack). You can add domain rules — e.g.
+"oversized object" (off by default, since length ≠ meaninglessness):
+
+```ts
+import { oversizedObjectRule } from '@damba/libxn';
+
+new FactGarbageCollector(kb, { extraRules: [oversizedObjectRule(280)] }).collect();
+```
+
+### FactAdjuster
+
+It re-reads the **source context** through a small `ContextResolver` port supplied by the host (a chat
+turn, a document passage…):
+
+```ts
+import { FactAdjuster, type ContextResolver } from '@damba/libxn';
+
+const resolver: ContextResolver = {
+  contextFor: (fact) => documentTextFor(fact),   // ← the host knows where the fact came from
+};
+
+const adjuster = new FactAdjuster(kb, resolver);
+adjuster.scan();          // proposed fixes (dry-run)
+await adjuster.apply();   // retract the old + write the corrected one
+//    → { adjusted: [{ before, after, reason }, …] }
+```
+
+### Recommended order
+
+```ts
+// 1) Repair what is recoverable, THEN 2) erase what is still worthless.
+await new FactAdjuster(kb, resolver).apply();
+new FactGarbageCollector(kb).collect();
+```
+
+## When to use
+
+- **After ingesting a large document** (a book, a case file) — that's where unresolved pronouns and
+  fragments appear. A background worker chains `buildDocumentPlan` → `FactAdjuster` →
+  `FactGarbageCollector`, then persists: memory is clean without blocking the user.
+- **As periodic upkeep** of a large memory — a regular pass keeps the base dense.
+- **On demand** — an explicit action ("clean up memory") runs the same pass and reports the outcome.
+
+> **Do not use it to** retouch *correct-but-imperfect* facts (wording, casing). The GC touches **only**
+> the meaningless; the adjuster **only** what it can deduce **unambiguously**. For an arbitrary human
+> correction, use regular fact editing.

@@ -38,10 +38,12 @@ export default defineConfig({
       description: 'QPath — mémoire symbolique adressable par contenu, en un seul graphe.',
       themeConfig: {
         nav: [
-          { text: 'Aperçu', link: '/00-overview' },
-          { text: 'Pourquoi QPath', link: '/why-qpath' },
-          { text: 'Connaissance discrète', link: '/discrete-knowledge' },
-          { text: 'Compréhension', link: '/comprehension' },
+          { text: 'Introduction', items: [
+            { text: 'Aperçu', link: '/00-overview' },
+            { text: 'Pourquoi QPath', link: '/why-qpath' },
+            { text: 'Connaissance discrète', link: '/discrete-knowledge' },
+            { text: 'Compréhension', link: '/comprehension' },
+          ] },
           { text: 'Performance & garanties', link: '/performance' },
           { text: 'Raisonnement', items: [
             { text: 'Types de raisonnement', link: '/reasoning-types' },
@@ -103,6 +105,7 @@ export default defineConfig({
               { text: 'Sous-couches (mémoire en couches)', link: '/layers' },
               { text: 'Outils (Tools)', link: '/tools' },
               { text: 'Provenance & revérification', link: '/fact-provenance' },
+              { text: 'Hygiène des faits (GC & Ajuster)', link: '/fact-maintenance' },
               { text: 'Persistance', link: '/persistence' },
               { text: 'Démarrer', link: '/04-guides/getting-started' },
               { text: 'Architecture', link: '/04-guides/architecture' },
@@ -124,10 +127,12 @@ export default defineConfig({
       description: 'QPath — a content-addressable symbolic memory, in a single graph.',
       themeConfig: {
         nav: [
-          { text: 'Overview', link: '/en/00-overview' },
-          { text: 'Why QPath', link: '/en/why-qpath' },
-          { text: 'Discrete knowledge', link: '/en/discrete-knowledge' },
-          { text: 'Comprehension', link: '/en/comprehension' },
+          { text: 'Introduction', items: [
+            { text: 'Overview', link: '/en/00-overview' },
+            { text: 'Why QPath', link: '/en/why-qpath' },
+            { text: 'Discrete knowledge', link: '/en/discrete-knowledge' },
+            { text: 'Comprehension', link: '/en/comprehension' },
+          ] },
           { text: 'Performance & guarantees', link: '/en/performance' },
           { text: 'Reasoning', items: [
             { text: 'Reasoning types', link: '/en/reasoning-types' },

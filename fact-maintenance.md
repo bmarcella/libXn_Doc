@@ -53,3 +53,72 @@ d'un document, validation de faits…). L'ordre est volontaire :
 
 Le résultat est résumé à l'utilisateur, et **tout est annulable** (archive temporelle). La mémoire
 reste ainsi **dense et fiable** sans intervention manuelle.
+
+## L'API en pratique
+
+Les deux composants opèrent sur une `KnowledgeBase`. Ils exposent un **dry-run** (`scan`, ne modifie
+rien) et une **application** (`collect` / `apply`).
+
+### Garbage Collector
+
+```ts
+import { FactGarbageCollector } from '@damba/libxn';
+
+const gc = new FactGarbageCollector(kb);
+
+// 1) Inspecter sans rien retirer (réversible de toute façon, mais utile pour décider).
+const candidates = gc.scan();
+//    → [{ s, p, o, rule: 'non-entity-subject', reason: '…' }, …]
+
+// 2) Ramasser : retract (archive) le déchet, renvoie un rapport.
+const report = gc.collect();
+//    → { scanned, collected: [...], protectedSkipped }
+```
+
+Règles **conservatrices** par défaut (langue-aware via le pack de langue). On peut en ajouter pour un
+domaine — par exemple « objet trop long » (désactivée par défaut, car longueur ≠ absence de sens) :
+
+```ts
+import { oversizedObjectRule } from '@damba/libxn';
+
+new FactGarbageCollector(kb, { extraRules: [oversizedObjectRule(280)] }).collect();
+```
+
+### FactAdjuster
+
+Il relit le **contexte source** via un petit port `ContextResolver` que l'hôte fournit (un tour de
+chat, un passage de document…) :
+
+```ts
+import { FactAdjuster, type ContextResolver } from '@damba/libxn';
+
+const resolver: ContextResolver = {
+  contextFor: (fact) => documentTextFor(fact),   // ← l'hôte sait d'où vient le fait
+};
+
+const adjuster = new FactAdjuster(kb, resolver);
+adjuster.scan();          // corrections PROPOSÉES (dry-run)
+await adjuster.apply();   // retract l'ancien + écrit le corrigé
+//    → { adjusted: [{ before, after, reason }, …] }
+```
+
+### L'ordre recommandé
+
+```ts
+// 1) Réparer ce qui est récupérable, PUIS 2) effacer ce qui reste sans valeur.
+await new FactAdjuster(kb, resolver).apply();
+new FactGarbageCollector(kb).collect();
+```
+
+## Quand l'utiliser
+
+- **Après l'ingestion d'un gros document** (un livre, un dossier) — c'est là que naissent les pronoms
+  non résolus et les fragments. Un worker en tâche de fond enchaîne `buildDocumentPlan` → `FactAdjuster`
+  → `FactGarbageCollector`, puis persiste : la mémoire est propre sans bloquer l'utilisateur.
+- **En entretien périodique** d'une grosse mémoire — un passage régulier garde la base dense.
+- **Sur commande** — une action explicite (« nettoie la mémoire ») déclenche la même passe et en
+  rapporte le bilan.
+
+> **À ne pas utiliser pour** : retoucher des faits *corrects mais imparfaits* (formulation, casse). Le
+> GC ne touche **que** le sans-sens ; l'Adjuster **que** ce qu'il peut déduire **sans ambiguïté**. Pour
+> une correction humaine arbitraire, passez par l'édition de fait classique.
