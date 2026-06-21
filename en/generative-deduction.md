@@ -41,12 +41,21 @@ It is the opposite of a "box that writes": it is a **box that deduces, and shows
 All modes are **0 tokens** as long as known facts are deduced. Only **filling** a missing link may call
 an external source — and only if the host has wired one in.
 
-## Filling missing links — without polluting memory
+## Filling missing links — memory first, web last
 
 When deduction **stalls** (no value for `(subject, predicate)`, unknown parent class, synonym needed),
-the engine may ask an **external source injected by the host** (e.g. a web search) for the missing
-piece. The core knows nothing about that source: it enters through a **port**, never a dependency — the
-package stays portable and deterministic.
+the engine does **not** rush to the web. It first looks for the missing piece, by **pure deduction
+(0 tokens)**, across **all the knowledge it can reach**, from most specific to broadest:
+
+1. the **conversation** and **ingested documents**;
+2. the **user's** memory;
+3. the **organization's** memory;
+4. the **shared knowledge / packs**.
+
+Direct read, inheritance, analogy, approximate resolution and synonyms **traverse all these layers**
+before any external call. **Only** if none of these sources knows does the engine reach for an
+**external source injected by the host** (e.g. a web search). The core knows nothing about that source:
+it enters through a **port**, never a dependency — the package stays portable and deterministic.
 
 The fetched candidate **never** touches the reference memory directly:
 

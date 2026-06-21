@@ -42,12 +42,23 @@ C'est l'opposé d'une « boîte qui écrit » : c'est une **boîte qui déduit, 
 Tous les modes sont **0 token** tant qu'on déduit du connu. Seul le **comblement** d'un maillon
 manquant peut solliciter une source externe — et uniquement si l'hôte en a branché une.
 
-## Combler les maillons manquants — sans polluer la mémoire
+## Combler les maillons manquants — d'abord la mémoire, le web en dernier
 
 Quand la déduction **cale** (aucune valeur pour `(sujet, prédicat)`, classe parente inconnue, synonyme
-requis), le moteur peut demander la pièce manquante à une **source externe injectée par l'hôte** (par
-exemple une recherche web). Le cœur ne sait rien de cette source : elle entre par un **port**, jamais
-par une dépendance — le paquet reste portable et déterministe.
+requis), le moteur ne court **pas** directement sur le web. Il cherche d'abord la pièce manquante, par
+**déduction pure (0 token)**, dans **toute la connaissance qu'il peut atteindre**, du plus spécifique au
+plus large :
+
+1. la **conversation** et les **documents ingérés** ;
+2. la mémoire **de l'utilisateur** ;
+3. la mémoire **de l'organisation** ;
+4. la **connaissance partagée / les packs**.
+
+Lecture directe, héritage, analogie, résolution approchée et synonymes **traversent toutes ces couches**
+avant tout appel externe. Ce n'est **que** si aucune de ces sources ne sait que le moteur sollicite une
+**source externe injectée par l'hôte** (par exemple une recherche web). Le cœur ne sait rien de cette
+source : elle entre par un **port**, jamais par une dépendance — le paquet reste portable et
+déterministe.
 
 Le candidat récupéré ne touche **jamais** la mémoire de référence directement :
 
