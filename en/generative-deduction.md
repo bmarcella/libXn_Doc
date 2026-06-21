@@ -70,6 +70,59 @@ The fetched candidate **never** touches the reference memory directly:
 > by an **explicit human decision**, and each filled-in fact keeps the URL/identifier of its source —
 > auditable and purgeable.
 
+## Examples
+
+**1. Structural analogy** — generate by transformation, from known examples:
+
+```
+main.ts  compile_en  main.js
+util.ts  compile_en  util.js
+```
+`analogize("app.ts", "compile_en")` → **app.js** *(via analogy, confidence 1.00)*
+
+**2. Inheritance** — an attribute deduced from the class (with exceptions):
+
+```
+socrates  is   human
+human     has  reason
+```
+`inherit("socrates", "has")` → **reason** *(inherited from "human", distance 1)*
+
+**3. Synthetic data** — plausible rows, never invented, following the **real proportions**:
+
+```
+p1 city paris · p2 city paris · p3 city lyon
+```
+`synthesize({ city }, 5)` → 5 rows where `city ∈ {paris, lyon}` in the same proportions as memory —
+**reproducible** with a fixed seed.
+
+**4. Grounded fill — memory first, web last** — `analogize("tokyo", "country")`:
+
+- if an **ingested document** or the **org/user** memory already holds "Tokyo → Japan" → **direct
+  answer, 0 tokens, no web**;
+- otherwise the engine queries the external source → candidate `tokyo country japan` placed in
+  **quarantine** (web provenance, never "decided") → a human **promotes** (the fact joins memory) or
+  **rejects**.
+
+**5. Synonym on demand** — `resolveSynonym("ai")` → **artificial_intelligence** (`same_as` alias): read
+from memory if known, otherwise filled then promoted by a human.
+
+> Every output comes back with its **trace**: `direct` / `approx` / `inherited` / `analogy` /
+> `recombination` / `gap-filled` — you always know *why* a piece was produced.
+
+## Use cases
+
+| Situation | What grounded deduction brings |
+|-----------|--------------------------------|
+| Derive coherent variants/skeletons from examples (code, configs, labels) | deterministic **structural analogy** |
+| Complete a record/entity from similar entities | **inheritance** + **analogy** |
+| Build realistic test/demo datasets **without inventing** | **synthetic data** (learned distributions) |
+| Extend knowledge of a topic, leaning first on **documents** and **org/user** memory, web only if needed | **grounded fill** → quarantine → human promotion |
+| Reconcile terms (synonyms/aliases) | `resolveSynonym` (`same_as`) |
+
+> ❌ **When not to use it.** For **fluent free prose**, that's not the goal (see below): the strength is
+> the **structured, the deductive and data**.
+
 ## Determinism & reproducibility
 
 The generative walk relies on an **injectable** random source: with no seed, the usual behavior; with a

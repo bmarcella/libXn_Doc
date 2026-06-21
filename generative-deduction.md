@@ -73,6 +73,58 @@ Le candidat récupéré ne touche **jamais** la mémoire de référence directem
 > que par une **décision humaine explicite**, et chaque fait comblé conserve l'URL/identifiant de sa
 > source — auditável et purgeable.
 
+## Exemples
+
+**1. Analogie structurelle** — générer par transformation, à partir d'exemples connus :
+
+```
+main.ts  compile_en  main.js
+util.ts  compile_en  util.js
+```
+`analogize("app.ts", "compile_en")` → **app.js** *(via analogie, confiance 1.00)*
+
+**2. Héritage** — un attribut déduit de la classe (avec exceptions) :
+
+```
+socrate  est  humain
+humain   a    raison
+```
+`inherit("socrate", "a")` → **raison** *(hérité de « humain », distance 1)*
+
+**3. Données synthétiques** — des lignes plausibles, jamais inventées, selon les **proportions réelles** :
+
+```
+p1 ville paris · p2 ville paris · p3 ville lyon
+```
+`synthesize({ ville }, 5)` → 5 lignes où `ville ∈ {paris, lyon}` dans les mêmes proportions que la
+mémoire — **reproductible** à graine fixe.
+
+**4. Comblement ancré — la mémoire d'abord, le web en dernier** — `analogize("tokyo", "pays")` :
+
+- si un **document ingéré** ou la mémoire **org/user** contient déjà « Tokyo → Japon » → réponse
+  **directe, 0 token, sans web** ;
+- sinon, le moteur interroge la source externe → candidat `tokyo pays japon` **mis en quarantaine**
+  (provenance web, jamais « décidé ») → l'humain **promeut** (le fait rejoint la mémoire) ou **rejette**.
+
+**5. Synonyme à la demande** — `resolveSynonym("ia")` → **intelligence_artificielle** (alias `same_as`) :
+lu dans la mémoire s'il est connu, sinon comblé puis promu par un humain.
+
+> Chaque sortie revient avec sa **trace** : `direct` / `approx` / `inherited` / `analogy` /
+> `recombination` / `gap-filled` — on sait toujours *pourquoi* une pièce a été produite.
+
+## Cas d'usage
+
+| Situation | Ce que la déduction générative apporte |
+|-----------|----------------------------------------|
+| Décliner des variantes/squelettes cohérents à partir d'exemples (code, configs, libellés) | **analogie** structurelle, déterministe |
+| Compléter une fiche/entité à partir d'entités semblables | **héritage** + **analogie** |
+| Fabriquer des jeux de test/démo réalistes **sans inventer** | **données synthétiques** (distributions apprises) |
+| Étendre la connaissance d'un sujet en s'appuyant d'abord sur les **documents** et la mémoire **org/user**, le web seulement si nécessaire | **comblement ancré** → quarantaine → promotion humaine |
+| Réconcilier des termes (synonymes/alias) | `resolveSynonym` (`same_as`) |
+
+> ❌ **Quand ne pas l'utiliser.** Pour de la **prose libre fluide**, ce n'est pas l'objectif (voir plus
+> bas) : la force est le **structuré, le déductif et les données**.
+
 ## Déterminisme & reproductibilité
 
 La marche générative s'appuie sur une source d'aléa **injectable** : sans graine, comportement habituel ;
