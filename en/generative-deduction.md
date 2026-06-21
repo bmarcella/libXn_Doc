@@ -118,6 +118,209 @@ kb.ask('tokyo', 'country');                        // → ['japan']  (promoted, 
 > To also search ingested documents and org/user memory before the web, pass concrete KBs as
 > `parents`, and a `scope` for RBAC: `new DeductiveGenerator(kb, { parents, scope, resolver, seed })`.
 
+## Function reference
+
+Each function is described with its **signature**, its **parameters** and an **example**.
+
+### Build the generator — `new DeductiveGenerator(kb, options?)`
+
+| Parameter | Type | Default | Role |
+| --- | --- | --- | --- |
+| `kb` | `KnowledgeBase` | — | Working memory (conversation + ingested documents). Its **grid** powers recombination and completion. |
+| `options.parents` | `KnowledgeBase[]` | `[]` | **Extra** rings searched by pure deduction BEFORE the web (user, org, generic, packs memory). **Concrete** KBs. |
+| `options.scope` | `GenerationScope` | allow all | **Authorization (RBAC)** + **domain isolation**: filters every fact read/emitted/filled. |
+| `options.gapFlags` | `FactFlags` | `{}` | Flags (`group`/domain) stamped on **filled** facts → they stay scoped once promoted. |
+| `options.resolver` | `GapResolverPort` | — | **External** source (web…), injected. **Last resort.** Absent ⇒ fully offline, deterministic. |
+| `options.seed` | `string \| number` | constant | Reproducibility **seed** (same seed → same output). |
+| `options.maxGaps` | `number` | `8` | Cap on **external calls** over the generator's lifetime. |
+
+```ts
+const gen = new DeductiveGenerator(kb, {
+  parents: [userKb, orgKb],
+  scope: composeScopes(groupScope({ allowedGroups: ['chem-team'] }), domainScope({ domain: 'chemistry' })),
+  gapFlags: { group: 'chem-team' },
+  resolver: webResolver,
+  seed: 'report-2026',
+});
+```
+
+### The common result — `GenResult`
+
+Every generation function returns **the same shape**:
+
+```ts
+interface GenResult<T> {
+  items: T[];               // the produced elements
+  trace: DeductionStep[];   // WHY each element was produced
+  gapsFilled: FilledGap[];  // links filled (quarantined, pending validation)
+  pendingGaps: Gap[];       // gaps NOT filled (resolver absent / exhausted)
+}
+interface DeductionStep {
+  via: 'direct' | 'approx' | 'inherited' | 'analogy' | 'recombination' | 'gap-filled';
+  fact?: { s: string; p: string; o: string };  // the fact used
+  detail?: string;                              // human-readable explanation
+}
+```
+
+### `analogize(s, p)` — deduce by structural analogy
+
+Deduces the object of `(s, p)` when it is a **structural transformation** of the subject. Internal
+order: direct read → approximate resolution → analogy → external fill.
+
+| Parameter | Type | Role |
+| --- | --- | --- |
+| `s` | `string` | The **subject** whose object you want (e.g. `'contract.pdf'`). |
+| `p` | `string` | The **predicate** / relation (e.g. `'export_to'`). |
+
+**Returns:** `Promise<GenResult<string>>` — `items` = the deduced object.
+
+```ts
+await kb.tell('invoice.pdf', 'export_to', 'invoice.csv');
+await kb.tell('quote.pdf',   'export_to', 'quote.csv');
+
+const r = await gen.analogize('contract.pdf', 'export_to');
+r.items;          // → ['contract.csv']
+r.trace[0].via;   // → 'analogy'
+```
+
+### `inherit(s, p)` — deduce by class inheritance
+
+Walks the classes of `s` (`est`/`subclass_of`…) and returns the **inherited** attribute `p`, honoring
+**exceptions** (a closer `not_p` blocks a farther `p`).
+
+| Parameter | Type | Role |
+| --- | --- | --- |
+| `s` | `string` | The **instance** (e.g. `'socrates'`). |
+| `p` | `string` | The **attribute** sought (e.g. `'has'`). |
+
+**Returns:** `Promise<GenResult<string>>` — `items` = inherited values.
+
+```ts
+await kb.tell('socrates', 'is',  'human');
+await kb.tell('human',    'has', 'reason');
+
+const r = await gen.inherit('socrates', 'has');
+r.items;          // → ['reason']     (via 'inherited', decided by "human")
+```
+
+### `recombine(seed, options?)` — recombine real values
+
+Emits **really stored values** along learned paths (grounded, seedable walk). Never fabricates a value.
+
+| Parameter | Type | Default | Role |
+| --- | --- | --- | --- |
+| `seed` | `unknown` | — | Starting point (locates the grid zone). |
+| `options.steps` | `number` | `8` | Number of elements to emit. |
+| `options.temperature` | `number` | `1` | `<1` favors frequent paths, `>1` explores more. |
+| `options.constraint` | `(v) => boolean` | — | Filter: a rejected element is not emitted. |
+
+**Returns:** `GenResult` (synchronous).
+
+```ts
+const r = gen.recombine('report', { steps: 5, temperature: 0.7 });
+```
+
+### `complete(partial, options?)` — complete / vary a seed
+
+Completes a **partial** input (via grid prediction) and can produce **variants**.
+
+| Parameter | Type | Default | Role |
+| --- | --- | --- | --- |
+| `partial` | `unknown` | — | The seed to complete. |
+| `options.variants` | `number` | `0` | Number of extra variants (seeded walks). |
+| `options.steps` | `number` | `4` | Length of each variant. |
+
+**Returns:** `GenResult` (synchronous).
+
+```ts
+const r = gen.complete('config.pro', { variants: 3 });
+```
+
+### `synthesize(schema, n)` — generate plausible data
+
+Produces `n` rows where each field is **sampled from the real distribution** learned for its predicate
+— same values, same proportions as memory. Reproducible with a fixed seed.
+
+| Parameter | Type | Role |
+| --- | --- | --- |
+| `schema` | `{ fields: { name: string; predicate: string }[] }` | Columns: `name` = output name, `predicate` = learned predicate. |
+| `n` | `number` | Number of rows to generate. |
+
+**Returns:** `GenResult<Record<string, string>>` — `items` = the rows.
+
+```ts
+await kb.tell('p1', 'city', 'paris');
+await kb.tell('p2', 'city', 'paris');
+await kb.tell('p3', 'city', 'lyon');
+
+const r = gen.synthesize({ fields: [{ name: 'city', predicate: 'city' }] }, 100);
+// 100 rows { city: 'paris' | 'lyon' }, ~2/3 paris — like memory
+```
+
+### `resolveSynonym(term)` — find an alias (on demand)
+
+Looks for an **alias** (`same_as`) of the term: known aliases first (0 tokens), otherwise external fill
+→ quarantine. Triggered **explicitly** by the host (never automatically).
+
+| Parameter | Type | Role |
+| --- | --- | --- |
+| `term` | `string` | The term to reconcile (e.g. `'ai'`). |
+
+**Returns:** `Promise<GenResult<string>>` — `items` = aliases.
+
+```ts
+await kb.tell('ai', 'same_as', 'artificial_intelligence');
+const r = await gen.resolveSynonym('ai');
+r.items;          // → ['artificial_intelligence']
+```
+
+### Human validation — `pendingPromotions()`, `promote(...)`, `reject(...)`
+
+A **filled** (web) fact lands in **quarantine**: it powers generation but only enters the reference
+memory on a **human decision**.
+
+| Function | Signature | Role |
+| --- | --- | --- |
+| `pendingPromotions()` | `(): PendingPromotion[]` | Lists quarantined facts (`{ s, p, o, confidence, ref? }`). |
+| `promote(s, p, o)` | `(s, p, o: string): Promise<boolean>` | **Validate**: copies the fact into memory (provenance + group kept), removes it from quarantine. |
+| `reject(s, p, o)` | `(s, p, o: string): boolean` | **Reject**: removes from quarantine without promoting. |
+
+```ts
+await gen.analogize('tokyo', 'country');         // fills via the resolver → quarantine
+gen.pendingPromotions();                          // → [{ s:'tokyo', p:'country', o:'japan', confidence:0.88, ref }]
+await gen.promote('tokyo', 'country', 'japan');   // ← the human validates
+// or: gen.reject('tokyo', 'country', 'japan');   // ← the human refuses
+```
+
+### The external port — `GapResolverPort`
+
+**You** decide where missing pieces come from (web, another base…). The package holds no URL or key.
+
+```ts
+interface GapResolverPort {
+  resolve(gap: Gap): Promise<GapCandidate[]>;
+}
+interface Gap          { kind: 'synonym' | 'inheritance' | 'fact'; s?: string; p?: string; o?: string; context?: string[]; }
+interface GapCandidate { s: string; p: string; o: string; confidence: number; ref?: string; }
+```
+
+### Scope policies — `groupScope`, `domainScope`, `composeScopes`
+
+Build the `scope` passed to the generator (see "Authorization & isolation" below).
+
+| Function | Parameters | Role |
+| --- | --- | --- |
+| `groupScope({ allowedGroups?, allowPublic? })` | allowed groups; public allowed by default | **RBAC**: a fact is used only if its group is allowed; no group = public. |
+| `domainScope({ domain, domainOf?, allowMajorBridge?, allowUndomained? })` | target domain; how to read the domain; ⭐ bridge; undomained facts | **Isolation**: stays within `domain`; a ⭐ `major` fact may bridge. |
+| `composeScopes(...scopes)` | several policies | **AND**: a fact must satisfy **all** policies. |
+
+```ts
+const scope = composeScopes(
+  groupScope({ allowedGroups: ['chem-team'], allowPublic: true }),
+  domainScope({ domain: 'chemistry' }),
+);
+```
+
 ## Examples
 
 **1. Structural analogy** — generate by transformation, from known examples:
@@ -167,6 +370,57 @@ from memory if known, otherwise filled then promoted by a human.
 | Build realistic test/demo datasets **without inventing** | **synthetic data** (learned distributions) |
 | Extend knowledge of a topic, leaning first on **documents** and **org/user** memory, web only if needed | **grounded fill** → quarantine → human promotion |
 | Reconcile terms (synonyms/aliases) | `resolveSynonym` (`same_as`) |
+
+### Concrete scenarios (with code)
+
+**A. Deduce a build's output filename** — the app knows a few examples, deduces the rest:
+
+```ts
+await kb.tell('main.ts', 'compile_to', 'main.js');
+await kb.tell('app.ts',  'compile_to', 'app.js');
+
+const out = await gen.analogize('worker.ts', 'compile_to');
+out.items;        // → ['worker.js']   (deduced, not guessed)
+```
+
+**B. Complete an entity record from its class** — what we know of the class flows to the instance:
+
+```ts
+await kb.tell('customer', 'has', 'address');
+await kb.tell('customer', 'has', 'email');
+await kb.tell('acme',     'is',  'customer');
+
+const fields = await gen.inherit('acme', 'has');
+fields.items;     // → ['address', 'email']   (inherited from "customer")
+```
+
+**C. Build a realistic test dataset** — same values and proportions as the real data:
+
+```ts
+for (const [u, role] of [['u1','admin'],['u2','member'],['u3','member'],['u4','member']]) {
+  await kb.tell(u, 'role', role);
+}
+const set = gen.synthesize({ fields: [{ name: 'role', predicate: 'role' }] }, 1000);
+// 1000 rows { role } ; ~75% "member", ~25% "admin" — reproducible (fixed seed)
+```
+
+**D. Extend a business glossary — org first, web last, human validation**:
+
+```ts
+const gen = new DeductiveGenerator(kb, {
+  parents: [orgKb],                                // search the org memory first
+  scope: groupScope({ allowedGroups: ['my-org'] }),// RBAC: nothing from another org
+  gapFlags: { group: 'my-org' },                   // a filled fact stays attached to the org
+  resolver: webResolver,                           // last resort only
+});
+
+const def = await gen.analogize('sku', 'means');
+if (def.gapsFilled.length) {
+  // came from the web → quarantined ; a human decides
+  gen.pendingPromotions();                         // → [{ s:'sku', p:'means', o:'…', ref }]
+  await gen.promote('sku', 'means', def.items[0]);
+}
+```
 
 > ❌ **When not to use it.** For **fluent free prose**, that's not the goal (see below): the strength is
 > the **structured, the deductive and data**.

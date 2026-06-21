@@ -121,6 +121,216 @@ kb.ask('tokyo', 'pays');                           // → ['japon']  (promu, ave
 > Pour fouiller AUSSI les documents ingérés et la mémoire org/user avant le web, on passe des KB
 > concrètes en `parents`, et une `scope` pour la RBAC : `new DeductiveGenerator(kb, { parents, scope, resolver, seed })`.
 
+## Référence des fonctions
+
+Chaque fonction est décrite avec sa **signature**, ses **paramètres** et un **exemple**.
+
+### Construire le générateur — `new DeductiveGenerator(kb, options?)`
+
+| Paramètre | Type | Défaut | Rôle |
+| --- | --- | --- | --- |
+| `kb` | `KnowledgeBase` | — | Mémoire de travail (conversation + documents ingérés). Sa **grille** sert à la recombinaison et à la complétion. |
+| `options.parents` | `KnowledgeBase[]` | `[]` | Rings **supplémentaires** fouillés par déduction pure AVANT le web (mémoire user, org, générique, packs). KB **concrètes**. |
+| `options.scope` | `GenerationScope` | tout autorisé | **Autorisation (RBAC)** + **isolation par domaine** : filtre chaque fait lu/émis/comblé. |
+| `options.gapFlags` | `FactFlags` | `{}` | Drapeaux (`group`/domaine) apposés aux faits **comblés** → ils restent scopés une fois promus. |
+| `options.resolver` | `GapResolverPort` | — | Source **externe** (web…) injectée. **Dernier recours.** Absent ⇒ 100 % hors-ligne, déterministe. |
+| `options.seed` | `string \| number` | constante | **Graine** de reproductibilité (même graine → même sortie). |
+| `options.maxGaps` | `number` | `8` | Plafond d'**appels externes** sur la durée de vie du générateur. |
+
+```ts
+const gen = new DeductiveGenerator(kb, {
+  parents: [userKb, orgKb],
+  scope: composeScopes(groupScope({ allowedGroups: ['equipe-chimie'] }), domainScope({ domain: 'chimie' })),
+  gapFlags: { group: 'equipe-chimie' },
+  resolver: webResolver,
+  seed: 'rapport-2026',
+});
+```
+
+### Le résultat commun — `GenResult`
+
+Toutes les fonctions de génération renvoient **la même forme** :
+
+```ts
+interface GenResult<T> {
+  items: T[];               // les éléments produits
+  trace: DeductionStep[];   // POURQUOI chaque élément a été produit
+  gapsFilled: FilledGap[];  // maillons comblés (mis en quarantaine, à valider)
+  pendingGaps: Gap[];       // trous NON comblés (resolver absent / épuisé)
+}
+interface DeductionStep {
+  via: 'direct' | 'approx' | 'inherited' | 'analogy' | 'recombination' | 'gap-filled';
+  fact?: { s: string; p: string; o: string };  // le fait mobilisé
+  detail?: string;                              // explication lisible
+}
+```
+
+### `analogize(s, p)` — déduire par analogie structurelle
+
+Déduit l'objet de `(s, p)` quand il est une **transformation structurelle** du sujet. Ordre interne :
+lecture directe → résolution approchée → analogie → comblement externe.
+
+| Paramètre | Type | Rôle |
+| --- | --- | --- |
+| `s` | `string` | Le **sujet** dont on cherche l'objet (ex. `'contrat.pdf'`). |
+| `p` | `string` | Le **prédicat** / la relation (ex. `'exporte_en'`). |
+
+**Retour :** `Promise<GenResult<string>>` — `items` = l'objet déduit.
+
+```ts
+await kb.tell('facture.pdf', 'exporte_en', 'facture.csv');
+await kb.tell('devis.pdf',   'exporte_en', 'devis.csv');
+
+const r = await gen.analogize('contrat.pdf', 'exporte_en');
+r.items;          // → ['contrat.csv']
+r.trace[0].via;   // → 'analogy'
+r.trace[0].detail // → 'analogie depuis (facture.pdf → facture.csv), conf 1.00'
+```
+
+### `inherit(s, p)` — déduire par héritage de classe
+
+Remonte les classes de `s` (`est`/`subclass_of`…) et renvoie l'attribut `p` **hérité**, en respectant
+les **exceptions** (un `not_p` plus proche bloque un `p` plus lointain).
+
+| Paramètre | Type | Rôle |
+| --- | --- | --- |
+| `s` | `string` | L'**instance** (ex. `'socrate'`). |
+| `p` | `string` | L'**attribut** recherché (ex. `'a'`). |
+
+**Retour :** `Promise<GenResult<string>>` — `items` = valeurs héritées.
+
+```ts
+await kb.tell('socrate', 'est', 'humain');
+await kb.tell('humain',  'a',   'raison');
+
+const r = await gen.inherit('socrate', 'a');
+r.items;          // → ['raison']
+r.trace[0].via;   // → 'inherited'
+r.trace[0].detail // → 'décidé par humain (distance 1)'
+```
+
+### `recombine(seed, options?)` — recombiner des valeurs réelles
+
+Émet des **valeurs réellement stockées** le long des chemins appris (marche ancrée, seedable). Ne
+fabrique jamais de valeur ; recompose l'existant.
+
+| Paramètre | Type | Défaut | Rôle |
+| --- | --- | --- | --- |
+| `seed` | `unknown` | — | Point de départ (localise la zone de la grille). |
+| `options.steps` | `number` | `8` | Nombre d'éléments à émettre. |
+| `options.temperature` | `number` | `1` | `<1` privilégie les chemins fréquents, `>1` explore davantage. |
+| `options.constraint` | `(v) => boolean` | — | Filtre : un élément rejeté n'est pas émis. |
+
+**Retour :** `GenResult` (synchrone) — `items` = valeurs recombinées.
+
+```ts
+const r = gen.recombine('rapport', { steps: 5, temperature: 0.7 });
+r.items;          // → fragments réellement ingérés, recombinés
+```
+
+### `complete(partial, options?)` — compléter / décliner une amorce
+
+Complète une entrée **partielle** (via la prédiction de la grille) et peut produire des **variantes**.
+
+| Paramètre | Type | Défaut | Rôle |
+| --- | --- | --- | --- |
+| `partial` | `unknown` | — | L'amorce à compléter. |
+| `options.variants` | `number` | `0` | Nombre de variantes supplémentaires (marches seedées). |
+| `options.steps` | `number` | `4` | Longueur de chaque variante. |
+
+**Retour :** `GenResult` (synchrone).
+
+```ts
+const r = gen.complete('config.pro', { variants: 3 });
+r.items;          // → complétions + 3 variantes
+```
+
+### `synthesize(schema, n)` — générer des données plausibles
+
+Produit `n` lignes dont chaque champ est **échantillonné selon la distribution réelle** apprise pour
+son prédicat — mêmes valeurs, mêmes proportions que la mémoire. Reproductible à graine fixe.
+
+| Paramètre | Type | Rôle |
+| --- | --- | --- |
+| `schema` | `{ fields: { name: string; predicate: string }[] }` | Les colonnes : `name` = nom de sortie, `predicate` = prédicat appris. |
+| `n` | `number` | Nombre de lignes à générer. |
+
+**Retour :** `GenResult<Record<string, string>>` — `items` = les lignes.
+
+```ts
+await kb.tell('p1', 'ville', 'paris');
+await kb.tell('p2', 'ville', 'paris');
+await kb.tell('p3', 'ville', 'lyon');
+
+const r = gen.synthesize({ fields: [{ name: 'ville', predicate: 'ville' }] }, 100);
+// 100 lignes { ville: 'paris' | 'lyon' }, ~2/3 paris — comme la mémoire
+```
+
+### `resolveSynonym(term)` — trouver un alias (à la demande)
+
+Cherche un **alias** (`same_as`) du terme : d'abord les alias déjà connus (0 token), sinon comblement
+externe → quarantaine. Déclenché **explicitement** par l'hôte (jamais automatiquement).
+
+| Paramètre | Type | Rôle |
+| --- | --- | --- |
+| `term` | `string` | Le terme à réconcilier (ex. `'ia'`). |
+
+**Retour :** `Promise<GenResult<string>>` — `items` = alias.
+
+```ts
+await kb.tell('ia', 'same_as', 'intelligence_artificielle');
+const r = await gen.resolveSynonym('ia');
+r.items;          // → ['intelligence_artificielle']
+```
+
+### Validation humaine — `pendingPromotions()`, `promote(...)`, `reject(...)`
+
+Un fait **comblé** (web) atterrit en **quarantaine** : il sert à la génération mais n'entre dans la
+mémoire de référence que sur **décision humaine**.
+
+| Fonction | Signature | Rôle |
+| --- | --- | --- |
+| `pendingPromotions()` | `(): PendingPromotion[]` | Liste les faits en quarantaine (`{ s, p, o, confidence, ref? }`). |
+| `promote(s, p, o)` | `(s, p, o: string): Promise<boolean>` | **Valide** : copie le fait en mémoire (provenance + groupe conservés), le retire de la quarantaine. |
+| `reject(s, p, o)` | `(s, p, o: string): boolean` | **Rejette** : retire de la quarantaine sans rien promouvoir. |
+
+```ts
+await gen.analogize('tokyo', 'pays');           // comble via le resolver → quarantaine
+gen.pendingPromotions();                         // → [{ s:'tokyo', p:'pays', o:'japon', confidence:0.88, ref }]
+await gen.promote('tokyo', 'pays', 'japon');     // ← l'humain valide
+// ou : gen.reject('tokyo', 'pays', 'japon');    // ← l'humain refuse
+```
+
+### Le port externe — `GapResolverPort`
+
+C'est **toi** qui décides d'où viennent les pièces manquantes (web, autre base…). Le paquet ne
+contient aucune URL ni clé.
+
+```ts
+interface GapResolverPort {
+  resolve(gap: Gap): Promise<GapCandidate[]>;
+}
+interface Gap          { kind: 'synonym' | 'inheritance' | 'fact'; s?: string; p?: string; o?: string; context?: string[]; }
+interface GapCandidate { s: string; p: string; o: string; confidence: number; ref?: string; }
+```
+
+### Les politiques de scope — `groupScope`, `domainScope`, `composeScopes`
+
+Construisent la `scope` passée au générateur (voir « Autorisation & isolation » plus bas).
+
+| Fonction | Paramètres | Rôle |
+| --- | --- | --- |
+| `groupScope({ allowedGroups?, allowPublic? })` | groupes autorisés ; public par défaut autorisé | **RBAC** : un fait n'est utilisé que si son groupe est autorisé ; sans groupe = public. |
+| `domainScope({ domain, domainOf?, allowMajorBridge?, allowUndomained? })` | domaine cible ; comment lire le domaine ; pont ⭐ ; faits sans domaine | **Isolation** : reste dans `domain` ; un fait ⭐ `major` peut ponter. |
+| `composeScopes(...scopes)` | plusieurs politiques | **ET** : un fait doit satisfaire **toutes** les politiques. |
+
+```ts
+const scope = composeScopes(
+  groupScope({ allowedGroups: ['equipe-chimie'], allowPublic: true }),
+  domainScope({ domain: 'chimie' }),
+);
+```
+
 ## Exemples
 
 **1. Analogie structurelle** — générer par transformation, à partir d'exemples connus :
@@ -169,6 +379,57 @@ lu dans la mémoire s'il est connu, sinon comblé puis promu par un humain.
 | Fabriquer des jeux de test/démo réalistes **sans inventer** | **données synthétiques** (distributions apprises) |
 | Étendre la connaissance d'un sujet en s'appuyant d'abord sur les **documents** et la mémoire **org/user**, le web seulement si nécessaire | **comblement ancré** → quarantaine → promotion humaine |
 | Réconcilier des termes (synonymes/alias) | `resolveSynonym` (`same_as`) |
+
+### Scénarios concrets (avec code)
+
+**A. Déduire le nom du fichier de sortie d'un build** — l'app connaît quelques exemples, en déduit le reste :
+
+```ts
+await kb.tell('main.ts', 'compile_en', 'main.js');
+await kb.tell('app.ts',  'compile_en', 'app.js');
+
+const out = await gen.analogize('worker.ts', 'compile_en');
+out.items;        // → ['worker.js']   (déduit, pas deviné)
+```
+
+**B. Compléter une fiche entité depuis sa classe** — ce qu'on sait de la classe descend sur l'instance :
+
+```ts
+await kb.tell('client', 'a',  'adresse');
+await kb.tell('client', 'a',  'email');
+await kb.tell('acme',   'est', 'client');
+
+const champs = await gen.inherit('acme', 'a');
+champs.items;     // → ['adresse', 'email']   (champs hérités de « client »)
+```
+
+**C. Fabriquer un jeu de test réaliste** — mêmes valeurs et proportions que les vraies données :
+
+```ts
+for (const [u, role] of [['u1','admin'],['u2','membre'],['u3','membre'],['u4','membre']]) {
+  await kb.tell(u, 'role', role);
+}
+const jeu = gen.synthesize({ fields: [{ name: 'role', predicate: 'role' }] }, 1000);
+// 1000 lignes { role } ; ~75 % « membre », ~25 % « admin » — reproductible (graine fixe)
+```
+
+**D. Étendre un glossaire métier — l'org d'abord, le web en dernier, validation humaine** :
+
+```ts
+const gen = new DeductiveGenerator(kb, {
+  parents: [orgKb],                                  // on cherche d'abord dans la mémoire de l'org
+  scope: groupScope({ allowedGroups: ['mon-org'] }), // RBAC : rien d'une autre org
+  gapFlags: { group: 'mon-org' },                    // un fait comblé reste rattaché à l'org
+  resolver: webResolver,                             // dernier recours seulement
+});
+
+const def = await gen.analogize('sku', 'signifie');
+if (def.gapsFilled.length) {
+  // venu du web → en quarantaine ; un humain tranche
+  gen.pendingPromotions();                           // → [{ s:'sku', p:'signifie', o:'…', ref }]
+  await gen.promote('sku', 'signifie', def.items[0]);
+}
+```
 
 > ❌ **Quand ne pas l'utiliser.** Pour de la **prose libre fluide**, ce n'est pas l'objectif (voir plus
 > bas) : la force est le **structuré, le déductif et les données**.
