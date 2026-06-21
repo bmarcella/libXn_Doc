@@ -173,6 +173,30 @@ lu dans la mémoire s'il est connu, sinon comblé puis promu par un humain.
 > ❌ **Quand ne pas l'utiliser.** Pour de la **prose libre fluide**, ce n'est pas l'objectif (voir plus
 > bas) : la force est le **structuré, le déductif et les données**.
 
+## Autorisation & isolation contextuelle (RBAC)
+
+La déduction générative **n'a accès qu'à ce que l'utilisateur a le droit de voir**, à tous les niveaux.
+La sécurité est posée par **construction** puis renforcée par une **politique de scope** :
+
+- **Cloisonnement par construction** — le moteur ne lit QUE les couches qu'on lui fournit (conversation,
+  documents, mémoire **user**, **org**, partagée). La mémoire d'une **autre organisation** n'étant jamais
+  fournie, elle ne peut **jamais** apparaître. Côté serveur, ces couches ne contiennent déjà que les
+  faits **autorisés** (permissions par groupe).
+- **RBAC par groupe** — chaque fait peut appartenir à un **groupe** d'accès. La génération n'utilise un
+  fait que si son groupe est **autorisé** ; les faits **sans groupe** sont **publics**. « Seule la
+  connaissance publique fournie par Damba est accessible à tout le monde » : on peut restreindre à
+  *public seulement*.
+- **Isolation contextuelle (domaine)** — pour ne pas **mélanger des domaines disjoints** (chimie ≠
+  maths), la génération reste **dans son contexte**. Un fait d'un autre domaine n'est tiré que s'il
+  porte un **lien ⭐ majeur** (structurant) — le seul pont autorisé entre domaines.
+- **Comblement scopé** — un fait récupéré à l'extérieur est **tagué au contexte courant** (groupe/
+  domaine) avant d'entrer en quarantaine, et **reste scopé** une fois promu ; un candidat qui sortirait
+  du scope est **rejeté**.
+
+Ces règles s'appliquent **uniformément à tous les modes** (direct, analogie, héritage, synonyme,
+synthèse, comblement). Conséquence : une génération est toujours **logique, scopée et autorisée** — aucun
+fait d'un groupe, d'une organisation ou d'un domaine non autorisé ne peut « fuir » dans une sortie.
+
 ## Déterminisme & reproductibilité
 
 La marche générative s'appuie sur une source d'aléa **injectable** : sans graine, comportement habituel ;

@@ -171,6 +171,29 @@ from memory if known, otherwise filled then promoted by a human.
 > ❌ **When not to use it.** For **fluent free prose**, that's not the goal (see below): the strength is
 > the **structured, the deductive and data**.
 
+## Authorization & contextual isolation (RBAC)
+
+Grounded deduction **only ever accesses what the user is allowed to see**, at every level. Security is
+set **by construction** then reinforced by a **scope policy**:
+
+- **Partitioning by construction** — the engine reads ONLY the layers it is handed (conversation,
+  documents, **user**, **org**, shared memory). Another **organization's** memory, never being handed
+  in, can **never** appear. Server-side, those layers already contain only the **authorized** facts
+  (per-group permissions).
+- **RBAC by group** — each fact may belong to an access **group**. Generation uses a fact only if its
+  group is **authorized**; facts with **no group** are **public**. "Only the public knowledge provided
+  by Damba is accessible to everyone": you can restrict to *public only*.
+- **Contextual isolation (domain)** — to avoid **mixing disjoint domains** (chemistry ≠ maths),
+  generation stays **within its context**. A fact from another domain is pulled in only if it carries a
+  **⭐ major (structural) link** — the only allowed bridge between domains.
+- **Scoped fill** — an externally fetched fact is **tagged to the current context** (group/domain)
+  before entering quarantine, and **stays scoped** once promoted; a candidate that would fall out of
+  scope is **rejected**.
+
+These rules apply **uniformly across all modes** (direct, analogy, inheritance, synonym, synthesis,
+fill). As a result, a generation is always **logical, scoped and authorized** — no fact from an
+unauthorized group, organization or domain can "leak" into an output.
+
 ## Determinism & reproducibility
 
 The generative walk relies on an **injectable** random source: with no seed, the usual behavior; with a
