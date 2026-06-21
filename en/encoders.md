@@ -1,81 +1,81 @@
 # Encoders — text, tables, image, audio, video
 
-Everything in QPath becomes a sequence of **bit pairs** walking the grid. **Encoders** translate an
-input (a word, a data row, an image, a sound, a video) into those pairs, **preserving similarity**: two
-close inputs share a path prefix — so they land in the same place.
+Before learning anything, QPath must **turn an input into an internal representation**. **Encoders**
+handle this for each data type — a word, a table row, an image, a sound, a video — while **preserving
+similarity**: two close inputs land in the same place in memory.
 
-> 💡 **One abstraction.** Whatever the modality, the output is the same: `[number, number][]`. The grid
-> then learns on it (memory, prediction, similarity) without knowing the source.
+> 💡 **One abstraction.** Whatever the modality, the output has the **same shape**. The grid then learns
+> on it (memory, prediction, similarity) without knowing the source.
 
 ## Text & tabular data
 
 ```ts
 import { SemanticEncoder, TabularEncoder, XNeuroneGrid } from '@damba/libxn';
 
-// Text → pairs (Gray code, close characters = close bits).
-const pairs = SemanticEncoder.toPairs('HELLO');
+// Text → encoding (close characters stay close).
+const encoded = SemanticEncoder.toPairs('HELLO');
 
-// Numeric row → pairs, FIXED column order (reproducible).
-const enc = new TabularEncoder(['surface', 'rooms', 'zone'], 16 /* bits per column */);
-const rowPairs = enc.encode({ surface: 80, rooms: 3, zone: 2 });
+// Numeric row → encoding, FIXED column order (reproducible).
+const enc = new TabularEncoder(['surface', 'rooms', 'zone']);
+const row = enc.encode({ surface: 80, rooms: 3, zone: 2 });
 ```
 
-- **`SemanticEncoder.toPairs(data)` → `[number, number][]`** — converts any primitive (text, number,
-  boolean) into bit pairs.
-- **`new TabularEncoder(features, width?)`** then **`encode(row)` → `[number, number][]`** — encodes a
-  `{ column: number }` row; the column order guarantees reproducibility.
+- **`SemanticEncoder.toPairs(data)`** — encodes any primitive (text, number, boolean) into a
+  representation the grid can use.
+- **`new TabularEncoder(features)`** then **`encode(row)`** — encodes a `{ column: number }` row; the
+  column order guarantees reproducibility.
 
-## Image — multi-resolution, coarse to fine
+## Image — coarse to fine
 
-`PerceptualEncoder` (package `@damba/libxn-encoders`) encodes an image at **several resolutions**
-(4×4 → 8×8 → 16×16): the first bits capture the overall shape, the next ones the detail. Two cat images
-therefore share their **first** bits → free generalization.
+`PerceptualEncoder` (package `@damba/libxn-encoders`) encodes an image **coarse to fine**: the overall
+shape first, the detail next. Two cat images therefore resemble each other from the start → **free
+generalization**.
 
 ```ts
 import { PerceptualEncoder } from '@damba/libxn-encoders';
 
-const pairs = await PerceptualEncoder.encodeFromFile(file);   // from an <input type="file">
+const encoded = await PerceptualEncoder.encodeFromFile(file);   // from an <input type="file">
 const grid = new XNeuroneGrid();
-grid.train(pairs, 'cat');
+grid.train(encoded, 'cat');
 
 // Another cat image lands in the same place.
-const queryPairs = await PerceptualEncoder.encodeFromImage(img);
-grid.predictClass(queryPairs);                                 // → { label: 'cat', … }
+const query = await PerceptualEncoder.encodeFromImage(img);
+grid.predictClass(query);                                        // → { label: 'cat', … }
 ```
 
-- **`encodeFromFile(file)` / `encodeFromImage(img)` / `encodeFromSource(src)`** — image → bit pairs
-  (coarse-to-fine). `encodeFromSource` accepts a canvas / video / `ImageBitmap`.
+- **`encodeFromFile(file)` / `encodeFromImage(img)` / `encodeFromSource(src)`** — encodes an image
+  (coarse to fine). `encodeFromSource` accepts a canvas / video / `ImageBitmap`.
 
 ## Audio & video
 
 ```ts
 import { AudioEncoder, VideoEncoder } from '@damba/libxn-encoders';
 
-// Audio: mic → spectrogram → same perceptual bits as an image.
+// Audio: capture the mic and encode it (with a thumbnail + a replayable link).
 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 const ctx = new AudioContext();
 const analyser = ctx.createAnalyser();
 ctx.createMediaStreamSource(stream).connect(analyser);
-const { pairs, thumbnail, audioUrl } = await AudioEncoder.capture(ctx, analyser, stream, 2000);
+const { encoding, thumbnail, audioUrl } = await AudioEncoder.capture(ctx, analyser, stream, 2000);
 
-// Video: N keyframes spread over the duration, each encoded.
+// Video: several keyframes spread over the duration, each encoded.
 const { codes, thumbnail: vthumb } = await VideoEncoder.captureKeyframes(videoEl, 8);
 ```
 
-- **`AudioEncoder.capture(ctx, analyser, stream, ms?)` → `{ pairs, thumbnail, audioUrl }`** — records,
-  builds a spectrogram, encodes it like an image; `thumbnail`/`audioUrl` for the UI.
-- **`VideoEncoder.captureKeyframes(video, frames?)` → `{ codes, thumbnail, durationMs }`** — samples
-  `frames` keyframes (8 by default), returns **one encoding per frame** (`codes`).
+- **`AudioEncoder.capture(ctx, analyser, stream, ms?)`** — records the sound, encodes it, and returns
+  what you need to display/replay it (`thumbnail`, `audioUrl`).
+- **`VideoEncoder.captureKeyframes(video, frames?)`** — samples `frames` keyframes (8 by default) and
+  returns **one encoding per frame** (`codes`).
 
 ## Use cases
 
 | Modality | Example use |
 |---|---|
 | **Text / tabular** | classify a word, predict a house price (`TabularEncoder` + grid) |
-| **Image** | visual recognition; hierarchical similarity gives "by resemblance" classification |
-| **Audio** | voice fingerprint / sound recognition (spectrogram → bits) |
+| **Image** | visual recognition; resemblance gives "by similarity" classification |
+| **Audio** | voice fingerprint / sound recognition |
 | **Video** | find a video by a close keyframe (`captureKeyframes` + search) |
 
-> 🧱 **The common ground.** All produce `[number, number][]` that the same grid learns — see
+> 🧱 **The common ground.** All produce the **same kind of encoding** that the same grid learns — see
 > [prediction](/prediction) to train/predict, and [semantic search](/semantic-search) to search by
 > meaning on the text side.
