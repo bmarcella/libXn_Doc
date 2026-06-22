@@ -38,9 +38,16 @@ C'est l'opposé d'une « boîte qui écrit » : c'est une **boîte qui déduit, 
 | **Complétion** | la **suite** d'une entrée partielle + des variantes | 0 | complète / décline une amorce |
 | **Données synthétiques** | des lignes **plausibles** selon les distributions apprises | 0 | jeux de test respectant les proportions réelles |
 | **Synonyme (à la demande)** | un **alias** d'un terme | 0 (local) ou externe | « ia » ≡ « intelligence artificielle » |
+| **Régression** | une **valeur numérique** depuis des features, **sous porte de confiance** | 0 | estimer un prix depuis des caractéristiques apprises |
+| **Classification** | une **classe** depuis des features, **sous porte de confiance** | 0 | typer une entité depuis son profil |
 
 Tous les modes sont **0 token** tant qu'on déduit du connu. Seul le **comblement** d'un maillon
 manquant peut solliciter une source externe — et uniquement si l'hôte en a branché une.
+
+> 🎯 **Porte de confiance.** Régression et classification sont **approchées** (la mémoire est
+> non-injective). Elles ne rendent une valeur **que** si l'incertitude est sous un seuil (échantillons,
+> dispersion, marge) ; sinon elles n'émettent **rien** plutôt qu'un résultat douteux. La détection
+> d'incertitude est intégrée, pas optionnelle.
 
 ## Combler les maillons manquants — d'abord la mémoire, le web en dernier
 
@@ -159,7 +166,8 @@ interface GenResult<T> {
   pendingGaps: Gap[];       // trous NON comblés (resolver absent / épuisé)
 }
 interface DeductionStep {
-  via: 'direct' | 'approx' | 'inherited' | 'analogy' | 'recombination' | 'gap-filled';
+  via: 'direct' | 'approx' | 'inherited' | 'analogy' | 'recombination'
+     | 'regression' | 'classification' | 'gap-filled';
   fact?: { s: string; p: string; o: string };  // le fait mobilisé
   detail?: string;                              // explication lisible
 }
@@ -283,6 +291,81 @@ const r = await gen.resolveSynonym('ia');
 r.items;          // → ['intelligence_artificielle']
 ```
 
+### `regress(features)` / `classify(features)` — prédire sous porte de confiance
+
+Prédisent une **valeur numérique** (`regress`) ou une **classe** (`classify`) à partir d'un vecteur de
+**features**, via un `Predictor` branché sur une **grille de features entraînée** (≠ la mémoire de
+triplets). Le résultat est **approché** : il n'est émis **que** si la confiance dépasse les seuils,
+sinon `items` est **vide** — la trace explique pourquoi.
+
+| Élément | Type | Rôle |
+| --- | --- | --- |
+| `options.predictor` | `Predictor` | Requis pour ces deux modes. Encapsule la grille de features + les **seuils** de confiance. |
+| `features` | `unknown` | Le vecteur de caractéristiques (encodé par le **même** encodeur qu'à l'entraînement). |
+
+**Retour :** `GenResult<number>` / `GenResult<string>` — `items` = `[valeur]` / `[classe]` si **confiant**, sinon `[]`.
+
+```ts
+import { Predictor } from '@damba/libxn-generative';
+
+const predictor = new Predictor(featureGrid, {           // grille entraînée (train / trainClass)
+  encoder,                                               // MÊME encodeur qu'à l'entraînement
+  regression:     { minSamples: 3, maxRelStdDev: 0.15 }, // seuils d'incertitude
+  classification: { minProbability: 0.7, minMargin: 0.2 },
+});
+const gen = new DeductiveGenerator(kb, { predictor });
+
+gen.regress(features).items;   // → [valeur] si fiable, sinon []
+gen.classify(features).items;  // → [classe] si fiable, sinon []
+```
+
+### `verify(s, p, o)` — vérifier un candidat contre la mémoire (filtre anti-bruit)
+
+Vérifie, par **déduction pure (0 token)**, si un fait candidat `(s, p, o)` est **soutenu**,
+**contredit** ou **inconnu** vis-à-vis de la connaissance déjà ancrée. **Conservateur** : il ne crie
+« contredit » que sur des **signaux forts** (négation explicite, contrainte d'unicité, valeur
+**verrouillée** 🔒 différente) — jamais sur une simple absence (un prédicat à plusieurs valeurs a
+souvent plusieurs objets légitimes). Sert à **filtrer le bruit** d'une extraction de masse avant
+l'écriture.
+
+| Paramètre | Type | Rôle |
+| --- | --- | --- |
+| `s`, `p`, `o` | `string` | Le fait candidat à vérifier. |
+| `options.support` | `boolean` | `true` (défaut) calcule aussi l'**appui** (analogie/héritage) ; `false` ne garde que la détection de contradiction (porte d'ingestion de masse, moins coûteuse). |
+
+**Retour :** `VerifyVerdict` — `{ outcome: 'supported' | 'contradicted' | 'unknown', deduced, conflict?, reason, trace }`.
+
+```ts
+await kb.fact('terre', 'forme', 'ronde').closed().save();   // valeur décidée 🔒
+
+gen.verify('terre', 'forme', 'ronde').outcome;  // → 'supported'   (déjà connu)
+gen.verify('terre', 'forme', 'plate').outcome;  // → 'contradicted' (valeur verrouillée différente)
+gen.verify('marie', 'aime', 'poires').outcome;  // → 'unknown'      (multivalué → on garde)
+```
+
+### `EntityClassifier` — déduire la classe d'une entité depuis son profil
+
+Infère la **classe** d'une entité à partir de son **profil** (les prédicats qu'elle porte), sans
+fait `est` explicite. Il **apprend** une grille de features sur les entités **déjà typées** du corpus
+(profil ⇒ classe), puis **propose** une classe pour les entités non typées — **sous porte de
+confiance**. Aucune écriture : les propositions sont des **candidats à valider** (même esprit que la
+quarantaine).
+
+| Méthode | Signature | Rôle |
+| --- | --- | --- |
+| `train(kb)` | `(kb): Promise<{ trained, labels }>` | Apprend profil ⇒ classe sur les entités **typées** (cumulable sur plusieurs KB). |
+| `proposeUntyped(kb)` | `(kb): EntityClassProposal[]` | **Propose** une classe pour chaque entité non typée, gated par confiance. |
+| `classify(features)` | `(string[]): EntityClassProposal \| undefined` | Classe un profil de traits isolé. |
+
+```ts
+import { EntityClassifier } from '@damba/libxn-generative';
+
+const ec = new EntityClassifier({ thresholds: { minProbability: 0.6, minMargin: 0.15, minSamples: 2 } });
+await ec.train(kb);                        // apprend sur « jean est personne », « acme est entreprise »…
+const props = ec.proposeUntyped(kb);
+// → [{ entity: 'paul', label: 'personne', probability, margin, samples, reason }]  (à valider)
+```
+
 ### Validation humaine — `pendingPromotions()`, `promote(...)`, `reject(...)`
 
 Un fait **comblé** (web) atterrit en **quarantaine** : il sert à la génération mais n'entre dans la
@@ -379,6 +462,8 @@ lu dans la mémoire s'il est connu, sinon comblé puis promu par un humain.
 | Fabriquer des jeux de test/démo réalistes **sans inventer** | **données synthétiques** (distributions apprises) |
 | Étendre la connaissance d'un sujet en s'appuyant d'abord sur les **documents** et la mémoire **org/user**, le web seulement si nécessaire | **comblement ancré** → quarantaine → promotion humaine |
 | Réconcilier des termes (synonymes/alias) | `resolveSynonym` (`same_as`) |
+| **Ingérer un gros texte sans le polluer** — écarter les faits contredits, typer les entités | `verify` (filtre anti-bruit) + `EntityClassifier` (classes proposées), tout à **valider** |
+| Estimer une valeur / typer depuis des features, **seulement si fiable** | `regress` / `classify` **sous porte de confiance** |
 
 ### Scénarios concrets (avec code)
 

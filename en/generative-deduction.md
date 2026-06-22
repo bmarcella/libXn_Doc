@@ -37,9 +37,16 @@ It is the opposite of a "box that writes": it is a **box that deduces, and shows
 | **Completion** | the **continuation** of a partial input + variants | 0 | completes / varies a seed |
 | **Synthetic data** | **plausible** rows following the learned distributions | 0 | test sets respecting real proportions |
 | **Synonym (on demand)** | an **alias** of a term | 0 (local) or external | "ai" ≡ "artificial intelligence" |
+| **Regression** | a **numeric value** from features, **under a confidence gate** | 0 | estimate a price from learned characteristics |
+| **Classification** | a **class** from features, **under a confidence gate** | 0 | type an entity from its profile |
 
 All modes are **0 tokens** as long as known facts are deduced. Only **filling** a missing link may call
 an external source — and only if the host has wired one in.
+
+> 🎯 **Confidence gate.** Regression and classification are **approximate** (memory is non-injective).
+> They return a value **only** if uncertainty is below a threshold (samples, dispersion, margin);
+> otherwise they emit **nothing** rather than a doubtful result. Uncertainty detection is built in, not
+> optional.
 
 ## Filling missing links — memory first, web last
 
@@ -156,7 +163,8 @@ interface GenResult<T> {
   pendingGaps: Gap[];       // gaps NOT filled (resolver absent / exhausted)
 }
 interface DeductionStep {
-  via: 'direct' | 'approx' | 'inherited' | 'analogy' | 'recombination' | 'gap-filled';
+  via: 'direct' | 'approx' | 'inherited' | 'analogy' | 'recombination'
+     | 'regression' | 'classification' | 'gap-filled';
   fact?: { s: string; p: string; o: string };  // the fact used
   detail?: string;                              // human-readable explanation
 }
@@ -274,6 +282,79 @@ const r = await gen.resolveSynonym('ai');
 r.items;          // → ['artificial_intelligence']
 ```
 
+### `regress(features)` / `classify(features)` — predict under a confidence gate
+
+Predict a **numeric value** (`regress`) or a **class** (`classify`) from a **feature** vector, via a
+`Predictor` wired to a **trained feature grid** (≠ the triplet memory). The result is **approximate**:
+it is emitted **only** if confidence exceeds the thresholds, otherwise `items` is **empty** — the trace
+explains why.
+
+| Item | Type | Role |
+| --- | --- | --- |
+| `options.predictor` | `Predictor` | Required for both modes. Wraps the feature grid + confidence **thresholds**. |
+| `features` | `unknown` | The feature vector (encoded with the **same** encoder used at training). |
+
+**Returns:** `GenResult<number>` / `GenResult<string>` — `items` = `[value]` / `[class]` if **confident**, else `[]`.
+
+```ts
+import { Predictor } from '@damba/libxn-generative';
+
+const predictor = new Predictor(featureGrid, {           // trained grid (train / trainClass)
+  encoder,                                               // SAME encoder used at training
+  regression:     { minSamples: 3, maxRelStdDev: 0.15 }, // uncertainty thresholds
+  classification: { minProbability: 0.7, minMargin: 0.2 },
+});
+const gen = new DeductiveGenerator(kb, { predictor });
+
+gen.regress(features).items;   // → [value] if reliable, else []
+gen.classify(features).items;  // → [class] if reliable, else []
+```
+
+### `verify(s, p, o)` — check a candidate against memory (noise filter)
+
+Checks, by **pure deduction (0 tokens)**, whether a candidate fact `(s, p, o)` is **supported**,
+**contradicted** or **unknown** with respect to already-anchored knowledge. **Conservative**: it only
+calls "contradicted" on **strong signals** (explicit negation, uniqueness constraint, a different
+**locked** 🔒 value) — never on a mere absence (a multi-valued predicate often has several legitimate
+objects). Used to **filter the noise** of a bulk extraction before writing.
+
+| Parameter | Type | Role |
+| --- | --- | --- |
+| `s`, `p`, `o` | `string` | The candidate fact to check. |
+| `options.support` | `boolean` | `true` (default) also computes **support** (analogy/inheritance); `false` keeps only contradiction detection (cheaper bulk-ingestion gate). |
+
+**Returns:** `VerifyVerdict` — `{ outcome: 'supported' | 'contradicted' | 'unknown', deduced, conflict?, reason, trace }`.
+
+```ts
+await kb.fact('earth', 'shape', 'round').closed().save();   // decided value 🔒
+
+gen.verify('earth', 'shape', 'round').outcome;  // → 'supported'   (already known)
+gen.verify('earth', 'shape', 'flat').outcome;   // → 'contradicted' (different locked value)
+gen.verify('mary', 'likes', 'pears').outcome;   // → 'unknown'      (multi-valued → keep)
+```
+
+### `EntityClassifier` — deduce an entity's class from its profile
+
+Infers the **class** of an entity from its **profile** (the predicates it carries), with no explicit
+`est`/`is` fact. It **learns** a feature grid on the corpus's **already-typed** entities (profile ⇒
+class), then **proposes** a class for untyped ones — **under a confidence gate**. No writing: proposals
+are **candidates to validate** (same spirit as quarantine).
+
+| Method | Signature | Role |
+| --- | --- | --- |
+| `train(kb)` | `(kb): Promise<{ trained, labels }>` | Learns profile ⇒ class on **typed** entities (accumulable across KBs). |
+| `proposeUntyped(kb)` | `(kb): EntityClassProposal[]` | **Proposes** a class for each untyped entity, confidence-gated. |
+| `classify(features)` | `(string[]): EntityClassProposal \| undefined` | Classifies a standalone trait profile. |
+
+```ts
+import { EntityClassifier } from '@damba/libxn-generative';
+
+const ec = new EntityClassifier({ thresholds: { minProbability: 0.6, minMargin: 0.15, minSamples: 2 } });
+await ec.train(kb);                        // learns from "jean is person", "acme is company"…
+const props = ec.proposeUntyped(kb);
+// → [{ entity: 'paul', label: 'person', probability, margin, samples, reason }]  (to validate)
+```
+
 ### Human validation — `pendingPromotions()`, `promote(...)`, `reject(...)`
 
 A **filled** (web) fact lands in **quarantine**: it powers generation but only enters the reference
@@ -370,6 +451,8 @@ from memory if known, otherwise filled then promoted by a human.
 | Build realistic test/demo datasets **without inventing** | **synthetic data** (learned distributions) |
 | Extend knowledge of a topic, leaning first on **documents** and **org/user** memory, web only if needed | **grounded fill** → quarantine → human promotion |
 | Reconcile terms (synonyms/aliases) | `resolveSynonym` (`same_as`) |
+| **Ingest a large text without polluting it** — drop contradicted facts, type entities | `verify` (noise filter) + `EntityClassifier` (proposed classes), all **to validate** |
+| Estimate a value / type from features, **only if reliable** | `regress` / `classify` **under a confidence gate** |
 
 ### Concrete scenarios (with code)
 
