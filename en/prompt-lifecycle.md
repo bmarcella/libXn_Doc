@@ -25,8 +25,13 @@ flowchart TD
   ASK -->|reads · 0 tokens| KB
   REASON -->|reads · 0 tokens| KB
   RAG -->|reads by meaning| KB
-  LLM -->|tool loop<br/>qpath / read| KB
+  LLM -->|calls tools| TL{{Tool loop}}
+  TL -->|qpath / read| KB
+  TL -->|web| WEB([Web · external sources])
+  TL -->|action| ACT[App tool]
   KB -.->|facts found| LLM
+  WEB -.->|snippets| LLM
+  ACT -.->|result| LLM
 
   WRITE --> ACK([Acknowledge: stored])
   CMD --> OUT([Reply])
@@ -40,9 +45,13 @@ flowchart TD
   classDef zero fill:#0e2a1f,stroke:#2f9e7a,color:#bff6e2;
   classDef gen fill:#2a230e,stroke:#a98a2f,color:#f3e2b3;
   classDef mem fill:#0d2030,stroke:#2f7fa9,color:#cfe9f7;
+  classDef ext fill:#241a2e,stroke:#8a5cb0,color:#e6d4f5;
+  classDef tool fill:#262626,stroke:#888,color:#e6e6e6;
   class CMD,SOC,DISP,WRITE,ASK,REASON,RAG zero;
   class LLM gen;
   class KB mem;
+  class WEB ext;
+  class TL,ACT tool;
 ```
 
 ## Reading the graph
@@ -51,6 +60,9 @@ flowchart TD
   is the normal route, and by far the most common.
 - **Blue: the fact memory** (the QPath graph of triples). Everything converges on it.
 - **Amber: LLM generation**, reached only when no safe path answered.
+- **The tool loop** (grey) is what the LLM may call to ground itself: `qpath / read` (query **memory**),
+  `web` (search **external sources**, in purple), `action` (trigger an **app tool**). Each result returns
+  to the model before it writes its answer.
 
 ## Step by step
 
@@ -65,14 +77,15 @@ flowchart TD
    (`reason`). Still a **read** of memory, 0 tokens.
 8. **Vague or rephrased question** ("who pleaded guilty?" when the fact is worded differently): search **by
    meaning** in memory (embeddings). Still no generation.
-9. **Last resort: the LLM.** If nothing answered, we generate, but the model **does not invent on its
-   own**: it has a **tool loop** to **query memory** (read facts, run a QPath query), gathers what it
-   needs, then answers **grounded** in those facts.
+9. **Last resort: the LLM, with its tools.** If nothing answered, we generate, but the model **does not
+   invent on its own**: it has a **tool loop** to ground itself. As needed, it **queries memory**
+   (`qpath / read`), **searches the web** (`web`, for info absent from memory or fresh), or **triggers an
+   app tool** (`action`). It gathers the results, then answers **grounded** on them.
 
-## When exactly the LLM queries memory
+## When exactly the LLM queries memory (and the web)
 
 This is the key point of the last tier. The LLM does not receive the whole memory; it **asks** for what
-it needs:
+it needs, and picks the right tool:
 
 ```text
 User: "Summarise what you know about the Vanier case."
@@ -80,10 +93,16 @@ User: "Summarise what you know about the Vanier case."
    LLM: <qpath> facts about subject "vanier case" </qpath>
    Memory: returns the relevant triples (0-token read)
    LLM: writes the answer from THOSE facts, inventing nothing.
+
+User: "What is the weather in Paris today?"
+   -> not in memory -> LLM
+   LLM: <web> weather Paris today </web>
+   Web: returns snippets from external sources
+   LLM: answers from THOSE snippets (and may store the result).
 ```
 
-So even the "LLM" path is pulled by memory: generation is for **phrasing**, not **knowing**. Facts come
-from the graph; the model turns them into sentences.
+So even the "LLM" path is pulled by **retrieved facts**: generation is for **phrasing**, not **knowing**.
+Memory first, web for what is missing or fresh, tools to act.
 
 > 🔎 **Why this order.** Putting exact deduction first yields **verifiable, reproducible, free** answers;
 > reserving the LLM for the last tier caps cost and hallucination, since it answers on retrieved facts
