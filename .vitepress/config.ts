@@ -50,6 +50,7 @@ export default defineConfig({
             { text: 'Encodeurs (multimodal)', link: '/encoders' },
             { text: 'Extraction de faits', link: '/fact-extraction' },
             { text: 'Recherche sémantique', link: '/semantic-search' },
+            { text: "Routage d'intention", link: '/intent-routing' },
           ] },
           { text: 'Raisonnement', items: [
             { text: 'Types de raisonnement', link: '/reasoning-types' },
@@ -101,6 +102,7 @@ export default defineConfig({
               { text: 'Extraction de faits', link: '/fact-extraction' },
               { text: 'Encodeurs (multimodal)', link: '/encoders' },
               { text: 'Recherche sémantique', link: '/semantic-search' },
+              { text: "Routage d'intention", link: '/intent-routing' },
               { text: "Cas d'usage", link: '/use-cases' },
               { text: 'Exemples', link: '/examples' },
               { text: 'Types de raisonnement', link: '/reasoning-types' },
@@ -157,6 +159,7 @@ export default defineConfig({
             { text: 'Encoders (multimodal)', link: '/en/encoders' },
             { text: 'Fact extraction', link: '/en/fact-extraction' },
             { text: 'Semantic search', link: '/en/semantic-search' },
+            { text: 'Intent routing', link: '/en/intent-routing' },
           ] },
           { text: 'Reasoning', items: [
             { text: 'Reasoning types', link: '/en/reasoning-types' },
@@ -208,6 +211,7 @@ export default defineConfig({
               { text: 'Fact extraction', link: '/en/fact-extraction' },
               { text: 'Encoders (multimodal)', link: '/en/encoders' },
               { text: 'Semantic search', link: '/en/semantic-search' },
+              { text: 'Intent routing', link: '/en/intent-routing' },
               { text: 'Use cases', link: '/en/use-cases' },
               { text: 'Examples', link: '/en/examples' },
               { text: 'Reasoning types', link: '/en/reasoning-types' },
