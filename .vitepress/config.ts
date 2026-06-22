@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitepress';
+import { withMermaid } from 'vitepress-plugin-mermaid';
 
 // Site de documentation LibXN / QPath — bilingue (fr par défaut, en sous /en/).
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: 'LibXN · QPath',
   // lastUpdated désactivé : il lance `git log` par page → "spawn git ENOENT" si git n'est pas dans
   // le PATH du serveur dev (et nécessite des fichiers commités). Réactivable une fois git dispo + repo commité.
@@ -43,6 +44,7 @@ export default defineConfig({
             { text: 'Pourquoi QPath', link: '/why-qpath' },
             { text: 'Connaissance discrète', link: '/discrete-knowledge' },
             { text: 'Compréhension', link: '/comprehension' },
+            { text: "Cycle de vie d'un prompt", link: '/prompt-lifecycle' },
             { text: 'Performance & garanties', link: '/performance' },
             { text: 'Auteur', link: '/author' },
           ] },
@@ -96,6 +98,7 @@ export default defineConfig({
               { text: 'Pourquoi QPath', link: '/why-qpath' },
               { text: 'Connaissance discrète', link: '/discrete-knowledge' },
               { text: 'Compréhension', link: '/comprehension' },
+              { text: "Cycle de vie d'un prompt", link: '/prompt-lifecycle' },
               { text: 'Performance & garanties', link: '/performance' },
               { text: 'Composants clés', link: '/components' },
               { text: 'Types de faits', link: '/fact-types' },
@@ -152,6 +155,7 @@ export default defineConfig({
             { text: 'Why QPath', link: '/en/why-qpath' },
             { text: 'Discrete knowledge', link: '/en/discrete-knowledge' },
             { text: 'Comprehension', link: '/en/comprehension' },
+            { text: 'Prompt lifecycle', link: '/en/prompt-lifecycle' },
             { text: 'Performance & guarantees', link: '/en/performance' },
             { text: 'Author', link: '/en/author' },
           ] },
@@ -205,6 +209,7 @@ export default defineConfig({
               { text: 'Why QPath', link: '/en/why-qpath' },
               { text: 'Discrete knowledge', link: '/en/discrete-knowledge' },
               { text: 'Comprehension', link: '/en/comprehension' },
+              { text: 'Prompt lifecycle', link: '/en/prompt-lifecycle' },
               { text: 'Performance & guarantees', link: '/en/performance' },
               { text: 'Key components', link: '/en/components' },
               { text: 'Fact types', link: '/en/fact-types' },
@@ -246,4 +251,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
