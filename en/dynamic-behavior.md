@@ -567,7 +567,8 @@ Two invariants make this safe:
   promoted to production**. The LLM cannot slip in arbitrary facts (identity, class, data…) under the
   guise of writing a flow. These discarded facts stay **visible**: they are exposed on
   `proposal.rejected` and traced by a `non-flow-predicate` validation warning (visibility, not a block).
-- **No unsafe fact reaches prod.** `validateFlow` rejects an **unbounded** loop, a **dangling link**, an
+- **No unsafe fact reaches prod.** `validateFlow` rejects an **unbounded** loop (`for_each` with no
+  `max_iter` **or** a `goto` control cycle crossing no bounded loop), a **dangling link**, an
   incomplete condition, or a **forbidden tool** (per-environment allowlist); the **gate** promotes only
   if everything is green; `rollbackRelease` reverts a release.
 

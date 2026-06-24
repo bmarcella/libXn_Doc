@@ -195,7 +195,9 @@ const id = await acl.tellInGroup('budget', 'amount', '50000', 'finance');
 //  → id === kb.factId('budget','amount','50000')  (the id is DETERMINISTIC: a hash of the
 //    triplet, not a generated id — so kb.tell needn't "return" it, it's computable anytime)
 
-// (two-step equivalent if you prefer: kb.tell(...) then acl.assign(...))
+// (two-step equivalent: kb.tell(...) then acl.assign(...) — but NOT atomic: on a durable store there
+//  is a window where the fact is written WITHOUT its group. `tellInGroup` sets the `group` flag in the
+//  same write → prefer it for a fact meant to be restricted.)
 
 // 2) Grant / revoke (each right is a fact)
 await acl.grant('alice', 'finance', 'read', 'write');   // alice: read + write

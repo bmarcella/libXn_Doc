@@ -217,6 +217,10 @@ the instant to query (epoch ms) — all three required.
   if the two differ — enough to answer "back then it was **X** (but today it's **Y**)" without ever
   rewriting history.
 
+> **Secrets stay masked over time.** `valueAsOf`/`factAsOf` and `historyOf` **exclude secret facts**
+> by default (a retracted fact keeps its `secret` flag in the archive): querying the past never
+> bypasses the Vault masking.
+
 ## Flags: epistemic status and salience
 
 Beyond provenance, every fact carries two ORTHOGONAL axes, set by a human (never

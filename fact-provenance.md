@@ -218,6 +218,10 @@ l'instant à interroger (epoch ms) — les trois sont requis.
   `true` si les deux diffèrent — de quoi répondre « à l'époque c'était **X** (mais aujourd'hui c'est
   **Y**) » sans jamais réécrire l'histoire.
 
+> **Les secrets restent masqués dans le temps.** `valueAsOf`/`factAsOf` et `historyOf` **excluent les
+> faits secrets** par défaut (un fait rétracté conserve son drapeau `secret` dans l'archive) : une
+> interrogation du passé ne contourne jamais le masquage du Coffre.
+
 ## Les drapeaux : statut épistémique et saillance
 
 Au-delà de la provenance, chaque fait porte deux axes ORTHOGONAUX, posés par l'humain
