@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: QPath
-  text: A content-addressable symbolic memory
-  tagline: Fact memory and reasoning in a single graph — deterministic, zero-token, dependency-free. The LLM becomes optional; memory and reasoning live here.
+  text: A deterministic symbolic memory
+  tagline: Fact memory and reasoning — deterministic, zero-token, dependency-free. The LLM becomes optional; memory and reasoning live here.
   image:
     src: /logo.svg
     alt: QPath
@@ -28,8 +28,8 @@ hero:
 features:
   - title: Behavior = governed facts
     details: Not just memory — the app's LOGIC (flows, rules, limits, fraud checks) lives in facts you query, govern and evolve AT RUNTIME, without redeploying. Deterministic and traceable. Showcase&#58; npm run example:ledger.
-  - title: Content-addressable
-    details: A datum's location is fully determined by its content — exact, deterministic retrieval with no external index.
+  - title: Exact & deterministic retrieval
+    details: Same data, same answers — exact, reproducible retrieval, reliable at scale, at zero token.
   - title: Symbolic & deterministic
     details: Facts (subject, predicate, object), O(1) inverse indices, traced forward/backward chaining. The LLM is an optional verbalizer; reasoning lives here.
   - title: 100% recall, sub-millisecond

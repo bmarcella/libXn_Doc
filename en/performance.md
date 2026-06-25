@@ -6,8 +6,8 @@ QPath makes strong promises — **deterministic**, **0-token**, **faithful at sc
 ## The guarantees (proven by tests)
 
 - **Deterministic** — same inputs → same results, always. No hallucination.
-- **Content-addressable** — exact retrieval, no external index; two logically identical objects land
-  in the same place.
+- **Exact & reproducible retrieval** — same data, same answers; two logically identical writes yield
+  the same result.
 - **Faithful recall at scale** — the right information is served **even across tens of thousands of
   subjects**: no false facts, no cross-subject contamination.
 - **Lossless persistence** — memory serializes and reloads identically.

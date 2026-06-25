@@ -6,8 +6,8 @@ les **chiffre** : des propriétés *prouvées par des tests* et une performance 
 ## Les garanties (prouvées par des tests)
 
 - **Déterministe** — mêmes entrées → mêmes résultats, toujours. Aucune hallucination.
-- **Adressable par contenu** — récupération exacte, sans index externe ; deux objets logiquement
-  identiques mènent au même endroit.
+- **Récupération exacte & reproductible** — mêmes données, mêmes réponses ; deux écritures logiquement
+  identiques donnent le même résultat.
 - **Recall fidèle à l'échelle** — la bonne information est servie **même sur des dizaines de milliers
   de sujets** : aucun faux fait, aucune contamination entre sujets.
 - **Persistance sans perte** — la mémoire se sérialise et se recharge à l'identique.

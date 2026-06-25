@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: QPath
-  text: Mémoire symbolique adressable par contenu
-  tagline: Une mémoire de faits et de raisonnement dans un seul graphe — déterministe, à 0 token, sans dépendance. Le LLM devient optionnel ; la mémoire et le raisonnement vivent ici.
+  text: Mémoire symbolique déterministe
+  tagline: Une mémoire de faits et de raisonnement — déterministe, à 0 token, sans dépendance. Le LLM devient optionnel ; la mémoire et le raisonnement vivent ici.
   image:
     src: /logo.svg
     alt: QPath
@@ -28,8 +28,8 @@ hero:
 features:
   - title: Le comportement = des faits gouvernés
     details: Pas seulement la mémoire — la LOGIQUE de l'app (flots, règles, limites, anti-fraude) vit dans des faits qu'on interroge, gouverne et fait évoluer À CHAUD, sans redéployer. Déterministe et traçable. Vitrine&#58; npm run example:ledger.
-  - title: Adressable par contenu
-    details: La position d'une donnée est entièrement déterminée par son contenu — récupération exacte, déterministe, sans index externe.
+  - title: Récupération exacte & déterministe
+    details: Mêmes données, mêmes réponses — récupération exacte et reproductible, fiable à l'échelle, à 0 token.
   - title: Symbolique & déterministe
     details: Faits (sujet, prédicat, objet), index inverses O(1), chaînage avant/arrière tracé. Le LLM est un verbalisateur optionnel ; le raisonnement vit ici.
   - title: 100% recall, sous la milliseconde

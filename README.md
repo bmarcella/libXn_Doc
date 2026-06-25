@@ -1,6 +1,6 @@
 # QPath / LibXN — Documentation
 
-Site de documentation de **QPath** / **LibXN** — une **mémoire symbolique adressable par contenu** :
+Site de documentation de **QPath** / **LibXN** — une **mémoire symbolique déterministe** :
 une seule structure qui stocke, indexe, récupère et raisonne, de façon **déterministe, à 0 token et sans
 dépendance**. Le LLM devient optionnel.
 

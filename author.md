@@ -3,9 +3,8 @@
 **QPath / LibXN** — et le produit **Damba** qui en est bâti — sont conçus et développés par
 **Bigvai Asgard Marcella**.
 
-QPath est une mémoire symbolique adressable par contenu : **un seul graphe** pour *stocker*,
-*raisonner* et *piloter le comportement d'une application par des faits* — de manière déterministe,
-traçable et sans hallucination.
+QPath est une mémoire symbolique déterministe : *stocker* des faits, *raisonner* dessus et *piloter le
+comportement d'une application par des faits* — de manière déterministe, traçable et sans hallucination.
 
 ## Contact
 

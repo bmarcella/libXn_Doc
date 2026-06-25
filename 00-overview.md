@@ -1,7 +1,8 @@
 # Aperçu
 
-QPath est une **mémoire symbolique adressable par contenu** : une seule structure de graphe qui stocke,
-indexe, récupère et raisonne — sans modèle de langage pour le cœur, de façon **déterministe et à 0 token**.
+QPath est une **mémoire symbolique déterministe** : elle stocke des faits, les **récupère de façon exacte
+et fiable à l'échelle**, et **raisonne** dessus — sans modèle de langage pour le cœur, à **0 token**, de
+manière **auditable et temporelle**.
 
 > **La thèse Damba.** Au-delà de la mémoire : **le comportement de l'application EST des faits**
 > gouvernés — flots, règles, limites, anti-fraude vivent dans des faits qu'on interroge, gouverne et
@@ -30,7 +31,7 @@ recommandation, raisonnement explicable, offline/souverain…) avec exemples de 
 ## Pourquoi c'est différent
 
 - **Déterministe** — mêmes entrées → mêmes résultats, toujours. Pas d'hallucination.
-- **Auditable & éditable** — la mémoire est un graphe qu'on peut lire, corriger, versionner.
+- **Auditable & éditable** — la mémoire se lit, se corrige et se versionne, fait par fait.
 - **0 token, temps réel** — les requêtes sont quasi instantanées et ne coûtent aucun appel modèle.
 - **Souverain** — tout peut tourner en local ; aucune donnée ne sort.
 

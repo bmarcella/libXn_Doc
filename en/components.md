@@ -16,8 +16,8 @@ component builds on.
 **What it's for:** ingest any data, retrieve it exactly (or the closest), learn lightly (classification,
 regression), persist the whole graph.
 
-**When to use it:** whenever you need a **content-addressable memory** — a store where a datum's location
-derives from the datum itself, with deterministic retrieval.
+**When to use it:** whenever you need a **deterministic fact memory** — exact, reproducible retrieval
+(same data, same answers), reliable at scale.
 
 ```ts
 import { XNeuroneGrid } from '@damba/libxn';

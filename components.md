@@ -16,8 +16,8 @@ laquelle reposent tous les autres composants.
 **À quoi ça sert :** ingérer n'importe quelle donnée, la retrouver exactement (ou la plus proche),
 apprendre légèrement (classification, régression), persister tout le graphe.
 
-**Quand l'utiliser :** dès que vous avez besoin d'une **mémoire adressable par contenu** — un magasin où
-l'emplacement d'une donnée découle de la donnée elle-même, avec récupération déterministe.
+**Quand l'utiliser :** dès que vous avez besoin d'une **mémoire de faits déterministe** — récupération
+exacte et reproductible (mêmes données, mêmes réponses), fiable à l'échelle.
 
 ```ts
 import { XNeuroneGrid } from '@damba/libxn';
