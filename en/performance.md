@@ -32,6 +32,23 @@ Single Node thread, from one thousand to 50,000 facts:
 - **Memory that amortizes** — the per-fact cost **drops** as the corpus grows (from 6.3 to 3.1),
   because the structure shares what is common.
 
+## Reads at scale (up to 400,000 facts)
+
+Beyond the baseline, we separate **indexed** reads (the normal path) from **scans**. p50 latencies,
+pushed to 400,000 facts:
+
+| Facts | `ask(s,p)` | `askInverse(p,o)` | `predicatesOf(s)` | `allFacts()` |
+|------:|----------:|------------------:|------------------:|-------------:|
+| 4,000   | 1.2 µs | 0.9 µs | 0.5 µs |   7 ms |
+| 80,000  | 1.9 µs | 0.9 µs | 0.8 µs | 158 ms |
+| 400,000 | 2.8 µs | 1.6 µs | 1.3 µs | **1.3 s** |
+
+- **Indexed reads stay FLAT up to 400,000 facts**: `ask`, `askInverse`, `predicatesOf` are O(1) (mirror
+  index), no cliff. A question's latency does not depend on the size.
+- **`allFacts()` is O(F)**: it **enumerates everything** (status, sources, flags per fact), hence ~1.3 s at
+  400,000 facts. It is the only heavy read path. Rule: call it **once** per request, never in a loop. A
+  "lite" enumeration of triples only (no status/sources) is ~**2× faster**.
+
 ## Versus an LLM alone
 
 | | LLM alone | QPath |
@@ -49,6 +66,7 @@ Everything is verifiable, shipped with the package:
 npm test            # characterization: encoding, serialization, reasoning surface, recall
 npm run bench       # reasoning capabilities (100% recall)
 npm run bench:scale # the scale baseline above
+npm run bench:scale-reads # indexed reads vs scan, up to 400k
 ```
 
 > QPath's internals (encoding, structure) are not publicly documented. What is presented here are the

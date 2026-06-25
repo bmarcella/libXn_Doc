@@ -52,6 +52,21 @@ decoupled, and the core runs on its own, with no network and no browser.
 | **`@damba/libxn-cache`** | `Cache` port (get/set/getOrCompute) + adapters (memory, Redis); [decorates](/en/caching) embeddings/search/LLM/snapshots. | **Cache** expensive operations (fail-open). | universal |
 | **`@damba/libxn-cache-redis`** | **ioredis** adapter for the `RedisLike` port of `libxn-cache`. | **Distributed** cache (multi-process) via Redis. | server |
 
+## Maturity
+
+The whole suite is **pre-1.0** (v0.1.x) and not yet published on npm: packages are consumed locally (the
+monorepo). Indicative maturity levels:
+
+- **Solid**: `@damba/libxn` (core) — the read/reasoning surface is characterized by hundreds of tests,
+  measured 100% recall up to 400,000 facts.
+- **Stable, young API**: `libxn-postgres`, `libxn-cache`, `libxn-intent`, `libxn-generative`,
+  `libxn-qpath-ml`, `libxn-tools-llm` — tested, but the API may move before 1.0.
+- **Browser / periphery**: `libxn-encoders`, `libxn-embeddings`, `libxn-visualization`, `libxn-react-ui`
+  — functional, environment-dependent (Canvas/WebGL/Worker/React).
+
+> In practice: build on the **core** without reservation; for peripheral packages, pin the version and
+> expect small API adjustments before 1.0.
+
 ## Choose in one sentence
 
 - **Just memory and reasoning**: `@damba/libxn` alone.

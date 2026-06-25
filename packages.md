@@ -52,6 +52,21 @@ besoin : tout le reste reste découplé, et le cœur fonctionne seul, sans rése
 | **`@damba/libxn-cache`** | Port `Cache` (get/set/getOrCompute) + adaptateurs (mémoire, Redis) ; [décore](/caching) embeddings/recherche/LLM/snapshots. | **Mettre en cache** les opérations coûteuses (fail-open). | universel |
 | **`@damba/libxn-cache-redis`** | Adaptateur **ioredis** du port `RedisLike` de `libxn-cache`. | Cache **distribué** (multi-process) via Redis. | serveur |
 
+## Maturité
+
+L'ensemble est en **pré-1.0** (v0.1.x) et n'est pas encore publié sur npm : on consomme les paquets en
+local (monorepo). Niveaux de maturité indicatifs :
+
+- **Solide** : `@damba/libxn` (cœur) — la surface de lecture/raisonnement est caractérisée par des
+  centaines de tests, recall mesuré 100 % jusqu'à 400 000 faits.
+- **Stable, API jeune** : `libxn-postgres`, `libxn-cache`, `libxn-intent`, `libxn-generative`,
+  `libxn-qpath-ml`, `libxn-tools-llm` — testés, mais l'API peut bouger avant la 1.0.
+- **Navigateur / périphérie** : `libxn-encoders`, `libxn-embeddings`, `libxn-visualization`,
+  `libxn-react-ui` — fonctionnels, dépendants de l'environnement (Canvas/WebGL/Worker/React).
+
+> En pratique : bâtissez sur le **cœur** sans réserve ; pour les paquets périphériques, épinglez la version
+> et prévoyez de petites adaptations d'API d'ici la 1.0.
+
 ## Choisir en une phrase
 
 - **Juste de la mémoire et du raisonnement** : `@damba/libxn` seul.

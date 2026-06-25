@@ -96,6 +96,7 @@ export default withMermaid(defineConfig({
             { text: 'Exemples', link: '/examples' },
             { text: 'Guide de démarrage', link: '/04-guides/getting-started' },
             { text: 'Architecture', link: '/04-guides/architecture' },
+            { text: 'Dépannage & FAQ', link: '/troubleshooting' },
           ] },
         ],
         sidebar: [
@@ -148,6 +149,7 @@ export default withMermaid(defineConfig({
             { text: 'Cache', link: '/caching' },
               { text: 'Démarrer', link: '/04-guides/getting-started' },
               { text: 'Architecture', link: '/04-guides/architecture' },
+              { text: 'Dépannage & FAQ', link: '/troubleshooting' },
               { text: 'Premier projet (Express)', link: '/first-project' },
               { text: 'Auteur', link: '/author' },
             ],
@@ -223,6 +225,7 @@ export default withMermaid(defineConfig({
             { text: 'Examples', link: '/en/examples' },
             { text: 'Getting started', link: '/en/04-guides/getting-started' },
             { text: 'Architecture', link: '/en/04-guides/architecture' },
+            { text: 'Troubleshooting & FAQ', link: '/en/troubleshooting' },
           ] },
         ],
         sidebar: [
@@ -275,6 +278,7 @@ export default withMermaid(defineConfig({
             { text: 'Cache', link: '/en/caching' },
               { text: 'Getting started', link: '/en/04-guides/getting-started' },
               { text: 'Architecture', link: '/en/04-guides/architecture' },
+              { text: 'Troubleshooting & FAQ', link: '/en/troubleshooting' },
               { text: 'First project (Express)', link: '/en/first-project' },
               { text: 'Author', link: '/en/author' },
             ],

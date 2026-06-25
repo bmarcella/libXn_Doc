@@ -33,6 +33,23 @@ Mesure sur un seul thread Node, du millier à 50 000 faits :
 - **Mémoire qui s'amortit** — le coût par fait **diminue** à mesure que le corpus grandit (de 6,3 à 3,1),
   car la structure partage ce qui est commun.
 
+## Lectures à l'échelle (jusqu'à 400 000 faits)
+
+Au-delà de la baseline, on distingue les lectures **indexées** (le chemin normal) des **balayages**.
+Mesure des latences p50, en poussant à 400 000 faits :
+
+| Faits | `ask(s,p)` | `askInverse(p,o)` | `predicatesOf(s)` | `allFacts()` |
+|------:|----------:|------------------:|------------------:|-------------:|
+| 4 000   | 1,2 µs | 0,9 µs | 0,5 µs |   7 ms |
+| 80 000  | 1,9 µs | 0,9 µs | 0,8 µs | 158 ms |
+| 400 000 | 2,8 µs | 1,6 µs | 1,3 µs | **1,3 s** |
+
+- **Les lectures indexées restent PLATES jusqu'à 400 000 faits** : `ask`, `askInverse`, `predicatesOf`
+  sont en O(1) (index miroir), aucun « cliff ». La latence d'une question ne dépend pas de la taille.
+- **`allFacts()` est en O(F)** : il **énumère tout** (statut, sources, drapeaux par fait), d'où ~1,3 s à
+  400 000 faits. C'est le seul chemin de lecture lourd. Règle : l'appeler **une fois** par requête, jamais
+  en boucle. Une énumération « légère » de triplets seuls (sans statut/sources) est ~**2× plus rapide**.
+
 ## En face d'un LLM seul
 
 | | LLM seul | QPath |
@@ -50,6 +67,7 @@ Tout est vérifiable, livré avec le paquet :
 npm test            # caractérisation : encodage, sérialisation, surface de raisonnement, recall
 npm run bench       # capacités de raisonnement (recall 100 %)
 npm run bench:scale # la baseline d'échelle ci-dessus
+npm run bench:scale-reads # lectures indexées vs balayage, jusqu'à 400k
 ```
 
 > Le fonctionnement interne de QPath (encodage, structure) n'est pas documenté publiquement.
