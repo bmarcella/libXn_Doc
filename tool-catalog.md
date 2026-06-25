@@ -7,8 +7,8 @@ le raisonnement.
 
 > 💡 **L'idée.** Chaque capacité du cœur (lire un fait, raisonner, agréger, comparer des entités, ingérer
 > du texte, gérer des droits, déduire…) devient un **tool neutre** décrit en JSON Schema. Un même catalogue
-> sert Anthropic, OpenAI, Gemini ou un runtime maison. **230 tools**, dont **178 en lecture** (0 token,
-> déterministe) et **52 en écriture**.
+> sert Anthropic, OpenAI, Gemini ou un runtime maison. **245 tools**, dont **186 en lecture** (0 token,
+> déterministe) et **59 en écriture**.
 
 ## Provider-agnostique
 
@@ -18,7 +18,7 @@ Seule l'enveloppe d'envoi diffère, et des adaptateurs s'en chargent.
 ```ts
 import { buildRegistry, toAnthropicTools, toOpenAITools, toGeminiTools } from '@damba/libxn-tools-llm';
 
-const registry = buildRegistry();          // les 230 tools
+const registry = buildRegistry();          // les 245 tools
 toAnthropicTools(registry.list());          // { name, description, input_schema }
 toOpenAITools(registry.list());             // { type: 'function', function: {...} }
 toGeminiTools(registry.list());             // functionDeclarations
@@ -30,10 +30,10 @@ toGeminiTools(registry.list());             // functionDeclarations
 2. **Adaptateurs** : `toAnthropicTools` / `toOpenAITools` / `toGeminiTools` / `toPlainTools`, plus un pont
    `toCoreTool` vers le `ToolRegistry` du cœur (FlowRunner, résolution par prédicat).
 3. **Récupération** : `registry.search(query)` (0 token). Un grand catalogue n'est utile que si on
-   n'expose au modèle que les tools **pertinents** pour la tâche, au lieu des 230 d'un coup.
+   n'expose au modèle que les tools **pertinents** pour la tâche, au lieu des 245 d'un coup.
 
 ```ts
-const tools = toAnthropicTools(registry.search('qui habite la même ville', 12)); // 12, pas 230
+const tools = toAnthropicTools(registry.search('qui habite la même ville', 12)); // 12, pas 245
 ```
 
 ## Exécuter un appel
@@ -62,14 +62,17 @@ erreur claire s'il manque.
 | `generator` | déduction générative (quarantaine) |
 | `contextualizer` | routage d'intention |
 | `grid` | grille QPath brute |
+| `vault` | coffre de secrets (ajout seulement) |
+| `media` | médias attachés aux faits |
+| `models` | modèles entraînables (`model_*`) |
 
 Companion, droits d'accès (RBAC), grand livre et **recettes** se construisent depuis `kb` (rien à fournir).
 
 ## Les domaines
 
-`recipe` 36, `kb.read` 24, `kb.reason` 20, `kb.aggregate` 19, `access` 16, `nl` 16, `ml` 13, `rules` 13,
-`kb.write` 10, `kb.sets` 9, `ledger` 9, `companion` 8, `generative` 8, `kb.provenance` 6, `kb.entity` 5,
-`kb.temporal` 5, `flow` 5, `grid` 4, `intent` 4.
+`recipe` 36, `kb.read` 24, `kb.reason` 20, `kb.aggregate` 19, `ml` 19, `access` 16, `nl` 16, `rules` 13,
+`kb.write` 10, `kb.sets` 9, `ledger` 9, `companion` 8, `generative` 8, `kb.provenance` 6, `media` 6,
+`kb.temporal` 5, `kb.entity` 5, `flow` 5, `intent` 4, `grid` 4, `vault` 3.
 
 ## Recettes : une intention, un appel
 
@@ -206,7 +209,7 @@ await runTool(ctx, registry, 'recipe_rank_by', { p: 'age' });
   temporel), conformément au modèle QPath.
 - Les **recettes** transforment des intentions concrètes en un seul appel ancré sur la mémoire.
 
-## Référence : les 230 tools
+## Référence : les 245 tools
 
 Liste complète, groupée par domaine. **R** = lecture (0 token, déterministe), **W** = écriture. Le nom du
 tool est son identifiant d'appel ; la description est celle vue par le LLM. Générée depuis le registre.
@@ -432,7 +435,7 @@ tool est son identifiant d'appel ; la description est celle vue par le LLM. Gén
 | `nl_validate_fact` | R | Valide un triplet (s,p,o) : renvoie la raison de rejet, ou null si valide. |
 | `qa_parse_when` | R | Parse une expression temporelle (hier, la semaine dernière, une date) en epoch ms, ou null. |
 
-### Mémoire d’entités & encodeurs (ML) (`ml`, 13)
+### ML : mémoire d’entités, encodeurs, modèles (`ml`, 19)
 
 | Tool | RW | Description |
 |---|---|---|
@@ -447,6 +450,12 @@ tool est son identifiant d'appel ; la description est celle vue par le LLM. Gén
 | `ml_encode_value` | R | Encode un nombre en VECTEUR de traits directionnels (aplati). mode ∈ bits/onehot. |
 | `ml_text_to_quats` | R | Encode du TEXTE en séquence de quats (octet par octet, même mappage que le noyau). |
 | `ml_value_to_quats` | R | Encode un NOMBRE en séquence de quats (directions QPath 0..3). bits = précision (défaut 8). |
+| `model_create` | W | Crée un modèle entraînable NOMMÉ. type ∈ mlp/directional/directional-rnn/gridnet/factrouter. config : seed, inputSize (mlp), layers [{units,activation}], hidden (directional/rnn), numTypes/numFlags (factrouter). |
+| `model_delete` | W | Supprime un modèle du registre. Renvoie true si présent. |
+| `model_export` | R | Sérialise un modèle qui le supporte (FactRouter) en JSON persistable. null pour les types non sérialisables. |
+| `model_list` | R | Liste les modèles du registre (nom + type). |
+| `model_predict` | R | Prédit avec un modèle entraîné (entrée selon le type : vecteur de traits, ou séquence de quats). Renvoie la sortie du modèle. |
+| `model_train` | W | Entraîne un modèle sur des données (forme selon le type). epochs requis, lr optionnel. Renvoie l'historique de perte. |
 | `vsa_nearest_symbol` | R | Parmi des SYMBOLES candidats, lequel est le plus proche d'un symbole requête (clean-up memory VSA). Renvoie le nom du plus proche. |
 | `vsa_symbol_distance` | R | Distance de Hamming entre les hypervecteurs de deux SYMBOLES (chaînes). ~0 = identiques, ~dim/2 = orthogonaux. |
 
@@ -535,3 +544,22 @@ tool est son identifiant d'appel ; la description est celle vue par le LLM. Gén
 | `intent_learn` | W | Apprend un exemplaire (intention, exemple). provisional:true = issu d'un LLM (poids &lt; 1 jusqu'à confirmation). |
 | `intent_route` | R | Route un message vers une intention ; si ambigu ET un port LLM est configuré, le LLM tranche (sinon "unknown"). Renvoie {intent, confidence, via}. |
 | `intent_route_offline` | R | Route un message vers une intention en 0 token (structure + trigrammes, AUCUN LLM). Renvoie {intent, confidence, via}. "unknown" si ambigu. |
+
+### Coffre (secrets) (`vault`, 3)
+
+| Tool | RW | Description |
+|---|---|---|
+| `vault_audit_count` | R | Compte les événements d'audit (principal, action, résultat) dans une fenêtre de temps (ms). Ex. nombre d'échecs de login récents (anti-bruteforce). Pas de contenu de secret. |
+| `vault_audit_trail` | R | Journal d'AUDIT d'un principal : tentatives d'accès (action, résultat succès/échec/refus, horodatage). Ne révèle AUCUN contenu de secret, seulement les ÉVÉNEMENTS d'accès. |
+| `vault_set_secret` | W | AJOUTE (ou remplace) un secret chiffré pour (sujet, prédicat). La valeur est chiffrée au repos et MASQUÉE des lectures normales. ⚠ Le LLM ne peut PAS relire un secret : pas d'outil de révélation. |
+
+### Médias (`media`, 6)
+
+| Tool | RW | Description |
+|---|---|---|
+| `media_add_meta` | W | Ajoute une métadonnée libre (prédicat, valeur) à un média existant (ex. description, lieu, personne). Pour le retrouver ensuite. |
+| `media_detach` | W | Détache un média d'une entité (retire le lien ; les octets ne sont supprimés que s'ils ne servent plus à personne). |
+| `media_of` | R | Liste les médias (référence + type) rattachés à une entité. |
+| `media_owners_of` | R | Propriétaires (entités/faits) d'un média donné par sa référence. |
+| `media_remove` | W | Supprime complètement un média (liens + octets). Renvoie {retracted, bytesDeleted}. |
+| `media_search` | R | Recherche des médias par propriétaire (entité), type (image/audio/video) et/ou texte de description. |

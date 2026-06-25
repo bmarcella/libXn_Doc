@@ -6,8 +6,8 @@ so **any LLM** can drive the memory and the reasoning.
 
 > 💡 **The idea.** Every core capability (read a fact, reason, aggregate, compare entities, ingest text,
 > manage permissions, deduce…) becomes a **provider-neutral tool** described in JSON Schema. One catalog
-> serves Anthropic, OpenAI, Gemini, or a home-grown runtime. **230 tools**, of which **178 are read-only**
-> (0 token, deterministic) and **52 write**.
+> serves Anthropic, OpenAI, Gemini, or a home-grown runtime. **245 tools**, of which **186 are read-only**
+> (0 token, deterministic) and **59 write**.
 
 ## Provider-agnostic
 
@@ -17,7 +17,7 @@ sending envelope differs, and adapters handle that.
 ```ts
 import { buildRegistry, toAnthropicTools, toOpenAITools, toGeminiTools } from '@damba/libxn-tools-llm';
 
-const registry = buildRegistry();          // the 230 tools
+const registry = buildRegistry();          // the 245 tools
 toAnthropicTools(registry.list());          // { name, description, input_schema }
 toOpenAITools(registry.list());             // { type: 'function', function: {...} }
 toGeminiTools(registry.list());             // functionDeclarations
@@ -29,10 +29,10 @@ toGeminiTools(registry.list());             // functionDeclarations
 2. **Adapters**: `toAnthropicTools` / `toOpenAITools` / `toGeminiTools` / `toPlainTools`, plus a
    `toCoreTool` bridge to the core `ToolRegistry` (FlowRunner, predicate resolution).
 3. **Retrieval**: `registry.search(query)` (0 token). A large catalog is only useful if you expose to the
-   model the tools **relevant** to the task, not all 230 at once.
+   model the tools **relevant** to the task, not all 245 at once.
 
 ```ts
-const tools = toAnthropicTools(registry.search('who lives in the same city', 12)); // 12, not 230
+const tools = toAnthropicTools(registry.search('who lives in the same city', 12)); // 12, not 245
 ```
 
 ## Running a call
@@ -61,14 +61,17 @@ error if it is missing.
 | `generator` | generative deduction (quarantine) |
 | `contextualizer` | intent routing |
 | `grid` | raw QPath grid |
+| `vault` | secret vault (add only) |
+| `media` | media attached to facts |
+| `models` | trainable models (`model_*`) |
 
 Companion, access control (RBAC), ledger and **recipes** build themselves from `kb` (nothing to provide).
 
 ## The domains
 
-`recipe` 36, `kb.read` 24, `kb.reason` 20, `kb.aggregate` 19, `access` 16, `nl` 16, `ml` 13, `rules` 13,
-`kb.write` 10, `kb.sets` 9, `ledger` 9, `companion` 8, `generative` 8, `kb.provenance` 6, `kb.entity` 5,
-`kb.temporal` 5, `flow` 5, `grid` 4, `intent` 4.
+`recipe` 36, `kb.read` 24, `kb.reason` 20, `kb.aggregate` 19, `ml` 19, `access` 16, `nl` 16, `rules` 13,
+`kb.write` 10, `kb.sets` 9, `ledger` 9, `companion` 8, `generative` 8, `kb.provenance` 6, `media` 6,
+`kb.temporal` 5, `kb.entity` 5, `flow` 5, `intent` 4, `grid` 4, `vault` 3.
 
 ## Recipes: one intent, one call
 
@@ -205,7 +208,7 @@ await runTool(ctx, registry, 'recipe_rank_by', { p: 'age' });
   model.
 - **Recipes** turn concrete intents into a single grounded call.
 
-## Reference: the 230 tools
+## Reference: the 245 tools
 
 Full list, grouped by domain. Tools are marked `(W)` when they write (mutate); all others are read-only
 (0 token). The name is the call identifier; full descriptions (in French) live in the tool metadata and on
@@ -255,9 +258,9 @@ the French page. Generated from the registry.
 
 `chitchat_classify_intent`, `chitchat_handle`, `chitchat_is_affirmation`, `nl_classify_notion`, `nl_extract_facts`, `nl_extract_grammar`, `nl_fact_refine`, `nl_normalize_predicate`, `nl_normalize_term`, `nl_parse`, `nl_parse_all`, `nl_predicate_canonical`, `nl_predicate_equivalents`, `nl_split_coordination`, `nl_validate_fact`, `qa_parse_when`
 
-### Entity memory & encoders (ML) (`ml`, 13)
+### ML: entity memory, encoders, models (`ml`, 19)
 
-`em_add` (W), `em_export_entity`, `em_forget` (W), `em_names`, `em_predict`, `em_register` (W), `em_remove` (W), `em_similar`, `ml_encode_value`, `ml_text_to_quats`, `ml_value_to_quats`, `vsa_nearest_symbol`, `vsa_symbol_distance`
+`em_add` (W), `em_export_entity`, `em_forget` (W), `em_names`, `em_predict`, `em_register` (W), `em_remove` (W), `em_similar`, `ml_encode_value`, `ml_text_to_quats`, `ml_value_to_quats`, `model_create` (W), `model_delete` (W), `model_export`, `model_list`, `model_predict`, `model_train` (W), `vsa_nearest_symbol`, `vsa_symbol_distance`
 
 ### Rules (`rules`, 13)
 
@@ -286,3 +289,11 @@ the French page. Generated from the registry.
 ### Intent routing (`intent`, 4)
 
 `intent_extract_features`, `intent_learn` (W), `intent_route`, `intent_route_offline`
+
+### Vault (secrets) (`vault`, 3)
+
+`vault_audit_count`, `vault_audit_trail`, `vault_set_secret` (W)
+
+### Media (`media`, 6)
+
+`media_add_meta` (W), `media_detach` (W), `media_of`, `media_owners_of`, `media_remove` (W), `media_search`
