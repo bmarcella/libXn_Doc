@@ -47,6 +47,7 @@ export default withMermaid(defineConfig({
             { text: 'Compréhension', link: '/comprehension' },
             { text: "Cycle de vie d'un prompt", link: '/prompt-lifecycle' },
             { text: 'Performance & garanties', link: '/performance' },
+            { text: 'Tarifs', link: '/pricing' },
             { text: 'Auteur', link: '/author' },
           ] },
           { text: 'Entrées & encodage', items: [
@@ -151,6 +152,7 @@ export default withMermaid(defineConfig({
               { text: 'Architecture', link: '/04-guides/architecture' },
               { text: 'Dépannage & FAQ', link: '/troubleshooting' },
               { text: 'Premier projet (Express)', link: '/first-project' },
+              { text: 'Tarifs', link: '/pricing' },
               { text: 'Auteur', link: '/author' },
             ],
           },
@@ -176,6 +178,7 @@ export default withMermaid(defineConfig({
             { text: 'Comprehension', link: '/en/comprehension' },
             { text: 'Prompt lifecycle', link: '/en/prompt-lifecycle' },
             { text: 'Performance & guarantees', link: '/en/performance' },
+            { text: 'Pricing', link: '/en/pricing' },
             { text: 'Author', link: '/en/author' },
           ] },
           { text: 'Input & encoding', items: [
@@ -280,6 +283,7 @@ export default withMermaid(defineConfig({
               { text: 'Architecture', link: '/en/04-guides/architecture' },
               { text: 'Troubleshooting & FAQ', link: '/en/troubleshooting' },
               { text: 'First project (Express)', link: '/en/first-project' },
+              { text: 'Pricing', link: '/en/pricing' },
               { text: 'Author', link: '/en/author' },
             ],
           },
