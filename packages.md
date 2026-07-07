@@ -34,7 +34,7 @@ besoin : tout le reste reste découplé, et le cœur fonctionne seul, sans rése
 | Paquet | Ce que ça fait | Quand l'utiliser | Env |
 |---|---|---|---|
 | **`@damba/libxn-encoders`** | [Encodeurs perceptuels](/encoders) : image multi-résolution, audio/spectrogramme → bits QPath. | Mémoriser de l'**image/audio** dans le même graphe que le texte. | navigateur |
-| **`@damba/libxn-embeddings`** | [Embeddings sémantiques](/semantic-search) locaux (MiniLM via Web Worker), 384 dimensions. | **Recherche sémantique** par le sens, sans appel réseau. | navigateur |
+| **`@damba/libxn-embeddings`** | [Embeddings sémantiques](/semantic-search) locaux (multilingual-e5-small via Web Worker), 384 dimensions. | **Recherche sémantique** par le sens, sans appel réseau. | navigateur |
 
 ## Sortie & interface
 

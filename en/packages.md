@@ -34,7 +34,7 @@ decoupled, and the core runs on its own, with no network and no browser.
 | Package | What it does | When to use it | Env |
 |---|---|---|---|
 | **`@damba/libxn-encoders`** | [Perceptual encoders](/en/encoders): multi-resolution image, audio/spectrogram → QPath bits. | Memorize **image/audio** in the same graph as text. | browser |
-| **`@damba/libxn-embeddings`** | [Semantic embeddings](/en/semantic-search), local (MiniLM via Web Worker), 384 dims. | **Semantic search** by meaning, with no network call. | browser |
+| **`@damba/libxn-embeddings`** | [Semantic embeddings](/en/semantic-search), local (multilingual-e5-small via Web Worker), 384 dims. | **Semantic search** by meaning, with no network call. | browser |
 
 ## Output & UI
 

@@ -10,7 +10,7 @@ d'aucune base vectorielle : elle entre par un **port**.
 
 ## Vectoriser du texte
 
-`SemanticVectorizer` transforme un texte en vecteur 384-D (modèle MiniLM/e5), **100 % navigateur**
+`SemanticVectorizer` transforme un texte en vecteur 384-D (modèle multilingual-e5-small), **100 % navigateur**
 (Web Worker, aucune clé API). Il distingue **question** et **document** (modèles asymétriques).
 
 ```ts
@@ -84,7 +84,7 @@ const pg = pgVectorStore(makeSql(process.env.DATABASE_URL!));
 | **RAG** : retrouver les faits pertinents pour un prompt | `syncSemanticFacts` puis `searchSemantic` |
 | Question reformulée, fautes, synonymes (« toubib » ≈ « médecin ») | recherche par le sens (embeddings) |
 | Détecter doublons / synonymes entre entités | comparer deux `embed()` (cosinus élevé) |
-| Tout en local, sans clé API | `@damba/libxn-embeddings` (MiniLM en Web Worker) |
+| Tout en local, sans clé API | `@damba/libxn-embeddings` (multilingual-e5-small en Web Worker) |
 
 > 🔎 **Ordre conseillé.** Tenter d'abord la **lecture exacte** (`kb.ask`, raisonnement — 0 token), et ne
 > basculer en **sémantique** que si rien n'est trouvé : précision d'abord, rappel ensuite.

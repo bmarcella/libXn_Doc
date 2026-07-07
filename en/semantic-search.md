@@ -10,7 +10,7 @@ enters through a **port**.
 
 ## Vectorize text
 
-`SemanticVectorizer` turns text into a 384-D vector (MiniLM/e5 model), **fully in-browser** (Web
+`SemanticVectorizer` turns text into a 384-D vector (multilingual-e5-small model), **fully in-browser** (Web
 Worker, no API key). It distinguishes **query** from **document** (asymmetric models).
 
 ```ts
@@ -84,7 +84,7 @@ const pg = pgVectorStore(makeSql(process.env.DATABASE_URL!));
 | **RAG**: retrieve relevant facts for a prompt | `syncSemanticFacts` then `searchSemantic` |
 | Reworded question, typos, synonyms ("doc" ≈ "doctor") | search by meaning (embeddings) |
 | Detect duplicates / synonyms across entities | compare two `embed()` (high cosine) |
-| Everything local, no API key | `@damba/libxn-embeddings` (MiniLM in a Web Worker) |
+| Everything local, no API key | `@damba/libxn-embeddings` (multilingual-e5-small in a Web Worker) |
 
 > 🔎 **Recommended order.** Try the **exact read** first (`kb.ask`, reasoning — 0 tokens), and fall back
 > to **semantic** only if nothing is found: precision first, recall second.
