@@ -107,3 +107,28 @@ Memory first, web for what is missing or fresh, tools to act.
 > 🔎 **Why this order.** Putting exact deduction first yields **verifiable, reproducible, free** answers;
 > reserving the LLM for the last tier caps cost and hallucination, since it answers on retrieved facts
 > rather than its own memory.
+
+## Evolving the routing without breaking anything
+
+The grid above decides **by position**: the first matching tier answers. That is simple and
+predictable, but two tiers can sometimes both claim the same message (a question whose answer is both a
+known fact and an estimate, say). To settle those cases more robustly, Damba can decide **by evidence**
+rather than by position alone: each candidate tier presents what it knows, and an arbiter keeps the
+strongest claim. Two safeguards frame that choice:
+
+- **A known fact always beats an estimate.** If memory holds the true value, we serve it: we do not
+  guess.
+- **A confidence circuit breaker.** When no claim reaches the reliability threshold, we defer to the
+  grounded LLM rather than serve an unreliable answer.
+
+### Shadow mode: measure on real traffic before turning it on
+
+Changing a routing decision is delicate: a test on made-up cases says nothing about real usage. So Damba
+validates every routing change in **shadow mode**. The new mechanism runs **alongside** the live
+routing: it **observes** each real message and **records what it would have decided**, but **never
+changes the answer served**. This accumulates, on real traffic, the evidence that the new routing would
+have corrected genuine mistakes, for instance serving a known fact where the old path was guessing. Once
+that evidence is in, and only then, the new mechanism is turned on by default.
+
+> 🛡️ **Why shadow mode.** It turns "it works on our examples" into "here is how often it would have
+> helped on your usage", at zero risk: while it only observes, behaviour stays identical.

@@ -109,3 +109,31 @@ pas à **connaître**. Mémoire d'abord, web pour ce qui manque ou qui est frais
 > 🔎 **Pourquoi cet ordre.** Mettre la déduction exacte en premier donne des réponses **vérifiables,
 > reproductibles et gratuites** ; réserver le LLM au dernier tier limite le coût et les hallucinations,
 > puisqu'il répond sur des faits récupérés plutôt que de mémoire propre.
+
+## Faire évoluer le routage sans rien casser
+
+La grille ci-dessus décide **par position** : le premier tier qui correspond répond. C'est simple et
+prévisible, mais deux tiers peuvent parfois revendiquer le même message (une question dont la réponse
+est à la fois un fait connu et une estimation, par exemple). Pour trancher ces cas de façon plus
+robuste, Damba peut décider **par la preuve** plutôt que par la seule position : chaque tier candidat
+présente ce qu'il sait, et un arbitre retient la revendication la plus solide. Deux garde-fous
+encadrent ce choix :
+
+- **Un fait connu l'emporte toujours sur une estimation.** Si la mémoire contient la vraie valeur, on
+  la sert : on ne devine pas.
+- **Un disjoncteur de confiance.** Quand aucune revendication n'atteint le seuil de fiabilité, on défère
+  au LLM ancré plutôt que de servir une réponse peu sûre.
+
+### Le mode ombre : mesurer sur le trafic réel avant d'activer
+
+Changer une décision de routage est délicat : un test sur des cas fabriqués ne dit rien de l'usage réel.
+Damba valide donc toute évolution du routage en **mode ombre**. Le nouveau mécanisme tourne **en
+parallèle** du routage en place : il **observe** chaque message réel et **note ce qu'il aurait décidé**,
+mais **ne change jamais la réponse servie**. On accumule ainsi, sur le vrai trafic, la preuve que le
+nouveau routage aurait corrigé de vraies erreurs, par exemple servir un fait connu là où l'ancien
+chemin devinait. Une fois cette preuve établie, et seulement alors, on active le nouveau mécanisme par
+défaut.
+
+> 🛡️ **Pourquoi le mode ombre.** Il transforme « ça marche sur nos exemples » en « voici combien de fois
+> ça aurait aidé sur ton usage », sans aucun risque : tant qu'il observe, le comportement reste
+> identique.
