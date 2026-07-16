@@ -1,12 +1,15 @@
 # Fact-driven UI
 
 The thesis "**an application's behavior is governed facts**" extends to the **frontend**: the screen
-(structure) AND its behavior live in facts; **React is just a rendering engine**. Adding or removing
-a fact changes the screen **at runtime, without redeploying** — **deterministically, traceably and
-under governance**. It is Server-Driven UI, but with QPath as the source.
+(structure) AND its behavior live in facts; **the framework is just a rendering engine**. Adding or
+removing a fact changes the screen **at runtime, without redeploying** — **deterministically, traceably
+and under governance**. It is Server-Driven UI, but with QPath as the source.
 
-> Package `@damba/libxn-react-ui` (optional React binding, outside the core). The core stays
-> framework-agnostic: it produces a data tree (`renderTree`); React consumes it.
+> **Two bindings, one shared core.** The core `@damba/libxn-ui-core` is **framework-agnostic**: from
+> the facts it produces a data tree (`renderTree`), holds state (store) and behavior (flows). Two
+> optional packages render it: `@damba/libxn-react-ui` (React) and `@damba/libxn-angular-ui` (Angular).
+> The API is **identical** (`createFactApp`, screens/flows/state as facts); only the rendering component
+> and the component *registry* differ. The examples below are in React; the Angular equivalent follows.
 
 ## In 12 lines
 
@@ -30,6 +33,34 @@ export const App = () => <FactUI app={app} screen="counter" />;
 
 No `ToolRegistry`, no `FlowRunner`, no store to wire: the **facade** `createFactApp` hides them. You
 write screens as **objects** (sugar) that become facts under the hood.
+
+> **The same screen in Angular** (`@damba/libxn-angular-ui`) — identical API, Angular components,
+> rendered by `<fact-ui>`:
+>
+> ```ts
+> import { Component } from '@angular/core';
+> import { createFactApp, FactUiComponent } from '@damba/libxn-angular-ui';
+>
+> @Component({
+>   selector: 'app-counter', standalone: true, imports: [FactUiComponent],
+>   template: `<fact-ui [app]="app" screen="counter"></fact-ui>`,
+> })
+> export class CounterComponent {
+>   app = createFactApp().components({ Card, Text, Button }); // YOUR Angular components
+>   async ngOnInit() {
+>     await this.app.state({ counter: { value: 0 } });
+>     await this.app.flow('inc', [{ do: 'increment', path: 'counter value' }]);
+>     await this.app.screen('counter', { component: 'Card', children: [
+>       { component: 'Text',   bind: { text: 'counter value' } },
+>       { component: 'Button', props: { label: '+1' }, on: { click: 'inc' } },
+>     ] });
+>   }
+> }
+> ```
+>
+> Angular component contract: props → `@Input()`, events → `@Output()` of the same name
+> (`on_click` → `@Output() click`), children → `<ng-content>`. Rendering reconciles by node identity:
+> `@Input`s change **in place**, so the focus of a text field is preserved.
 
 **The calls in this example, argument by argument:**
 

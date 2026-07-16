@@ -41,7 +41,9 @@ besoin : tout le reste reste découplé, et le cœur fonctionne seul, sans rése
 | Paquet | Ce que ça fait | Quand l'utiliser | Env |
 |---|---|---|---|
 | **`@damba/libxn-visualization`** | [Rendu 3D](/visualization) Three.js du graphe (implémente le port `GridView`). | **Explorer/déboguer** la mémoire, surligner un chemin de raisonnement. | navigateur |
-| **`@damba/libxn-react-ui`** | [UI pilotée par faits](/fact-driven-ui) : l'écran et le comportement décrits en faits QPath, rendus par React. | Construire une UI **dont l'état vit dans la mémoire**. | navigateur |
+| **`@damba/libxn-ui-core`** | [UI pilotée par faits](/fact-driven-ui) — **cœur agnostique** : vocabulaire, `renderTree`, sucre, store, tools, authoring. Sans React ni Angular. | Base partagée des bindings UI (rarement utilisé seul). | universel |
+| **`@damba/libxn-react-ui`** | [UI pilotée par faits](/fact-driven-ui) : binding **React** du cœur ci-dessus. | Construire une UI **dont l'état vit dans la mémoire**, en React. | navigateur |
+| **`@damba/libxn-angular-ui`** | [UI pilotée par faits](/fact-driven-ui) : binding **Angular** (`<fact-ui>`, réconciliation par identité de nœud). | Même chose, en Angular. | navigateur |
 
 ## Persistance & infrastructure
 
@@ -62,7 +64,8 @@ local (monorepo). Niveaux de maturité indicatifs :
 - **Stable, API jeune** : `libxn-postgres`, `libxn-cache`, `libxn-intent`, `libxn-generative`,
   `libxn-qpath-ml`, `libxn-tools-llm` — testés, mais l'API peut bouger avant la 1.0.
 - **Navigateur / périphérie** : `libxn-encoders`, `libxn-embeddings`, `libxn-visualization`,
-  `libxn-react-ui` — fonctionnels, dépendants de l'environnement (Canvas/WebGL/Worker/React).
+  `libxn-react-ui`, `libxn-angular-ui` (+ cœur `libxn-ui-core`) — fonctionnels, dépendants de
+  l'environnement (Canvas/WebGL/Worker/React/Angular).
 
 > En pratique : bâtissez sur le **cœur** sans réserve ; pour les paquets périphériques, épinglez la version
 > et prévoyez de petites adaptations d'API d'ici la 1.0.

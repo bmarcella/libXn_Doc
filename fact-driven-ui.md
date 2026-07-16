@@ -1,12 +1,16 @@
 # UI pilotée par faits
 
 La thèse « **le comportement de l'application est des faits gouvernés** » s'étend au **frontend** :
-l'écran (structure) ET son comportement vivent dans des faits ; **React n'est qu'un moteur de
-rendu**. Ajouter ou retirer un fait change l'écran **à chaud, sans redéployer** — de façon
+l'écran (structure) ET son comportement vivent dans des faits ; **le framework n'est qu'un moteur
+de rendu**. Ajouter ou retirer un fait change l'écran **à chaud, sans redéployer** — de façon
 **déterministe, traçable et gouvernée**. C'est du *Server-Driven UI*, mais avec QPath comme source.
 
-> Paquet `@damba/libxn-react-ui` (binding React optionnel, hors du noyau). Le cœur reste agnostique :
-> il produit un arbre de données (`renderTree`) ; React le consomme.
+> **Deux bindings, un cœur partagé.** Le cœur `@damba/libxn-ui-core` est **agnostique au framework** :
+> à partir des faits, il produit un arbre de données (`renderTree`), gère l'état (store) et le
+> comportement (flux). Deux paquets optionnels le rendent : `@damba/libxn-react-ui` (React) et
+> `@damba/libxn-angular-ui` (Angular). L'API est **identique** (`createFactApp`, écrans/flux/état en
+> faits) ; seuls le composant de rendu et le *registry* de composants diffèrent. Les exemples ci-dessous
+> sont en React ; l'équivalent Angular suit juste après.
 
 ## En 12 lignes
 
@@ -30,6 +34,34 @@ export const App = () => <FactUI app={app} screen="counter" />;
 
 Pas de `ToolRegistry`, pas de `FlowRunner`, pas de store à câbler : la **façade** `createFactApp`
 les cache. Le dev écrit des écrans en **objets** (sucre), qui deviennent des faits sous le capot.
+
+> **Le même écran en Angular** (`@damba/libxn-angular-ui`) — API identique, composants Angular,
+> rendu par `<fact-ui>` :
+>
+> ```ts
+> import { Component } from '@angular/core';
+> import { createFactApp, FactUiComponent } from '@damba/libxn-angular-ui';
+>
+> @Component({
+>   selector: 'app-counter', standalone: true, imports: [FactUiComponent],
+>   template: `<fact-ui [app]="app" screen="counter"></fact-ui>`,
+> })
+> export class CounterComponent {
+>   app = createFactApp().components({ Card, Text, Button }); // TES composants Angular
+>   async ngOnInit() {
+>     await this.app.state({ counter: { value: 0 } });
+>     await this.app.flow('inc', [{ do: 'increment', path: 'counter value' }]);
+>     await this.app.screen('counter', { component: 'Card', children: [
+>       { component: 'Text',   bind: { text: 'counter value' } },
+>       { component: 'Button', props: { label: '+1' }, on: { click: 'inc' } },
+>     ] });
+>   }
+> }
+> ```
+>
+> Contrat des composants Angular : props → `@Input()`, events → `@Output()` de même nom
+> (`on_click` → `@Output() click`), enfants → `<ng-content>`. Le rendu réconcilie par identité de
+> nœud : les `@Input` changent **en place**, le focus d'un champ saisi est préservé.
 
 **Les appels de cet exemple, argument par argument :**
 
