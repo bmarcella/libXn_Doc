@@ -144,37 +144,49 @@ zero web call**. The LLM is only used for form, and it's *grounded*: it cannot c
 
 ## 4. Multi-hop reasoning + trace (still QPath)
 
-Even enriched by the web, the reasoning stays **deterministic and traceable** on the QPath side:
+**The problem.** Many answers are written nowhere: they are **deduced** by chaining several facts. "Is Lea
+Paul's grandmother?" is not a stored fact, but follows from "Lea is a parent of Marie" and "Marie is a
+parent of Paul". So you must **compose links**, and, to stay auditable, **show the path** that leads to the
+conclusion.
+
+`ChainResolver` does exactly that, at 0 tokens, and returns a **readable trace**: the path IS the explanation.
 
 ```ts
-import { ChainResolver } from '@damba/libxn';
+import { KnowledgeBase, XNeuroneGrid, ChainResolver, PredicateAlgebra } from '@damba/libxn';
 
-const chain = new ChainResolver(kb).chain('socrates', 'has');
+// The working KB (populated by hand here; in practice these facts come from ingestion).
+const kb = new KnowledgeBase(new XNeuroneGrid());
+await kb.tell('lea', 'parent_of', 'marie');
+await kb.tell('marie', 'parent_of', 'paul');
+
+// The algebra declares HOW to compose: two 'parent_of' in a row make one 'grandparent_of'.
+const algebra = PredicateAlgebra.withDefaults()
+  .declareComposition('parent_of', 'parent_of', 'grandparent_of');
+
+// Look for a chain from 'lea' to an object via the COMPOSED predicate 'grandparent_of'.
+const chain = new ChainResolver(kb, algebra).chain('lea', 'grandparent_of');
+
 ChainResolver.format(chain!);
-// → "socrates —is→ human —is→ mortal —has→ end  (⇒ has = end, confidence 1.00, via transitive)"
-
-// You can then have the LLM verbalize THIS trace, without it inventing the path:
-await verbalize(`Explain this reasoning in one sentence: ${ChainResolver.format(chain!)}`);
+// → "lea —parent_of→ marie —parent_of→ paul  (⇒ grandparent_of = paul, confidence 1.00)"
 ```
 
-`new ChainResolver(kb, algebra?)` — builds the chain resolver:
+**The key point**: the conclusion ("grandparent_of = paul") comes **with its path**. You can then ask an
+LLM to put this trace into a sentence, **without it inventing the reasoning** — it only verbalizes a path
+already proven by QPath.
 
-- **`kb`** — the `KnowledgeBase` to traverse (required).
-- **`algebra?`** — the composed-predicate algebra (transitivity, inverses…); defaults to
-  `PredicateAlgebra.withDefaults()`. Optional — only pass it for custom composition rules.
+The three pieces, briefly:
 
-`chain(s, targetP, opts?)` — finds the **shortest chain** linking subject `s` to an object via the
-composed predicate `targetP`. Returns a `ReasoningChain` (the links, the conclusion, the confidence, the
-`via`) or **`null`** if no chain exists (hence the `chain!` asserting non-nullity when you know it
-exists). The options:
+- **`new ChainResolver(kb, algebra?)`** — the resolver, over a `KnowledgeBase`. Without `algebra` it uses
+  `PredicateAlgebra.withDefaults()`; you only pass one for custom compositions (as above).
+- **`chain(s, targetP)`** — the **shortest** chain linking `s` to an object via the composed predicate
+  `targetP`. Returns a `ReasoningChain` (links, conclusion, confidence), or **`null`** if none exists (hence
+  the `chain!` when you know it does). Depth-bounded; confidence aggregates the links (by default, that of
+  the weakest link).
+- **`ChainResolver.format(chain)`** — static; turns a `ReasoningChain` into a **human-readable one-line
+  trace**.
 
-| Argument | Role | Default |
-|---|---|---|
-| `opts.maxDepth` | max chain depth (number of links) | `4` |
-| `opts.confidence` | confidence aggregation: `'min'` (the weakest link, logical) or `'product'` (probabilistic composition) | `'min'` |
-
-`ChainResolver.format(chain)` — **static** method; takes a (non-null) `ReasoningChain` and returns a
-**human-readable one-line trace** (`"socrates —is→ human … (⇒ has = end, confidence 1.00, via transitive)"`).
+**Use case.** Answer a kinship / hierarchy / location question nobody entered verbatim ("her grandmother?",
+"which continent?"), providing the **proof** of the reasoning, not just the result.
 
 > **Honest confidence, even against the grain.** When a chain follows a relation in the **inverse**
 > direction, its confidence reflects that of the real underlying fact — not an assumed certainty. A

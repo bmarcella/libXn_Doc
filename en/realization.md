@@ -9,6 +9,11 @@ sentence says nothing that is not already in memory.
 > real fact and **dress it up**: the right preposition, the right article, the copula, agreement, lists.
 > The form is produced by rules; the **content** stays a stored fact.
 
+> 🎯 **Use case.** Answer the user with a **sentence**, not a triple. Memory holds "marie · lives_in ·
+> paris"; Realization turns it into "Marie lives in Paris", and can **say it differently** ("Marie resides
+> in Paris") on request, without inventing anything. The problem it solves: give the structured memory a
+> **readable voice** while staying faithful to the facts (each sentence re-reads to the same scene).
+
 ## The exact inverse of reading
 
 QPath already reads the endless surface forms of language and reduces them to a small set of **canonical

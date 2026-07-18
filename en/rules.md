@@ -7,6 +7,11 @@ can **discover** plausible rules from data, and accept a rule dictated in **natu
 > 💡 **Deterministic and auditable.** No magic derivation: you can always ask where a fact comes from,
 > simulate a rule before adopting it, and retract it cleanly.
 
+> 🎯 **Use case.** "Every employee based in France speaks French." As soon as you add "Alice is an
+> employee" and "Alice is based in France", the fact "Alice speaks French" is **derived automatically**,
+> with its provenance; remove a premise and the derived fact cleanly disappears. The problem it solves:
+> encode a policy **once** instead of re-entering the consequence for every case.
+
 ## Write a rule and derive
 
 ```ts

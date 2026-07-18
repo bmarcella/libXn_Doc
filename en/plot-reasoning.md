@@ -15,6 +15,11 @@ alarm precedes evacuation
 The plot of a narrative, an investigation file, an incident history — rebuilt from ordinary facts,
 queryable deterministically, **at 0 tokens**.
 
+> 🎯 **Use case.** Investigating an incident: "what caused the fire, and in what order did things happen?".
+> Plot traces back to **root causes**, **orders** the events, and **flags incoherences** (a report dating
+> an effect before its cause). The problem it solves: reasoning about *time* and *causality*, where a
+> memory of timeless facts says nothing about order.
+
 ## What it can do
 
 | Question | Mechanism | Example |

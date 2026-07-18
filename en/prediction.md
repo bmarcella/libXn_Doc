@@ -8,6 +8,13 @@ dependency: it's **deterministic** and **interpretable** (you see how deep the g
 > deposits its target there. At prediction time, you walk the new case's path: **the deeper you go, the
 > more specific the prediction**.
 
+> 🎯 **Use case.** Any `features → target` prediction, not just real estate. **Regression** (a numeric
+> value): estimate a home price, a quote amount, a delivery time, a consumption. **Classification** (a
+> category): recognize a flower species, a customer segment, a ticket category, a quality defect. You train
+> on `(features → target)` examples, then predict a new case. The **depth reached** in the grid serves as a
+> confidence signal. The problem it solves: predict a value **or** a class **interpretably**, with no opaque
+> neural network or heavy training. Real estate is just a vivid example.
+
 ## Train & predict
 
 ```ts

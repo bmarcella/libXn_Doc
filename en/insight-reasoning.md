@@ -4,6 +4,11 @@ A reasoning mode that **speaks without a question**. The other engines answer wh
 one continuously sweeps the memory and **anticipates** — it proposes facts, and **alerts** the
 user to what they haven't seen. Deterministic, at 0 tokens.
 
+> 🎯 **Use case.** A company memory that **alerts you without being asked**: "two facts contradict each
+> other on account 42's balance", "Marie's email hasn't been confirmed in 8 months", "this client has no
+> sector while all the others do". The problem it solves: errors and gaps don't show up by asking
+> questions, you have to **scan** the memory to surface them.
+
 ## Alerts
 
 | Insight | What it detects | Example |

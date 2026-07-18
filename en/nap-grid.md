@@ -10,6 +10,11 @@ the same time**.
 > weights **on the graph itself**: it **generalizes** to inputs it never stored, while staying
 > **deterministic** (fixed seed) and **auditable** (you read which path weighed in, and by how much).
 
+> 🎯 **Use case.** Predict a value or a class **directly from the facts in memory** (no separate dataset),
+> and be able to **show why**: estimate "~210,000, mostly because of the surface area" with the path that
+> justifies it. The problem it solves: learn what matters **on the structure itself**, auditably, where a
+> classic model would give a number with no explanation.
+
 ## What it unlocks
 
 | Capability | Grid alone | nap-grid |

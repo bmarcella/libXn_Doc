@@ -5,6 +5,11 @@ Where the others **follow a chain** or **apply a rule**, Big Bang **reasons by a
 regularity**: it **searches for similarities** across the whole grid, **compiles** them, and **deduces
 new solid facts**. Deterministic, **0-token**, no LLM.
 
+> 🎯 **Use case.** Guessing an attribute nobody entered. If clients in the same city and sector share a
+> profile, Big Bang **infers** it for a similar new client and **justifies it by the regularities found**
+> in memory, with no LLM call. The problem it solves: filling gaps by analogy while staying traceable and
+> deterministic.
+
 ## The principle
 
 You know facts about many subjects. Big Bang exploits what subjects that **resemble one another** share:

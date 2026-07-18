@@ -9,6 +9,11 @@ bouncing between two players with opposite strengths:
 The idea: solve what **neither can solve alone**. QPath alone stalls on open-ended reasoning; the LLM
 alone hallucinates. PingPong moves the LLM forward **step by step, each step validated by QPath**.
 
+> 🎯 **Use case.** A customer asks "why is my order late?". QPath holds the facts (status, carrier,
+> history) but can't *phrase* the chain; the LLM can chain but might invent. In PingPong the LLM proposes
+> a hypothesis, QPath **verifies it against the facts**, and the final answer contains only what is proven.
+> Without it: either QPath stalls on the open question, or the LLM hallucinates a cause.
+
 ## How it works
 
 Each exchange, the LLM plays **a single move**; QPath answers with a **deterministic verdict**:
