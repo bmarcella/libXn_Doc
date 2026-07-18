@@ -19,6 +19,12 @@ standalone.
 👉 Concretely: see the **[use cases](use-cases)** (AI agent memory, knowledge graph, recommendation,
 explainable reasoning, offline/sovereign…) with code examples.
 
+> 🎯 **Use case.** An assistant told "Marie's appointment is on March 12", then asked two weeks later "when
+> was that again?". It answers exactly, for free, showing where it knows it from, and if the appointment
+> changes, the old one stays visible in history. The problem it solves: a memory that **remembers reliably,
+> answers at no cost, and justifies itself**, where a language model alone forgets, invents, or bills every
+> recall.
+
 ## What it does
 
 - **Fact memory** — stores relations (subject, predicate, object); direct or inverse queries,

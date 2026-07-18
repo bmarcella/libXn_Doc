@@ -4,6 +4,11 @@ QPath is a memory for **discrete knowledge**: **atomic facts**, each expressible
 **subject → predicate → object** triple, retrieved and reasoned over **deterministically, at 0 token**.
 Telling discrete from continuous knowledge is knowing **when QPath is the right tool**.
 
+> 🎯 **Use case.** "The VAT rate is 20%", "Alice works at Acme", "the statute of limitations is 6 years":
+> these precise statements call for an **exact answer, always the same**. Conversely, "sum up the novel's
+> mood" is continuous, where an LLM shines. The problem it solves: know **when** to put knowledge in QPath
+> (the discrete, verifiable kind) rather than hand everything to a model that approximates.
+
 ## What is a discrete fact?
 
 A **precise, self-contained** statement that stands on its own:

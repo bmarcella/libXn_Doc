@@ -8,6 +8,11 @@ memory**.
 The **first matching tier answers and stops**: a command never reaches the LLM, a question never writes,
 a statement never goes to generation.
 
+> 🎯 **Use case.** Three messages in a row: "open the vault" (command, run without the LLM), "where does
+> Marie live?" (question, read from memory at 0 tokens), "Marie moved to Nice" (statement, stored without
+> generation). Each exits at the right tier. The problem it solves: route every message to the **safest,
+> cheapest** handling that can answer it, calling the model only as a last resort, grounded in the facts.
+
 ```mermaid
 flowchart TD
   U([New user prompt]) --> R{Deterministic<br/>routing grid}

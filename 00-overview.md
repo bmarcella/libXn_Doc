@@ -18,6 +18,12 @@ QPath = le cœur ; LibXN = le cœur + ses outils. Le paquet `@damba/libxn` est c
 👉 Concrètement : voir les **[cas d'usage](use-cases)** (mémoire d'agent IA, graphe de connaissances,
 recommandation, raisonnement explicable, offline/souverain…) avec exemples de code.
 
+> 🎯 **Cas d'usage.** Un assistant à qui l'on confie « le rendez-vous de Marie est le 12 mars », puis à qui
+> l'on demande deux semaines plus tard « c'est quand déjà ? ». Il répond exactement, gratuitement, en
+> montrant d'où il le sait, et si le rendez-vous change, l'ancien reste consultable dans l'historique. Le
+> problème résolu : une mémoire qui **retient sûrement, répond sans coût et se justifie**, là où un modèle
+> de langage seul oublie, invente ou facture chaque rappel.
+
 ## Ce que ça fait
 
 - **Mémoire de faits** — stocke des relations (sujet, prédicat, objet) ; interrogation directe ou

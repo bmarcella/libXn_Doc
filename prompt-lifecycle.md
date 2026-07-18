@@ -8,6 +8,12 @@ sûr n'a répondu, et même là, il reste **ancré dans la mémoire**.
 Le **premier tier qui correspond répond et s'arrête** : une commande n'atteint jamais le LLM, une
 question n'écrit jamais, une affirmation ne part jamais en génération.
 
+> 🎯 **Cas d'usage.** Trois messages d'affilée : « ouvre le coffre » (commande, exécutée sans LLM), « où
+> habite Marie ? » (question, lue en mémoire à 0 token), « Marie a déménagé à Nice » (affirmation,
+> mémorisée sans génération). Chacun sort au bon étage. Le problème résolu : router chaque message vers le
+> traitement **le plus sûr et le moins coûteux** qui sait y répondre, et n'appeler le modèle qu'en dernier
+> recours, ancré sur les faits.
+
 ```mermaid
 flowchart TD
   U([Nouveau prompt utilisateur]) --> R{Grille de routage<br/>déterministe}

@@ -7,6 +7,11 @@ mieux il comprend. Tout est **déterministe, à 0 token, traçable** — aucun L
 > Comprendre = donner du sens · relier au déjà-connu · interpréter le contexte · construire une
 > représentation de ce qui est décrit.
 
+> 🎯 **Cas d'usage.** « Marc a laissé tomber le verre. Il est cassé. » Qui est cassé, Marc ou le verre ?
+> En reliant la phrase à ce que la mémoire sait déjà (un verre se casse, pas une personne), QPath
+> **interprète** le pronom correctement. Le problème résolu : donner du sens à une information **ambiguë**
+> en la rattachant au déjà-connu, de façon déterministe et traçable, sans deviner au hasard.
+
 ## 1. Coréférence informée par la grid
 
 > « Jean a laissé tomber son verre. **Il** est cassé. »

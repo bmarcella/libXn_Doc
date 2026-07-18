@@ -3,6 +3,11 @@
 QPath fait des promesses fortes — **déterministe**, **à 0 token**, **fidèle à l'échelle**. Cette page
 les **chiffre** : des propriétés *prouvées par des tests* et une performance *mesurée*, pas affirmée.
 
+> 🎯 **Cas d'usage.** Avant de bâtir dessus, on veut savoir : « ça tient à combien de faits ? le
+> raisonnement reste-t-il exact et gratuit à l'échelle ? ». Cette page **chiffre** les réponses (recall
+> mesuré, coût en tokens, débit), preuves de tests à l'appui. Le problème résolu : décider **en confiance**,
+> sur des mesures reproductibles, pas sur des promesses.
+
 ## Les garanties (prouvées par des tests)
 
 - **Déterministe** — mêmes entrées → mêmes résultats, toujours. Aucune hallucination.

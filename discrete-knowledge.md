@@ -4,6 +4,12 @@ QPath est une mémoire de **connaissance discrète** : des **faits atomiques**, 
 triplet **sujet → prédicat → objet**, récupérés et raisonnés de façon **déterministe, à 0 token**.
 Savoir distinguer le discret du continu, c'est savoir **quand QPath est le bon outil**.
 
+> 🎯 **Cas d'usage.** « Le taux de TVA est de 20 % », « Alice travaille chez Acme », « la prescription est
+> de 6 ans » : ces affirmations précises appellent une **réponse exacte, toujours la même**. À l'inverse,
+> « résume-moi l'ambiance du roman » relève du continu, où un LLM excelle. Le problème résolu : savoir
+> **quand** poser une connaissance dans QPath (le discret, vérifiable) plutôt que de tout confier à un
+> modèle qui approxime.
+
 ## Qu'est-ce qu'un fait discret ?
 
 Une affirmation **précise et autonome**, qui tient toute seule :

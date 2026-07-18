@@ -7,6 +7,11 @@ better it understands. Everything is **deterministic, 0-token, traceable** — n
 > Understanding = making meaning · linking to the already-known · interpreting context · building a
 > representation of what is described.
 
+> 🎯 **Use case.** "Marc dropped the glass. It's broken." Who's broken, Marc or the glass? By linking the
+> sentence to what memory already knows (a glass breaks, a person doesn't), QPath **interprets** the pronoun
+> correctly. The problem it solves: make sense of **ambiguous** information by tying it to the already-known,
+> deterministically and traceably, instead of guessing at random.
+
 ## 1. Grid-informed coreference
 
 > "John dropped his glass. **It** is broken."

@@ -3,6 +3,11 @@
 QPath makes strong promises — **deterministic**, **0-token**, **faithful at scale**. This page puts
 **numbers** on them: properties *proven by tests* and performance *measured*, not asserted.
 
+> 🎯 **Use case.** Before building on it, you want to know: "how many facts does it hold up to? does
+> reasoning stay exact and free at scale?". This page **quantifies** the answers (measured recall, token
+> cost, throughput), backed by tests. The problem it solves: decide **with confidence**, on reproducible
+> measurements, not on promises.
+
 ## The guarantees (proven by tests)
 
 - **Deterministic** — same inputs → same results, always. No hallucination.
