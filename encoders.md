@@ -27,21 +27,10 @@ const enc = new TabularEncoder(['surface', 'pieces', 'zone']);
 const row = enc.encode({ surface: 80, pieces: 3, zone: 2 }); // ligne → encodage
 ```
 
-**`SemanticEncoder.toPairs(data)`** — encode une primitive en un encodage exploitable par la grille, en
-gardant les valeurs proches proches.
-
-| Paramètre | Type | Défaut | Rôle |
-|---|---|---|---|
-| `data` | `string \| number \| boolean` | requis | La valeur à encoder. Le texte est encodé caractère par caractère (les caractères voisins restent voisins) ; les nombres et booléens sont convertis de façon déterministe. |
-
-**`new TabularEncoder(features, width?)`** puis **`.encode(row)`** — encode une ligne de tableau, colonne
-par colonne, dans un **ordre fixe**.
-
-| Paramètre | Type | Défaut | Rôle |
-|---|---|---|---|
-| `features` | `string[]` | requis | Les noms de colonnes, **dans l'ordre**. Cet ordre est figé : il garantit que deux lignes du même dataset s'encodent de façon comparable et reproductible. |
-| `width` | `number` | `16` | La précision d'encodage par colonne. Plus grand = plus fin (distingue des valeurs proches), plus petit = plus compact/tolérant. |
-| `row` (de `encode`) | `Record<string, number>` | requis | La ligne à encoder : une valeur numérique par colonne déclarée dans `features`. |
+`SemanticEncoder.toPairs` encode une primitive (texte, nombre, booléen) en gardant les valeurs proches
+proches ; le texte est traité caractère par caractère. `TabularEncoder` encode une ligne colonne par
+colonne, dans l'**ordre fixe** déclaré à la construction : c'est cet ordre figé qui rend deux lignes du
+même jeu de données comparables et reproductibles.
 
 **Cas d'usage.** Prédire un prix immobilier : `new TabularEncoder(['surface','pieces','zone'])`, encoder
 chaque ligne, entraîner la grille, puis prédire le prix d'un bien inédit. Voir [prédiction](/prediction).
@@ -65,11 +54,9 @@ const query = await PerceptualEncoder.encodeFromImage(img);
 grid.predictClass(query);                                     // → { label: 'chat', … }
 ```
 
-| Fonction | Paramètre | Type | Rôle |
-|---|---|---|---|
-| `encodeFromFile(file)` | `file` | `File` | Un fichier image (ex. depuis un `<input type="file">` ou un glisser-déposer). Renvoie une `Promise` de l'encodage. |
-| `encodeFromImage(img)` | `img` | `HTMLImageElement` | Une image déjà chargée dans le DOM. |
-| `encodeFromSource(src)` | `src` | `CanvasImageSource` | Source générique : `<canvas>`, `<video>`, `ImageBitmap`… Synchrone. C'est la brique commune (l'image et la vidéo passent par elle). |
+Trois points d'entrée selon la source : `encodeFromFile` (un fichier, ex. depuis un `<input type="file">`),
+`encodeFromImage` (une image déjà dans le DOM), et `encodeFromSource` (une source générique — canvas,
+vidéo, `ImageBitmap`), la brique commune par laquelle passent image et vidéo.
 
 **Cas d'usage.** Reconnaissance visuelle « par similarité » : entraîner la grille avec quelques images
 étiquetées, puis classer une image inédite par ressemblance, sans phase d'entraînement lourde.
@@ -91,25 +78,10 @@ const { encoding, thumbnail, audioUrl } = await AudioEncoder.capture(ctx, analys
 const { codes, thumbnail: vthumb } = await VideoEncoder.captureKeyframes(videoEl, 8);
 ```
 
-**`AudioEncoder.capture(ctx, analyser, stream, durationMs?)`** — enregistre le son, l'encode, et renvoie
-de quoi l'afficher et le rejouer.
-
-| Paramètre | Type | Défaut | Rôle |
-|---|---|---|---|
-| `ctx` | `AudioContext` | requis | Le contexte audio Web Audio API qui pilote la capture. |
-| `analyser` | `AnalyserNode` | requis | Le nœud d'analyse branché sur la source ; c'est lui qui fournit le signal à encoder. |
-| `stream` | `MediaStream` | requis | Le flux micro (issu de `getUserMedia`). |
-| `durationMs` | `number` | `DEFAULT_DURATION_MS` | Durée d'enregistrement en millisecondes. |
-| **Retour** | `{ encoding, thumbnail, audioUrl }` | | L'encodage à mémoriser, plus une **vignette** (spectrogramme) et une **URL rejouable** pour l'UI. |
-
-**`VideoEncoder.captureKeyframes(video, frames?)`** — répartit des images-clés sur la durée et encode
-chacune.
-
-| Paramètre | Type | Défaut | Rôle |
-|---|---|---|---|
-| `video` | `HTMLVideoElement` | requis | L'élément vidéo à échantillonner. |
-| `frames` | `number` | `8` | Nombre d'images-clés réparties sur la durée. Plus élevé = couverture plus fine, encodage plus coûteux. |
-| **Retour** | `{ codes, thumbnail }` | | `codes` = **un encodage par image-clé** (à indexer) ; `thumbnail` = une vignette pour l'UI. |
+`AudioEncoder.capture` enregistre le son depuis le micro (via Web Audio API) pendant une durée donnée,
+l'encode, et renvoie de quoi l'afficher et le rejouer (une vignette de spectrogramme et une URL rejouable).
+`VideoEncoder.captureKeyframes` répartit un nombre d'images-clés (8 par défaut) sur la durée de la vidéo et
+renvoie **un encodage par image**, plus une vignette.
 
 **Cas d'usage.** Retrouver une vidéo à partir d'une image proche : indexer les `codes` de chaque vidéo,
 puis chercher la keyframe la plus ressemblante à une image requête.

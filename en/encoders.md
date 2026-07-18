@@ -1,81 +1,98 @@
 # Encoders — text, tables, image, audio, video
 
-Before learning anything, QPath must **turn an input into an internal representation**. **Encoders**
-handle this for each data type — a word, a table row, an image, a sound, a video — while **preserving
-similarity**: two close inputs land in the same place in memory.
+## The problem
 
-> 💡 **One abstraction.** Whatever the modality, the output has the **same shape**. The grid then learns
-> on it (memory, prediction, similarity) without knowing the source.
+A QPath grid only memorizes, compares and predicts on a shared **internal representation**. But the world
+arrives in heterogeneous forms: a word, a table row, a photo, a sound, a video. Without a conversion step,
+each modality would live in its own silo and nothing could be compared. **Encoders** solve this: they turn
+any input into the **same shape**, while **preserving similarity** (two close inputs land in the same
+place). The grid then learns on it without knowing the source.
+
+> 💡 **One abstraction.** Whatever the modality, the output has the same shape. That's what lets you mix
+> text, image and sound in **one memory**.
 
 ## Text & tabular data
 
+**The problem.** Classifying a word or predicting a numeric value (a price, a score) first requires putting
+text and numbers into the grid **reproducibly**: the same input must always give the same encoding.
+
 ```ts
-import { SemanticEncoder, TabularEncoder, XNeuroneGrid } from '@damba/libxn';
+import { SemanticEncoder, TabularEncoder } from '@damba/libxn';
 
-// Text → encoding (close characters stay close).
-const encoded = SemanticEncoder.toPairs('HELLO');
+const encoded = SemanticEncoder.toPairs('HELLO');           // text → encoding
 
-// Numeric row → encoding, FIXED column order (reproducible).
 const enc = new TabularEncoder(['surface', 'rooms', 'zone']);
-const row = enc.encode({ surface: 80, rooms: 3, zone: 2 });
+const row = enc.encode({ surface: 80, rooms: 3, zone: 2 });  // row → encoding
 ```
 
-- **`SemanticEncoder.toPairs(data)`** — encodes any primitive (text, number, boolean) into a
-  representation the grid can use.
-- **`new TabularEncoder(features)`** then **`encode(row)`** — encodes a `{ column: number }` row; the
-  column order guarantees reproducibility.
+`SemanticEncoder.toPairs` encodes a primitive (text, number, boolean) keeping close values close; text is
+handled character by character. `TabularEncoder` encodes a row column by column, in the **fixed order**
+declared at construction: that frozen order is what makes two rows of the same dataset comparable and
+reproducible.
+
+**Use case.** Predict a house price: `new TabularEncoder(['surface','rooms','zone'])`, encode each row,
+train the grid, then predict the price of an unseen property. See [prediction](/en/prediction).
 
 ## Image — coarse to fine
 
-`PerceptualEncoder` (package `@damba/libxn-encoders`) encodes an image **coarse to fine**: the overall
-shape first, the detail next. Two cat images therefore resemble each other from the start → **free
-generalization**.
+**The problem.** You want to recognize or group images **without a massive training dataset**.
+`PerceptualEncoder` (`@damba/libxn-encoders`) encodes an image **coarse to fine** — the overall shape
+first, the detail next. Two cat photos therefore resemble each other from the earliest levels, giving
+**free generalization**: resemblance alone is enough to classify.
 
 ```ts
 import { PerceptualEncoder } from '@damba/libxn-encoders';
+import { XNeuroneGrid } from '@damba/libxn';
 
-const encoded = await PerceptualEncoder.encodeFromFile(file);   // from an <input type="file">
+const encoded = await PerceptualEncoder.encodeFromFile(file); // from an <input type="file">
 const grid = new XNeuroneGrid();
 grid.train(encoded, 'cat');
 
-// Another cat image lands in the same place.
 const query = await PerceptualEncoder.encodeFromImage(img);
-grid.predictClass(query);                                        // → { label: 'cat', … }
+grid.predictClass(query);                                     // → { label: 'cat', … }
 ```
 
-- **`encodeFromFile(file)` / `encodeFromImage(img)` / `encodeFromSource(src)`** — encodes an image
-  (coarse to fine). `encodeFromSource` accepts a canvas / video / `ImageBitmap`.
+Three entry points depending on the source: `encodeFromFile` (a file, e.g. from an `<input type="file">`),
+`encodeFromImage` (an image already in the DOM), and `encodeFromSource` (a generic source — canvas, video,
+`ImageBitmap`), the common brick that image and video both go through.
+
+**Use case.** Visual "by similarity" recognition: train the grid with a few labeled images, then classify
+an unseen image by resemblance, with no heavy training phase.
 
 ## Audio & video
+
+**The problem.** Sound and video are temporal: you must **sample** then encode them to memorize and
+retrieve them (voice fingerprint, finding a video by a close frame).
 
 ```ts
 import { AudioEncoder, VideoEncoder } from '@damba/libxn-encoders';
 
-// Audio: capture the mic and encode it (with a thumbnail + a replayable link).
 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 const ctx = new AudioContext();
 const analyser = ctx.createAnalyser();
 ctx.createMediaStreamSource(stream).connect(analyser);
 const { encoding, thumbnail, audioUrl } = await AudioEncoder.capture(ctx, analyser, stream, 2000);
 
-// Video: several keyframes spread over the duration, each encoded.
 const { codes, thumbnail: vthumb } = await VideoEncoder.captureKeyframes(videoEl, 8);
 ```
 
-- **`AudioEncoder.capture(ctx, analyser, stream, ms?)`** — records the sound, encodes it, and returns
-  what you need to display/replay it (`thumbnail`, `audioUrl`).
-- **`VideoEncoder.captureKeyframes(video, frames?)`** — samples `frames` keyframes (8 by default) and
-  returns **one encoding per frame** (`codes`).
+`AudioEncoder.capture` records the mic sound (via the Web Audio API) for a given duration, encodes it, and
+returns what you need to display and replay it (a spectrogram thumbnail and a replayable URL).
+`VideoEncoder.captureKeyframes` spreads a number of keyframes (8 by default) over the video's duration and
+returns **one encoding per frame**, plus a thumbnail.
 
-## Use cases
+**Use case.** Find a video from a close image: index each video's `codes`, then search for the keyframe
+most resembling a query image.
 
-| Modality | Example use |
-|---|---|
-| **Text / tabular** | classify a word, predict a house price (`TabularEncoder` + grid) |
-| **Image** | visual recognition; resemblance gives "by similarity" classification |
-| **Audio** | voice fingerprint / sound recognition |
-| **Video** | find a video by a close keyframe (`captureKeyframes` + search) |
+## Summary
+
+| Modality | Key function | Use case |
+|---|---|---|
+| **Text / tabular** | `SemanticEncoder.toPairs` · `TabularEncoder` | classify a word, predict a house price |
+| **Image** | `PerceptualEncoder.encodeFrom*` | visual recognition by similarity |
+| **Audio** | `AudioEncoder.capture` | voice fingerprint, sound recognition |
+| **Video** | `VideoEncoder.captureKeyframes` | find a video by a close keyframe |
 
 > 🧱 **The common ground.** All produce the **same kind of encoding** that the same grid learns — see
-> [prediction](/prediction) to train/predict, and [semantic search](/semantic-search) to search by
+> [prediction](/en/prediction) to train/predict, and [semantic search](/en/semantic-search) to search by
 > meaning on the text side.
