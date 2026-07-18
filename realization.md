@@ -9,6 +9,11 @@ token**, aucune invention : la phrase ne dit rien qui ne soit déjà dans la mé
 > réel et on l'**habille** : la bonne préposition, le bon article, la copule, l'accord, les listes. La
 > forme est produite par des règles ; le **contenu** reste un fait stocké.
 
+> 🎯 **Cas d'usage.** Répondre à l'utilisateur par une **phrase**, pas par un triplet. La mémoire sait
+> « marie · habite · paris » ; la Réalisation en fait « Marie habite à Paris », et sait le **redire
+> autrement** (« Marie vit à Paris ») sur demande, sans rien inventer. Le problème résolu : donner une
+> **voix lisible** à la mémoire structurée, en restant fidèle aux faits (chaque phrase se relit à la même scène).
+
 ## L'inverse exact de la lecture
 
 QPath lit déjà les tournures infinies du langage et les ramène à un petit jeu de **relations

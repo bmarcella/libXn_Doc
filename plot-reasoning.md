@@ -15,6 +15,11 @@ alarme précède évacuation
 La trame d'un récit, d'un dossier d'enquête, d'un historique d'incidents — reconstruite depuis des
 faits ordinaires, interrogeable en déterministe, **à 0 token**.
 
+> 🎯 **Cas d'usage.** Analyser un incident : « qu'est-ce qui a causé l'incendie, et dans quel ordre les
+> choses se sont-elles produites ? ». Plot remonte aux **causes racines**, **ordonne** les événements, et
+> **repère les incohérences** (un rapport qui date un effet avant sa cause). Le problème résolu : raisonner
+> sur le *temps* et la *causalité*, là où la mémoire de faits intemporels ne dit rien de l'ordre.
+
 ## Ce qu'il sait faire
 
 | Question | Mécanisme | Exemple |

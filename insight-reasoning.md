@@ -4,6 +4,11 @@ Un mode de raisonnement qui **parle sans question**. Les autres moteurs réponde
 interroge ; celui-ci balaie la mémoire en continu et **anticipe** — il propose des faits, et
 **alerte** sur ce que l'utilisateur n'a pas vu. Déterministe, à 0 token.
 
+> 🎯 **Cas d'usage.** Une mémoire d'entreprise qui **vous alerte sans qu'on l'interroge** : « deux faits
+> se contredisent sur le solde du compte 42 », « l'email de Marie n'a pas été confirmé depuis 8 mois »,
+> « ce client n'a pas de secteur alors que tous les autres en ont un ». Le problème résolu : les erreurs
+> et les manques ne se voient pas en posant des questions, il faut **balayer** la mémoire pour les débusquer.
+
 ## Les alertes
 
 | Aperçu | Ce qu'il détecte | Exemple |

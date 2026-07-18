@@ -10,6 +10,12 @@ L'idée : résoudre ce que **ni l'un ni l'autre ne fait seul**. QPath seul bloqu
 ouverts ; le LLM seul hallucine. Le ping-pong fait avancer le LLM **pas à pas, chaque pas validé par
 QPath**.
 
+> 🎯 **Cas d'usage.** Un client demande « pourquoi ma commande est-elle en retard ? ». QPath connaît les
+> faits (statut, transporteur, historique) mais ne sait pas *formuler* l'enchaînement ; le LLM sait
+> enchaîner mais pourrait inventer. En PingPong, le LLM propose une hypothèse, QPath la **vérifie contre
+> les faits**, et la réponse finale ne contient que ce qui est prouvé. Sans lui : soit QPath bloque sur la
+> question ouverte, soit le LLM hallucine un motif.
+
 ## Comment ça marche
 
 À chaque échange, le LLM joue **un seul coup** ; QPath répond par un **verdict déterministe** :

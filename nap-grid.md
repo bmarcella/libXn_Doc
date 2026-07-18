@@ -10,6 +10,11 @@ elle **apprend en même temps ce qui compte**.
 > appris **sur le graphe lui-même** : il **généralise** à des entrées qu'il n'a jamais stockées, tout en
 > restant **déterministe** (graine fixe) et **auditable** (on lit quel chemin a pesé, et de combien).
 
+> 🎯 **Cas d'usage.** Prédire une valeur ou une classe **directement depuis les faits de la mémoire**
+> (sans dataset séparé), et pouvoir **montrer pourquoi** : estimer « ~210 000, surtout à cause de la
+> surface » avec le chemin qui le justifie. Le problème résolu : apprendre ce qui compte **sur la structure
+> elle-même**, de façon auditable, là où un modèle classique donnerait un nombre sans explication.
+
 ## Ce que ça débloque
 
 | Capacité | Grille seule | nap-grid |

@@ -5,6 +5,11 @@ et Plot. Là où les autres **suivent une chaîne** ou **appliquent une règle**
 analogie et par régularité** : il **cherche les similitudes** dans toute la grid, les **compile**, et
 **déduit de nouveaux faits solides**. Déterministe, **0 token**, sans LLM.
 
+> 🎯 **Cas d'usage.** Deviner un attribut que personne n'a saisi. Si les clients d'une même ville et d'un
+> même secteur partagent un profil, Big Bang le **déduit** pour un nouveau client similaire, et le
+> **justifie par les régularités trouvées** dans la mémoire, sans appeler de LLM. Le problème résolu :
+> combler les trous par analogie, tout en restant traçable et déterministe.
+
 ## Le principe
 
 Tu connais des faits sur beaucoup de sujets. Big Bang exploite ce que les sujets qui **se ressemblent**

@@ -8,6 +8,11 @@ une règle dictée en **langage naturel**.
 > 💡 **Déterministe et auditable.** Aucune dérivation magique : on peut toujours demander d'où vient un
 > fait, simuler une règle avant de l'adopter, et la rétracter proprement.
 
+> 🎯 **Cas d'usage.** « Tout employé basé en France parle français. » Dès qu'on ajoute « Alice est
+> employée » et « Alice est basée en France », le fait « Alice parle français » est **dérivé
+> automatiquement**, avec sa provenance ; si on retire une prémisse, le fait dérivé disparaît proprement.
+> Le problème résolu : encoder une politique **une fois** plutôt que ressaisir la conséquence pour chaque cas.
+
 ## Écrire une règle et dériver
 
 ```ts

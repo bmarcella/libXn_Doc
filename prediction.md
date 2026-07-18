@@ -9,6 +9,14 @@ profondeur la grille a su répondre).
 > grille et y dépose sa cible. À la prédiction, on parcourt le chemin du nouveau cas : **plus on
 > descend profond, plus la prédiction est spécifique**.
 
+> 🎯 **Cas d'usage.** Toute prédiction `features → cible`, pas seulement l'immobilier. **Régression** (une
+> valeur numérique) : estimer un prix de logement, le montant d'un devis, une durée de livraison, une
+> consommation. **Classification** (une catégorie) : reconnaître une espèce de fleur, un segment client,
+> une catégorie de ticket, un défaut de qualité. On entraîne avec des exemples `(caractéristiques → cible)`
+> puis on prédit un cas inédit. La **profondeur atteinte** dans la grille sert d'indice de confiance. Le
+> problème résolu : prédire une valeur **ou** une classe de façon **interprétable**, sans réseau de
+> neurones opaque ni entraînement lourd. L'immobilier n'est qu'un exemple parlant.
+
 ## Entraîner & prédire
 
 ```ts
