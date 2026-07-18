@@ -7,6 +7,11 @@ token**.
 
 > **QPath doesn't know → it calls a tool → the tool returns facts → QPath memorizes them.**
 
+> 🎯 **Use case.** The assistant needs today's exchange rate, absent from its memory. A **tool** (API call)
+> fetches it; what it returns becomes a **stored fact**, with its provenance, so it's reusable afterwards
+> **at 0 tokens** without calling the API again. The problem it solves: fill a gap with an external
+> capability **without** leaving the answer a volatile, untraceable value.
+
 ## Writing a tool
 
 A tool is an object implementing the `Tool` port: a name, a description, and a `run`. It returns

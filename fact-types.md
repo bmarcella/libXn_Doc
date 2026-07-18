@@ -4,6 +4,12 @@ Il y a **un seul type fondamental** : le **fait = triplet `(sujet, prédicat, ob
 deux axes l'enrichissent — un **drapeau** (son rôle) et une **provenance** (son origine) — plus
 quelques **faits spéciaux** (sémantique de raisonnement) et des **calculs** sur les objets numériques.
 
+> 🎯 **Cas d'usage.** Tous les faits ne se valent pas. « Le contrat est signé » est une **décision** figée ;
+> « salaire estimé à 45 k » est une **estimation** ; un mot de passe est un **secret**. Les drapeaux et la
+> provenance permettent de traiter chacun différemment : une décision ne se laisse pas écraser, un secret
+> reste hors du raisonnement, une estimation cède devant un fait réel. Le problème résolu : porter le
+> **statut** et l'**origine** d'un fait, pas seulement sa valeur.
+
 ## Créer & manipuler : le handle `kb.fact(...)`
 
 Une seule interface, chaînable, **par triplet ou par id** — plus besoin de re-passer le triplet.

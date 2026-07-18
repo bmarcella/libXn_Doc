@@ -7,6 +7,11 @@ mémorisés, auditables et réutilisables à 0 token**.
 
 > **QPath ne sait pas → il appelle un outil → l'outil renvoie des faits → QPath les mémorise.**
 
+> 🎯 **Cas d'usage.** L'assistant a besoin du taux de change du jour, absent de sa mémoire. Un **outil**
+> (appel d'API) va le chercher ; ce qu'il ramène devient un **fait mémorisé**, avec sa provenance, donc
+> réutilisable ensuite **à 0 token** sans rappeler l'API. Le problème résolu : combler un manque par une
+> capacité externe, **sans** que la réponse reste une donnée volatile et non traçable.
+
 ## Écrire un outil
 
 Un outil est un objet qui implémente le port `Tool` : un nom, une description, et un `run`. Il renvoie

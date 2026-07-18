@@ -9,6 +9,12 @@ complementary mechanisms that are **always reversible**.
 > (locked / settled) are **never** touched. **Secret** facts (the vault) are ignored. Everything is
 > **language-agnostic** (the vocabulary comes from an injectable language pack).
 
+> 🎯 **Use case.** After ingesting a whole book, memory holds some junk: an unresolved pronoun ("he lives in
+> Paris" without knowing who), a corrupted fragment, a valueless fact. QPath **repairs what's recoverable**
+> and **discards the rest**, in the background, **without ever losing anything permanently** (all archived,
+> reversible). The problem it solves: keep memory clean at scale with no manual cleanup and no risk of
+> irreversible deletion.
+
 ## FactAdjuster — repair what is recoverable
 
 The FactAdjuster **re-reads the source context** of a fact (the conversation turn or document passage

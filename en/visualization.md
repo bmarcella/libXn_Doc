@@ -9,6 +9,10 @@ reasoning path, and debug the topology by eye.
 > Three.js implementation. So you can use QPath with no graphics dependency, and plug rendering in only on
 > the browser side.
 
+> 🎯 **Use case.** An answer surprises you and you want to understand *why*. The 3D view shows the memory
+> graph and **highlights the reasoning path** taken, node by node. The problem it solves: **explore and
+> debug** the memory visually (topology, the path of a deduction), instead of reading flat lists of facts.
+
 ## Plugging in rendering
 
 You inject a view factory into the grid, once, before building grids.

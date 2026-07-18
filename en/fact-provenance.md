@@ -8,6 +8,11 @@ very channel that produced it.
 > **Every fact knows where it comes from. Its source says how to re-verify it. And nothing is
 > ever erased: memory becomes temporal.**
 
+> 🎯 **Use case.** "Is this client's email still valid?" A fact that was true eight months ago may be stale.
+> QPath knows **where** each fact came from (which source, when), derives its **freshness**, and can
+> **re-verify** it through the channel that produced it. The problem it solves: tell a *fresh* fact from a
+> *stale* one, and be able to say "I know it from this source, as of this date".
+
 ## Provenance: every fact has sources
 
 `tell` accepts an optional source — origin type (`kind`), reference (`ref`: URL, document id,

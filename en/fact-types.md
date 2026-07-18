@@ -4,6 +4,11 @@ There is **one fundamental type**: the **fact = triplet `(subject, predicate, ob
 axes enrich it — a **flag** (its role) and a **provenance** (its origin) — plus a few **special facts**
 (reasoning semantics) and **computations** on numeric objects.
 
+> 🎯 **Use case.** Not all facts are equal. "The contract is signed" is a settled **decision**; "estimated
+> salary 45k" is an **estimate**; a password is a **secret**. Flags and provenance let you treat each
+> differently: a decision won't be overwritten, a secret stays out of reasoning, an estimate yields to a
+> real fact. The problem it solves: carry a fact's **status** and **origin**, not just its value.
+
 ## Create & manipulate: the `kb.fact(...)` handle
 
 One interface, chainable, **by triplet or by id** — no need to re-pass the triplet.

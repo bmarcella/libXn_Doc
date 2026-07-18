@@ -8,6 +8,11 @@ l'avait produit.
 > **Chaque fait sait d'où il vient. Sa source dit comment le revérifier. Et rien n'est jamais
 > effacé : la mémoire devient temporelle.**
 
+> 🎯 **Cas d'usage.** « L'email de ce client est-il encore valable ? » Un fait vrai il y a huit mois peut
+> être périmé. QPath sait **d'où** vient chaque fait (quelle source, quand), en déduit sa **fraîcheur**, et
+> peut le **revérifier** par le canal qui l'avait produit. Le problème résolu : distinguer un fait *frais*
+> d'un fait *périmé*, et pouvoir répondre « je le sais depuis telle source, à telle date ».
+
 ## La provenance : chaque fait a ses sources
 
 `tell` accepte une source optionnelle — type d'origine (`kind`), référence (`ref` : URL, id de

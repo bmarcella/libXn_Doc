@@ -7,6 +7,11 @@ produit, une note vocale à un message, un visuel à un dossier. Le média est s
 > **Image, audio et vidéo.** La vidéo est stockée, décrite et recherchée comme les autres ; sa
 > recherche par contenu passe par des **images-clés** (voir plus bas).
 
+> 🎯 **Cas d'usage.** Une photo rattachée à un produit, une note vocale à un message, un visuel à un
+> dossier : le média est stocké, décrit par des faits (donc **interrogeable**) et se supprime **avec** ce à
+> quoi il est rattaché. Le problème résolu : garder l'image ou le son **dans la même mémoire** que le texte,
+> retrouvable et gouverné par les mêmes règles (dont le droit à l'oubli en cascade).
+
 ## Le principe : référence + métadonnées en faits, octets dans un store
 
 Un fait stocke une **chaîne**, pas des octets. Donc un média = une **référence** (hash de contenu) +

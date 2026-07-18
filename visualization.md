@@ -9,6 +9,11 @@ mémoire, suivre un chemin de raisonnement, et déboguer la topologie à l'œil.
 > en fournit une implémentation Three.js. On peut donc utiliser QPath sans aucune dépendance graphique, et
 > brancher le rendu seulement côté navigateur.
 
+> 🎯 **Cas d'usage.** Une réponse vous surprend et vous voulez comprendre *pourquoi*. La vue 3D montre le
+> graphe de la mémoire et **surligne le chemin de raisonnement** emprunté, nœud par nœud. Le problème
+> résolu : **explorer et déboguer** la mémoire à l'œil (topologie, chemin d'une déduction), au lieu de lire
+> des listes de faits à plat.
+
 ## Brancher le rendu
 
 On injecte une fabrique de vue dans la grille, une fois, avant de construire des grilles.

@@ -6,6 +6,11 @@ sert chacune** et **dans quelle situation l'utiliser** — sans entrer dans le f
 
 ---
 
+> 🎯 **Cas d'usage.** Vous démarrez un assistant et vous vous demandez « de quelles briques ai-je besoin ? ».
+> Juste mémoriser et raisonner ? Le socle suffit. Piloter un LLM, persister en base, chercher par le sens,
+> afficher en 3D ? On ajoute la brique correspondante. Le problème résolu : savoir **quoi installer pour
+> quel besoin**, sans tout embarquer ni deviner.
+
 ## Le socle
 
 ### XNeuroneGrid — le graphe

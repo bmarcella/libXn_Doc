@@ -9,6 +9,12 @@ tout seul**, en arrière-plan, avec deux mécanismes complémentaires et **toujo
 > un humain** (verrouillés / actés) ne sont **jamais** touchés. Les faits **secrets** (coffre) sont
 > ignorés. Tout est **langue-agnostique** (le vocabulaire vient d'un pack de langue injectable).
 
+> 🎯 **Cas d'usage.** Après avoir ingéré un livre entier, la mémoire contient quelques scories : un pronom
+> non résolu (« il habite Paris » sans savoir qui), un fragment corrompu, un fait sans valeur. QPath
+> **répare ce qui est récupérable** et **écarte le reste**, en arrière-plan, **sans jamais rien perdre
+> définitivement** (tout est archivé, réversible). Le problème résolu : garder une mémoire propre à grande
+> échelle sans nettoyage manuel ni risque de suppression irréversible.
+
 ## FactAdjuster — réparer ce qui est récupérable
 
 Le FactAdjuster **relit le contexte source** d'un fait (le tour de conversation ou le passage du

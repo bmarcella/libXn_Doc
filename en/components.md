@@ -6,6 +6,11 @@ QPath is used through a few complementary building blocks, grouped into four fam
 
 ---
 
+> 🎯 **Use case.** You're starting an assistant and wondering "which bricks do I need?". Just memory and
+> reasoning? The foundation is enough. Drive an LLM, persist to a database, search by meaning, render in 3D?
+> Add the matching brick. The problem it solves: know **what to install for which need**, without pulling in
+> everything or guessing.
+
 ## The foundation
 
 ### XNeuroneGrid — the graph

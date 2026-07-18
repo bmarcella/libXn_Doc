@@ -7,6 +7,11 @@ deleted together with whatever it's attached to.
 > **Image, audio and video.** Video is stored, described and searched like the rest; its
 > content-based search goes through **keyframes** (see below).
 
+> 🎯 **Use case.** A photo attached to a product, a voice note to a message, a visual to a folder: the media
+> is stored, described by facts (so it's **queryable**), and deleted **with** whatever it's attached to. The
+> problem it solves: keep the image or sound **in the same memory** as the text, retrievable and governed by
+> the same rules (including cascade right-to-be-forgotten).
+
 ## The principle: reference + metadata as facts, bytes in a store
 
 A fact stores a **string**, not bytes. So a media = a **reference** (content hash) + **metadata** as
