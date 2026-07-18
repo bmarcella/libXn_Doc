@@ -8,6 +8,11 @@ enters through a **port**.
 > 💡 **Complementary, not competing.** Symbolic (exact facts) and semantic (meaning proximity) combine:
 > you keep the precision of triples **and** the recall of a fuzzy search.
 
+> 🎯 **Use case.** Memory holds "Jean · pleaded · guilty" and the user asks "who admitted the charges?".
+> Exact lookup finds nothing (the words differ), but semantic search brings the question close to the fact
+> and surfaces it. The problem it solves: answer when the question is **phrased differently** from what's
+> stored, where exact deduction stays silent.
+
 ## Vectorize text
 
 `SemanticVectorizer` turns text into a 384-D vector (multilingual-e5-small model), **fully in-browser** (Web

@@ -9,6 +9,11 @@ storage type** for each candidate fact, plus the associated **flags** (cascade, 
 > "*what does the user want?*" (one decision per message). Fact routing answers "*how do I store this fact?*"
 > (one decision **per fact**, downstream of extraction). The two are complementary.
 
+> 🎯 **Use case.** From a single message, a password must go to the **vault** (encrypted, out of reasoning),
+> the client's address becomes a **companion** fact of their sheet (cascade-retractable), and an attachment
+> becomes a **media**. Fact routing decides this placement for each candidate. The problem it solves: put
+> each fact in the right place, otherwise you **leak** sensitive data or **lose** the link that makes it useful.
+
 ## The principle: classify a candidate
 
 For each candidate fact, the router assigns:

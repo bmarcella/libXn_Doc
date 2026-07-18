@@ -8,6 +8,12 @@ mémoire, en passant par une étape de **qualité** (normalisation, dédup, rés
 > les réconcilie (un même fait vu deux fois = plus de confiance), on les normalise et on ne garde que
 > ce qui a du sens. Un LLM peut **voter** en plus, mais n'est jamais indispensable.
 
+> 🎯 **Cas d'usage.** Vous collez le compte rendu d'un rendez-vous ou une fiche client rédigée à la main.
+> Plutôt que de tout ressaisir en champs, QPath en tire des faits propres (« Marie · habite · Paris »,
+> « Marie · travaille chez · Acme »), dédupliqués et reliés aux bonnes entités, prêts à être interrogés.
+> Le problème résolu : transformer de la **prose** en **mémoire structurée** sans qu'un LLM invente ou
+> déforme, et sans saisie manuelle.
+
 ## La chaîne en pratique
 
 ```ts

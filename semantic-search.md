@@ -8,6 +8,11 @@ d'aucune base vectorielle : elle entre par un **port**.
 > 💡 **Complémentaire, pas concurrent.** Le symbolique (faits exacts) et le sémantique (proximité de
 > sens) se combinent : on garde la précision des triplets **et** le rappel d'une recherche floue.
 
+> 🎯 **Cas d'usage.** La mémoire contient « Jean · a plaidé · coupable » et l'utilisateur demande « qui a
+> reconnu les faits ? ». La lecture exacte ne trouve rien (les mots diffèrent), mais la recherche par le
+> sens rapproche la question du fait et le remonte. Le problème résolu : répondre quand la question est
+> **formulée autrement** que ce qui est stocké, là où la déduction exacte reste muette.
+
 ## Vectoriser du texte
 
 `SemanticVectorizer` transforme un texte en vecteur 384-D (modèle multilingual-e5-small), **100 % navigateur**

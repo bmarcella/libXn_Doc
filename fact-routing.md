@@ -9,6 +9,12 @@ rangement** pour chaque fait candidat, et les **drapeaux** associés (cascade, v
 > à « *que veut l'utilisateur ?* » (une décision par message). Le routage de faits répond à « *comment ranger
 > ce fait ?* » (une décision **par fait**, en aval de l'extraction). Les deux sont complémentaires.
 
+> 🎯 **Cas d'usage.** D'un même message, un mot de passe doit partir au **coffre** (chiffré, hors
+> raisonnement), l'adresse du client devenir un fait **compagnon** de sa fiche (rétractable en cascade),
+> et une pièce jointe devenir un **média**. Le routage de faits décide ce rangement pour chaque candidat.
+> Le problème résolu : ranger chaque fait au bon endroit, sinon on **fuite** une donnée sensible ou on
+> **perd** le lien qui la rend utile.
+
 ## Le principe : classer un candidat
 
 À chaque fait candidat, le routeur associe :

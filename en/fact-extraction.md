@@ -8,6 +8,11 @@ an LLM** by default, **deterministically**. The chain runs from raw text to memo
 > them (the same fact seen twice = more confidence), normalize, and keep only what makes sense. An LLM
 > can additionally **vote**, but is never required.
 
+> 🎯 **Use case.** You paste a meeting note or a hand-written client sheet. Instead of re-typing everything
+> into fields, QPath extracts clean facts ("Marie · lives_in · Paris", "Marie · works_at · Acme"),
+> deduplicated and linked to the right entities, ready to be queried. The problem it solves: turn **prose**
+> into **structured memory** without an LLM inventing or distorting, and without manual entry.
+
 ## The chain in practice
 
 ```ts

@@ -9,6 +9,11 @@ capability, or stands aside when it is unsure.
 > misses "how much is on my account" and trips on "balance an email". Here we compare the **shape** of a
 > message to examples, not exact words.
 
+> 🎯 **Use case.** Three messages arrive: "Marie lives in Lyon", "where does Marie live?", "remind me to
+> call Marie". The first must be **stored**, the second **queried** (writing nothing), the third turned into
+> a **reminder**. The intent router tells them apart before any handling. The problem it solves: send each
+> message to the right capability, otherwise a question could pollute memory or trigger a needless LLM call.
+
 ## The idea: shape, not words
 
 The contextualizer files each intent under a few **examples**, then compares a new message to those

@@ -9,6 +9,12 @@ oriente le message vers la bonne capacité, ou s'efface quand il n'est pas sûr.
 > il rate « combien j'ai sur mon compte » et se trompe sur « balance un courriel ». Ici, on compare la
 > **forme** d'un message à des exemples, pas des mots précis.
 
+> 🎯 **Cas d'usage.** Trois messages arrivent : « Marie habite à Lyon », « où habite Marie ? », « rappelle-moi
+> d'appeler Marie ». Le premier doit être **mémorisé**, le deuxième **interrogé** (sans rien écrire), le
+> troisième transformé en **rappel**. Le routeur d'intention les distingue avant tout traitement. Le problème
+> résolu : diriger chaque message vers la bonne capacité, sinon une question pourrait polluer la mémoire ou
+> déclencher un appel LLM inutile.
+
 ## Le principe : la forme, pas les mots
 
 Le contextualiseur range chaque intention par quelques **exemples**, puis compare un nouveau message à
