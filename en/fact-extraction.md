@@ -83,7 +83,13 @@ vocabulary, classes, homonyms), which then serves as context for fine-grained ex
 ```ts
 import { buildDocumentPlan } from '@damba/libxn';
 
-const plan = await buildDocumentPlan(chunks);   // chunks = document paragraphs
+// 1) Prepare the document chunks. `file` comes from an upload (<input type="file">); read its text,
+//    then split it into paragraphs. So `chunks` is a string[].
+const documentText = await file.text();
+const chunks = documentText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+
+// 2) Pass 1 — build the plan from those chunks.
+const plan = await buildDocumentPlan(chunks);
 plan.entities;   // [{ name:'jean', mentions:2, classes:['baker'] }, …]  sorted by salience
 plan.homonyms;   // [{ name:'jean', classes:['baker','astronaut'] }]     ambiguities to resolve
 ```

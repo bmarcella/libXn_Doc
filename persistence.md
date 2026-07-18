@@ -357,5 +357,6 @@ globex.ask('politique', 'congés');   // [] — Globex ne voit rien d'Acme
 - **Montée en charge sans douleur** : ajouter Redis = un décorateur ; passer à CockroachDB = une
   sous-classe d'adaptateur (protocole Postgres-compatible). Aucun code métier touché.
 
-> Côté Damba : la persistance vit dans Postgres (backend) — plus de stockage navigateur. La recherche
-> vectorielle passe par **pgvector** via le backend (le client calcule l'embedding, Postgres cherche).
+> En pratique : la persistance passe par les ports `KbStore`/`FactStore`/`VectorStore`, avec un
+> adaptateur **Postgres/pgvector** prêt à l'emploi. La recherche vectorielle se répartit naturellement :
+> le client calcule l'embedding, la base fait la recherche de proximité.

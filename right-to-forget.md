@@ -1,12 +1,12 @@
 # Le droit à l'oubli, prouvé
 
 Presque tous les assistants savent aujourd'hui écrire du texte convaincant. Très peu savent
-**oublier proprement** ce qu'on leur a confié, en le prouvant. C'est un scénario que Damba fait de
+**oublier proprement** ce qu'on leur a confié, en le prouvant. C'est un scénario que QPath fait de
 bout en bout, et que la plupart des produits d'IA ne peuvent pas garantir.
 
 ## Le scénario
 
-Un cabinet utilise Damba comme mémoire d'entreprise. Sur six mois, des dizaines de collaborateurs l'ont
+Un cabinet utilise QPath comme mémoire d'entreprise. Sur six mois, des dizaines de collaborateurs l'ont
 nourri en langage naturel, sans formulaire ni base de données à gérer :
 
 > « Le client Acme est en France. »
@@ -33,14 +33,14 @@ Un retrait ne détruit pas la donnée : il l'archive avec sa date. On peut donc 
 
 > « Qu'est-ce que je savais d'Acme au 3 mars ? »
 
-et Damba répond l'état exact à cette date. C'est un oubli **conforme et réversible** : l'information
+et QPath répond l'état exact à cette date. C'est un oubli **conforme et réversible** : l'information
 sort de l'usage courant, mais l'historique reste auditable. C'est précisément ce qu'exige un droit à
 l'oubli sérieux, et ce qu'un modèle qui se contente de générer du texte ne peut pas offrir : il ne
 « désapprend » pas une information, et ne connaît aucune date de vérité.
 
 ### 3. La réponse suivante ne peut pas être inventée
 
-Si quelqu'un redemande l'email de Marie après le retrait, Damba répond :
+Si quelqu'un redemande l'email de Marie après le retrait, QPath répond :
 
 > « Cette information a été retirée le 9 juillet. »
 
@@ -56,7 +56,7 @@ jamais voir le secret en clair.
 
 ## Le point unique
 
-Aucune de ces briques prise isolément n'est magique. Ce que Damba fait, et qui reste rare, c'est leur
+Aucune de ces briques prise isolément n'est magique. Ce que QPath fait, et qui reste rare, c'est leur
 **combinaison, de façon déterministe** :
 
 - une mémoire qui répond **instantanément**, avec sa **provenance** ;
@@ -65,7 +65,7 @@ Aucune de ces briques prise isolément n'est magique. Ce que Damba fait, et qui 
 - en conservant l'**historique daté** ;
 - et le **chiffrement des secrets** tout du long.
 
-C'est une propriété de la façon dont Damba **représente** la connaissance, pas une option ajoutée par
+C'est une propriété de la façon dont QPath **représente** la connaissance, pas une option ajoutée par
 dessus un générateur de texte. La mémoire est inspectable, corrigeable et réversible par construction.
 
 ## Là où ça compte
@@ -78,7 +78,7 @@ dessus un générateur de texte. La mémoire est inspectable, corrigeable et ré
 
 ## Essayer l'idée
 
-Dans Damba, tout se pilote en langage naturel : on informe, on demande, on rectifie, on retire, par
+Dans QPath, tout se pilote en langage naturel : on informe, on demande, on rectifie, on retire, par
 phrases simples. Il n'y a rien à programmer pour obtenir ce comportement.
 
 Pour comprendre les mécanismes qui rendent ce scénario possible :

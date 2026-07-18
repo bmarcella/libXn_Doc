@@ -6,7 +6,7 @@ suppose de reconnaître que ce chat est un chat, qu'un chat est un mammifère, e
 propriété sur les mammifères. Le **raisonnement multi-étapes** est l'étage qui coordonne ces gestes :
 il fait se **relayer** plusieurs raisonneurs autour de la même mémoire de faits jusqu'à une conclusion.
 
-> 💡 **Le principe.** La « chaîne de pensée » de Damba n'est pas une suite de mots produits au hasard.
+> 💡 **Le principe.** La « chaîne de pensée » de QPath n'est pas une suite de mots produits au hasard.
 > C'est une suite de **pas ancrés**, chacun étant un fait réel de la mémoire. Penser, ici, c'est
 > **parcourir la mémoire**, pas générer du texte. La trace qui en résulte se relit, se vérifie et se
 > rejoue.
@@ -14,7 +14,7 @@ il fait se **relayer** plusieurs raisonneurs autour de la même mémoire de fait
 ## L'inverse d'une « chaîne de pensée » de modèle de langage
 
 Un modèle de langage qui « raisonne étape par étape » produit des phrases intermédiaires qu'on ne peut
-ni vérifier ni tracer : rien ne garantit qu'elles correspondent à un fait. La chaîne de Damba fait le
+ni vérifier ni tracer : rien ne garantit qu'elles correspondent à un fait. La chaîne de QPath fait le
 contraire. Chaque maillon est un fait **stocké**, avec sa provenance ; la conclusion ne tient que si la
 chaîne complète tient. C'est un raisonnement **déterministe, à coût nul**, et surtout **auditable** :
 on peut cliquer chaque pas et remonter au fait qui le justifie.
@@ -30,11 +30,11 @@ Question : « le chat de Marie est-il mortel ? »
 
 ## Une mémoire de travail jetable
 
-Entre deux pas, une déduction intermédiaire (« ce chat est un chat ») doit servir au pas suivant. Damba
+Entre deux pas, une déduction intermédiaire (« ce chat est un chat ») doit servir au pas suivant. QPath
 l'écrit dans une **mémoire de travail** temporaire, posée par-dessus la mémoire réelle. Le raisonneur
 suivant y lit comme s'il s'agissait d'un fait établi, puis cette mémoire de travail est **jetée** à la
 fin. Rien de ce qui a servi à raisonner n'est écrit dans la mémoire durable sans validation : une
-question ne modifie jamais ce que Damba sait.
+question ne modifie jamais ce que QPath sait.
 
 ## Le déterministe décide, l'appris propose
 
@@ -53,7 +53,7 @@ décide. Une piste que rien ne confirme est simplement abandonnée.
 
 Le raisonnement s'arrête dans tous les cas : soit il **conclut**, soit il déclare **indéductible**
 (« je ne peux pas relier ces éléments », plutôt que d'inventer), soit il atteint sa **limite d'étapes**.
-Il rend systématiquement une trace, même vide. C'est cette discipline qui rend Damba sûr sur un gros
+Il rend systématiquement une trace, même vide. C'est cette discipline qui rend QPath sûr sur un gros
 corpus : il préfère dire « je ne sais pas » à fabriquer une réponse.
 
 ## Où on le voit

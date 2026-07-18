@@ -4,7 +4,7 @@ QPath is a **deterministic symbolic memory**: it stores facts, **retrieves them 
 scale**, and **reasons** over them — with no language model at its core, at **zero token**, in an
 **auditable and temporal** way.
 
-> **The Damba thesis.** Beyond memory: **an application's behavior IS governed facts** — flows,
+> **The QPath thesis.** Beyond memory: **an application's behavior IS governed facts** — flows,
 > rules, limits, fraud checks live in facts you query, govern and evolve **at runtime, without
 > redeploying**, deterministically and traceably. See **[Factflow](dynamic-behavior)** and the
 > **[ledger](transaction-ledger)** showcase (`npm run example:ledger`).

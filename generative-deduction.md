@@ -530,7 +530,7 @@ La sécurité est posée par **construction** puis renforcée par une **politiqu
   faits **autorisés** (permissions par groupe).
 - **RBAC par groupe** — chaque fait peut appartenir à un **groupe** d'accès. La génération n'utilise un
   fait que si son groupe est **autorisé** ; les faits **sans groupe** sont **publics**. « Seule la
-  connaissance publique fournie par Damba est accessible à tout le monde » : on peut restreindre à
+  connaissance publique fournie par QPath est accessible à tout le monde » : on peut restreindre à
   *public seulement*.
 - **Isolation contextuelle (domaine)** — pour ne pas **mélanger des domaines disjoints** (chimie ≠
   maths), la génération reste **dans son contexte**. Un fait d'un autre domaine n'est tiré que s'il

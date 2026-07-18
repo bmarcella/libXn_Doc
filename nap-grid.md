@@ -45,7 +45,7 @@ const p = nap.predict(encodeFeatures([surface, distance]));
 `depthReached` dit **quelle part** de l'entrée était réellement en mémoire (le reste est comblé par
 généralisation) ; `contributions` détaille **le poids de chaque pas** — c'est la prédiction explicable.
 
-## Dans Damba — prédiction numérique auditable
+## Dans QPath — prédiction numérique auditable
 
 Le service `NapGridService` entraîne un modèle sur des lignes tabulaires et répond avec une
 **justification** (quelles features ont pesé), en 0 token.
@@ -59,7 +59,7 @@ napGrid.predict({ surface: 80, distance: 3 });
 //                  { feature: 'distance', contribution:  12_000 } ] }
 ```
 
-Damba peut ainsi répondre « ~210 000, surtout à cause de la surface » **et le justifier par le chemin**,
+QPath peut ainsi répondre « ~210 000, surtout à cause de la surface » **et le justifier par le chemin**,
 sans appeler de modèle de langage.
 
 ## Entraîner sur les faits de la mémoire

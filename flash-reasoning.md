@@ -145,38 +145,50 @@ mémoire.
 
 ## 4. Raisonnement multi-sauts + trace (toujours QPath)
 
-Même enrichi par le web, le raisonnement reste **déterministe et traçable** côté QPath :
+**Le problème.** Beaucoup de réponses ne sont écrites nulle part : elles se **déduisent** en enchaînant
+plusieurs faits. « Léa est-elle la grand-mère de Paul ? » n'est pas un fait stocké, mais se déduit de
+« Léa est parente de Marie » et « Marie est parente de Paul ». Il faut donc **composer des maillons**, et,
+pour rester auditable, **montrer le chemin** qui mène à la conclusion.
+
+`ChainResolver` fait exactement cela, à 0 token, et rend une **trace lisible** : le chemin EST l'explication.
 
 ```ts
-import { ChainResolver } from '@damba/libxn';
+import { KnowledgeBase, XNeuroneGrid, ChainResolver, PredicateAlgebra } from '@damba/libxn';
 
-const chain = new ChainResolver(kb).chain('socrate', 'a');
+// La KB de travail (ici on l'alimente à la main ; en vrai, ces faits viennent de l'ingestion).
+const kb = new KnowledgeBase(new XNeuroneGrid());
+await kb.tell('lea', 'parent_de', 'marie');
+await kb.tell('marie', 'parent_de', 'paul');
+
+// L'algèbre déclare COMMENT composer : deux 'parent_de' à la suite valent un 'grand_parent_de'.
+const algebra = PredicateAlgebra.withDefaults()
+  .declareComposition('parent_de', 'parent_de', 'grand_parent_de');
+
+// Cherche une chaîne de 'lea' vers un objet via le prédicat COMPOSÉ 'grand_parent_de'.
+const chain = new ChainResolver(kb, algebra).chain('lea', 'grand_parent_de');
+
 ChainResolver.format(chain!);
-// → "socrate —est→ humain —est→ mortel —a→ fin  (⇒ a = fin, confiance 1.00, via transitive)"
-
-// On peut ensuite faire verbaliser CETTE trace par le LLM, sans qu'il invente le chemin :
-await verbalize(`Explique ce raisonnement en une phrase : ${ChainResolver.format(chain!)}`);
+// → "lea —parent_de→ marie —parent_de→ paul  (⇒ grand_parent_de = paul, confiance 1.00)"
 ```
 
-`new ChainResolver(kb, algebra?)` — construit le résolveur de chaînes :
+**Le point clé** : la conclusion (« grand_parent_de = paul ») arrive **avec son chemin**. On peut ensuite
+demander à un LLM de mettre cette trace en une phrase, **sans qu'il invente le raisonnement** — il ne fait
+que verbaliser un chemin déjà prouvé par QPath.
 
-- **`kb`** — la `KnowledgeBase` à parcourir (requis).
-- **`algebra?`** — l'algèbre de prédicats composés (transitivité, inverses…) ; par défaut
-  `PredicateAlgebra.withDefaults()`. Optionnel — à ne passer que pour des règles de composition
-  sur-mesure.
+Les trois pièces, brièvement :
 
-`chain(s, targetP, opts?)` — cherche la **chaîne la plus courte** reliant le sujet `s` à un objet via
-le prédicat composé `targetP`. Renvoie un `ReasoningChain` (les maillons, la conclusion, la confiance,
-le `via`) ou **`null`** si aucune chaîne n'existe (d'où le `chain!` qui affirme la non-nullité quand on
-sait qu'elle existe). Les options :
+- **`new ChainResolver(kb, algebra?)`** — le résolveur, sur une `KnowledgeBase`. Sans `algebra`, il prend
+  `PredicateAlgebra.withDefaults()` ; on ne la passe que pour des compositions sur-mesure (comme ci-dessus).
+- **`chain(s, targetP)`** — la **plus courte** chaîne reliant `s` à un objet via le prédicat composé
+  `targetP`. Renvoie un `ReasoningChain` (maillons, conclusion, confiance), ou **`null`** si aucune chaîne
+  n'existe (d'où le `chain!` quand on sait qu'elle existe). Bornée en profondeur ; la confiance agrège les
+  maillons (par défaut, celle du maillon le plus faible).
+- **`ChainResolver.format(chain)`** — statique ; transforme un `ReasoningChain` en une **trace lisible en
+  une ligne**.
 
-| Argument | Rôle | Défaut |
-|---|---|---|
-| `opts.maxDepth` | profondeur max de la chaîne (nombre de maillons) | `4` |
-| `opts.confidence` | agrégation de la confiance : `'min'` (le maillon le plus faible, logique) ou `'product'` (composition probabiliste) | `'min'` |
-
-`ChainResolver.format(chain)` — méthode **statique** ; prend un `ReasoningChain` (non-null) et renvoie
-une **trace lisible en une ligne** (`"socrate —est→ humain … (⇒ a = fin, confiance 1.00, via transitive)"`).
+**Cas d'usage.** Répondre à une question de parenté / hiérarchie / localisation que personne n'a saisie
+telle quelle (« sa grand-mère ? », « dans quel continent ? »), en fournissant la **preuve** du raisonnement,
+pas seulement le résultat.
 
 > **Confiance honnête, même à contre-sens.** Quand une chaîne emprunte une relation dans le sens
 > **inverse**, sa confiance reflète celle du fait sous-jacent réel — pas une certitude supposée. Une

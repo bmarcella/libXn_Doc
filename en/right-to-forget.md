@@ -1,12 +1,12 @@
 # The right to be forgotten, proven
 
 Almost every assistant today can write convincing text. Very few can **forget cleanly** what you
-entrusted to them, and prove it. This is a scenario Damba does end to end, and that most AI products
+entrusted to them, and prove it. This is a scenario QPath does end to end, and that most AI products
 cannot guarantee.
 
 ## The scenario
 
-A firm uses Damba as its company memory. Over six months, dozens of people fed it in plain language,
+A firm uses QPath as its company memory. Over six months, dozens of people fed it in plain language,
 with no form to fill and no database to manage:
 
 > "The client Acme is in France."
@@ -33,14 +33,14 @@ A removal does not destroy the data: it archives it with its date. So you can la
 
 > "What did I know about Acme on March 3rd?"
 
-and Damba returns the exact state as of that date. This is a **compliant and reversible** forgetting:
+and QPath returns the exact state as of that date. This is a **compliant and reversible** forgetting:
 the information leaves everyday use, but the history stays auditable. That is exactly what a serious
 right to be forgotten requires, and what a model that merely generates text cannot offer: it does not
 "unlearn" a fact, and it knows no date of truth.
 
 ### 3. The next answer cannot be made up
 
-If someone asks for Marie's email again after the removal, Damba answers:
+If someone asks for Marie's email again after the removal, QPath answers:
 
 > "That information was removed on July 9th."
 
@@ -56,7 +56,7 @@ without ever seeing the secret in the clear.
 
 ## The unique part
 
-No single piece here is magic. What Damba does, and what stays rare, is their **combination, in a
+No single piece here is magic. What QPath does, and what stays rare, is their **combination, in a
 deterministic way**:
 
 - a memory that answers **instantly**, with its **provenance**;
@@ -65,7 +65,7 @@ deterministic way**:
 - while keeping the **dated history**;
 - and the **encryption of secrets** throughout.
 
-This is a property of how Damba **represents** knowledge, not an option bolted on top of a text
+This is a property of how QPath **represents** knowledge, not an option bolted on top of a text
 generator. The memory is inspectable, correctable and reversible by construction.
 
 ## Where it matters
@@ -77,7 +77,7 @@ generator. The memory is inspectable, correctable and reversible by construction
 
 ## Trying the idea
 
-In Damba, everything runs in plain language: you inform, you ask, you correct, you remove, in simple
+In QPath, everything runs in plain language: you inform, you ask, you correct, you remove, in simple
 sentences. There is nothing to program to get this behavior.
 
 To understand the mechanisms that make this scenario possible:

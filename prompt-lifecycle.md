@@ -115,7 +115,7 @@ pas à **connaître**. Mémoire d'abord, web pour ce qui manque ou qui est frais
 La grille ci-dessus décide **par position** : le premier tier qui correspond répond. C'est simple et
 prévisible, mais deux tiers peuvent parfois revendiquer le même message (une question dont la réponse
 est à la fois un fait connu et une estimation, par exemple). Pour trancher ces cas de façon plus
-robuste, Damba peut décider **par la preuve** plutôt que par la seule position : chaque tier candidat
+robuste, QPath peut décider **par la preuve** plutôt que par la seule position : chaque tier candidat
 présente ce qu'il sait, et un arbitre retient la revendication la plus solide. Deux garde-fous
 encadrent ce choix :
 
@@ -127,7 +127,7 @@ encadrent ce choix :
 ### Le mode ombre : mesurer sur le trafic réel avant d'activer
 
 Changer une décision de routage est délicat : un test sur des cas fabriqués ne dit rien de l'usage réel.
-Damba valide donc toute évolution du routage en **mode ombre**. Le nouveau mécanisme tourne **en
+QPath valide donc toute évolution du routage en **mode ombre**. Le nouveau mécanisme tourne **en
 parallèle** du routage en place : il **observe** chaque message réel et **note ce qu'il aurait décidé**,
 mais **ne change jamais la réponse servie**. On accumule ainsi, sur le vrai trafic, la preuve que le
 nouveau routage aurait corrigé de vraies erreurs, par exemple servir un fait connu là où l'ancien

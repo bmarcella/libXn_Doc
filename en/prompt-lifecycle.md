@@ -112,7 +112,7 @@ Memory first, web for what is missing or fresh, tools to act.
 
 The grid above decides **by position**: the first matching tier answers. That is simple and
 predictable, but two tiers can sometimes both claim the same message (a question whose answer is both a
-known fact and an estimate, say). To settle those cases more robustly, Damba can decide **by evidence**
+known fact and an estimate, say). To settle those cases more robustly, QPath can decide **by evidence**
 rather than by position alone: each candidate tier presents what it knows, and an arbiter keeps the
 strongest claim. Two safeguards frame that choice:
 
@@ -123,7 +123,7 @@ strongest claim. Two safeguards frame that choice:
 
 ### Shadow mode: measure on real traffic before turning it on
 
-Changing a routing decision is delicate: a test on made-up cases says nothing about real usage. So Damba
+Changing a routing decision is delicate: a test on made-up cases says nothing about real usage. So QPath
 validates every routing change in **shadow mode**. The new mechanism runs **alongside** the live
 routing: it **observes** each real message and **records what it would have decided**, but **never
 changes the answer served**. This accumulates, on real traffic, the evidence that the new routing would

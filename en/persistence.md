@@ -354,5 +354,6 @@ globex.ask('policy', 'leave');   // [] — Globex sees nothing of Acme's
 - **Painless scaling**: adding Redis = a decorator; moving to CockroachDB = an adapter subclass
   (Postgres-compatible protocol). No business code touched.
 
-> On the Damba side: persistence lives in Postgres (backend) — no more browser storage. Vector search
-> goes through **pgvector** via the backend (the client computes the embedding, Postgres searches).
+> In practice: persistence goes through the `KbStore`/`FactStore`/`VectorStore` ports, with a ready-made
+> **Postgres/pgvector** adapter. Vector search splits naturally: the client computes the embedding, the
+> database does the nearest-neighbor search.

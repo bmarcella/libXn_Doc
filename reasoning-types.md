@@ -5,7 +5,7 @@ tous appliqués à la même représentation — des faits `(sujet, prédicat, ob
 Chaque mode a un **coût en tokens explicite** : soit **0 token** (déterministe, calculé sur les faits),
 soit **LLM** (uniquement quand le déterministe ne suffit pas).
 
-> 💡 **Principe d'ordonnancement (le pipeline Damba).** On essaie toujours le plus **déterministe et 0
+> 💡 **Principe d'ordonnancement (le pipeline QPath).** On essaie toujours le plus **déterministe et 0
 > token d'abord**, et le LLM **en dernier recours**. Un fait connu, une chaîne d'héritage, un agrégat,
 > une question temporelle : tout cela répond **sans appeler de modèle**. Le LLM (via PingPong) n'entre
 > que lorsqu'aucun chemin déterministe n'aboutit — et même là, **chaque affirmation du LLM est vérifiée

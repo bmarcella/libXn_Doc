@@ -65,6 +65,6 @@ comp.retractTree({ entity: 'facture:123' });   // tout l'arbre (compagnon d'un c
 | **Métadonnées** d'un fait (compte → date d'ouverture, solde) | propriétaire `{ fact }` |
 | Données **imbriquées** (facture → lignes) supprimées d'un coup | `retractTree` |
 
-> 🧩 **Convention Damba.** L'ingestion d'un document rattache chaque fait extrait au document
+> 🧩 **Convention QPath.** L'ingestion d'un document rattache chaque fait extrait au document
 > (`document:<nom>`, `cascade:true`) : tous les faits d'un fichier forment une **section** qui cascade à
 > la rétractation. Voir aussi [provenance](/fact-provenance) et [types de faits](/fact-types).

@@ -519,7 +519,7 @@ set **by construction** then reinforced by a **scope policy**:
   (per-group permissions).
 - **RBAC by group** — each fact may belong to an access **group**. Generation uses a fact only if its
   group is **authorized**; facts with **no group** are **public**. "Only the public knowledge provided
-  by Damba is accessible to everyone": you can restrict to *public only*.
+  by QPath is accessible to everyone": you can restrict to *public only*.
 - **Contextual isolation (domain)** — to avoid **mixing disjoint domains** (chemistry ≠ maths),
   generation stays **within its context**. A fact from another domain is pulled in only if it carries a
   **⭐ major (structural) link** — the only allowed bridge between domains.

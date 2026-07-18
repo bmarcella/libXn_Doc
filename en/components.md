@@ -443,7 +443,7 @@ Returns a `Promise<PingPongResult>` whose key fields are `conclusion` (the groun
 
 The `VectorStore` port connects QPath to a vector database for **similarity search** (by path or by
 meaning). Adapters: `InMemoryVectorStore` (core, reference/offline), `QdrantVectorStore`
-(`@damba/libxn-qdrant`), **pgvector** (Damba backend).
+(`@damba/libxn-qdrant`), **pgvector** (QPath backend).
 
 **What it's for:** retrieve the items **closest** to a query — beyond exact matching
 (recommendation, "similar items", record matching).

@@ -9,7 +9,7 @@ applique des **contraintes par compte** et sait faire des **virements**.
 > **Vitrine exécutable.** `npm run example:ledger` déroule une banque complète où **toute** la
 > logique — comptes, plancher/plafond, limites de vélocité, **règle anti-fraude ajoutée à chaud
 > (sans redéploiement)**, secret au coffre, audit — vit dans des **faits gouvernés** : déterministe,
-> traçable, atomique, sans état caché. C'est la thèse de Damba en un scénario : *le comportement de
+> traçable, atomique, sans état caché. C'est la thèse de QPath en un scénario : *le comportement de
 > l'application EST des faits que l'on interroge, gouverne et fait évoluer.*
 
 ### Ouvrir un compte (solde initial, plancher, plafond, vélocité)

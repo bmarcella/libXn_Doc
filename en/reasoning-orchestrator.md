@@ -6,14 +6,14 @@ recognizing that this cat is a cat, that a cat is a mammal, then reading the pro
 **Multi-step reasoning** is the layer that coordinates those moves: it makes several reasoners **relay**
 around the same fact memory until they reach a conclusion.
 
-> 💡 **The principle.** Damba's "chain of thought" is not a string of words produced at random. It is a
+> 💡 **The principle.** QPath's "chain of thought" is not a string of words produced at random. It is a
 > sequence of **grounded steps**, each one a real fact from memory. Thinking, here, means **walking the
 > memory**, not generating text. The resulting trace can be re-read, verified and replayed.
 
 ## The opposite of a language model's "chain of thought"
 
 A language model that "reasons step by step" produces intermediate sentences that can be neither
-verified nor traced: nothing guarantees they match a fact. Damba's chain does the opposite. Each link is
+verified nor traced: nothing guarantees they match a fact. QPath's chain does the opposite. Each link is
 a **stored** fact, with its provenance; the conclusion holds only if the whole chain holds. It is a
 **deterministic, zero-cost** form of reasoning, and above all an **auditable** one: you can click each
 step and trace back to the fact that justifies it.
@@ -29,10 +29,10 @@ Question: "is Marie's cat mortal?"
 
 ## A disposable working memory
 
-Between two steps, an intermediate deduction ("this cat is a cat") must feed the next step. Damba writes
+Between two steps, an intermediate deduction ("this cat is a cat") must feed the next step. QPath writes
 it into a temporary **working memory**, laid over the real memory. The next reasoner reads it as if it
 were an established fact, then that working memory is **discarded** at the end. Nothing used to reason is
-written into durable memory without validation: a question never changes what Damba knows.
+written into durable memory without validation: a question never changes what QPath knows.
 
 ## Deterministic decides, learned proposes
 
@@ -50,7 +50,7 @@ decides. A lead that nothing confirms is simply dropped.
 
 Reasoning stops in every case: it either **concludes**, or declares the goal **underivable** ("I cannot
 link these", rather than inventing), or reaches its **step limit**. It always returns a trace, even an
-empty one. This discipline is what keeps Damba safe on a large corpus: it prefers saying "I don't know"
+empty one. This discipline is what keeps QPath safe on a large corpus: it prefers saying "I don't know"
 to fabricating an answer.
 
 ## Where you see it

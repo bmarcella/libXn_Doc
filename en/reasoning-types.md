@@ -1,11 +1,11 @@
 # Reasoning types
 
-Damba doesn't "reason" in a single way. QPath offers a **family of reasoning modes**, all applied to the
+QPath doesn't "reason" in a single way. QPath offers a **family of reasoning modes**, all applied to the
 same representation — `(subject, predicate, object)` facts indexed in the grid. Each mode has an
 **explicit token cost**: either **0 tokens** (deterministic, computed over the facts), or **LLM** (only
 when the deterministic path doesn't suffice).
 
-> 💡 **Ordering principle (the Damba pipeline).** Always try the most **deterministic, 0-token path
+> 💡 **Ordering principle (the QPath pipeline).** Always try the most **deterministic, 0-token path
 > first**, and the LLM **as a last resort**. A known fact, an inheritance chain, an aggregate, a temporal
 > question — all answer **without calling a model**. The LLM (via PingPong) only steps in when no
 > deterministic path succeeds — and even then, **every LLM claim is checked against QPath** (no
@@ -186,6 +186,6 @@ API, and the PingPong `TOOL` move.
 executor**: a control flow (if/then, switch, bounded loop) stored as facts. Its **conditions**, however,
 are 0-token QPath lookups — so it relies on the reasoning above to decide, then acts.
 
-> In short: Damba is **correct by construction** (deterministic reasoning covers the vast majority of
+> In short: QPath is **correct by construction** (deterministic reasoning covers the vast majority of
 > questions, at 0 tokens) **and** augmented with intelligence **on demand** (the LLM, grounded, for the
 > open-ended) — all **auditable** (every conclusion carries its chain and provenance).

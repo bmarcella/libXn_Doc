@@ -65,6 +65,6 @@ comp.retractTree({ entity: 'invoice:123' });    // the whole tree (companion of 
 | **Metadata** of a fact (account → opening date, balance) | owner `{ fact }` |
 | **Nested** data (invoice → line items) deleted at once | `retractTree` |
 
-> 🧩 **Damba convention.** Ingesting a document attaches each extracted fact to the document
+> 🧩 **QPath convention.** Ingesting a document attaches each extracted fact to the document
 > (`document:<name>`, `cascade:true`): all of a file's facts form a **section** that cascades on
 > retraction. See also [provenance](/fact-provenance) and [fact types](/fact-types).

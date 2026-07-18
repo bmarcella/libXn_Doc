@@ -84,7 +84,13 @@ saillantes, vocabulaire, classes, homonymes), qui sert ensuite de contexte à l'
 ```ts
 import { buildDocumentPlan } from '@damba/libxn';
 
-const plan = await buildDocumentPlan(chunks);   // chunks = paragraphes du document
+// 1) Prépare les morceaux du document. `file` vient d'un upload (<input type="file">) ; on lit son
+//    texte, puis on le découpe en paragraphes. `chunks` est donc un string[].
+const documentText = await file.text();
+const chunks = documentText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+
+// 2) Passe 1 — construire le plan à partir de ces morceaux.
+const plan = await buildDocumentPlan(chunks);
 plan.entities;   // [{ name:'jean', mentions:2, classes:['boulanger'] }, …]  trié par saillance
 plan.homonyms;   // [{ name:'jean', classes:['boulanger','astronaute'] }]    ambiguïtés à lever
 ```

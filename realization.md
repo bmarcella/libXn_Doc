@@ -2,7 +2,7 @@
 
 La [déduction générative](/generative-deduction) produit du **nouveau savoir** (des faits déduits) ; la
 **Réalisation** fait l'étape d'après : elle transforme un fait connu `(sujet, prédicat, objet)` en une
-**phrase française lisible**. Damba énonce ce qu'il **sait**, pas ce qu'il imagine. Déterministe, **0
+**phrase française lisible**. QPath énonce ce qu'il **sait**, pas ce qu'il imagine. Déterministe, **0
 token**, aucune invention : la phrase ne dit rien qui ne soit déjà dans la mémoire.
 
 > 💡 **Le principe.** Répondre en langage naturel sans « générer du texte au hasard ». On part d'un fait
@@ -11,7 +11,7 @@ token**, aucune invention : la phrase ne dit rien qui ne soit déjà dans la mé
 
 ## L'inverse exact de la lecture
 
-Damba lit déjà les tournures infinies du langage et les ramène à un petit jeu de **relations
+QPath lit déjà les tournures infinies du langage et les ramène à un petit jeu de **relations
 canoniques** (« je viens de Jacmel », « je suis originaire de Jacmel » et « je suis natif de Jacmel »
 désignent la même relation d'origine). La Réalisation parcourt ce pont **dans l'autre sens** : d'une
 relation connue vers une phrase naturelle. Comme le stockage reste **en surface** (le prédicat est déjà
@@ -21,7 +21,7 @@ avait absorbés.
 ## Le juge : l'aller-retour
 
 C'est la garantie qui distingue la Réalisation d'un « générateur de texte » : elle est **vérifiable par
-construction**. On réalise le fait en phrase, puis on **relit** cette phrase par le lecteur de Damba ; si
+construction**. On réalise le fait en phrase, puis on **relit** cette phrase par le lecteur de QPath ; si
 elle retombe sur la **même relation** et le **même objet**, la réalisation a **préservé le sens**.
 
 ```
@@ -29,7 +29,7 @@ fait : (marie, habite, Paris)
    │  réalisation
    ▼
 « Marie habite à Paris. »
-   │  relecture (le lecteur de Damba)
+   │  relecture (le lecteur de QPath)
    ▼
 relation « localisation », objet Paris   ✓  identique au fait de départ
 ```
@@ -73,7 +73,7 @@ realizeFact({ s: 'pierre', p: 'vient_de', o: 'jacmel' }, { typer });
 
 ## Dire un fait de plusieurs façons (recombinaison)
 
-Un même fait peut se dire de plusieurs manières, **toutes vraies**. Damba sait que « habiter », « vivre »,
+Un même fait peut se dire de plusieurs manières, **toutes vraies**. QPath sait que « habiter », « vivre »,
 « résider », « se trouver à » et « être à » désignent la même relation ; il peut donc **recombiner** ces
 formes attestées pour varier le langage sans jamais changer le sens :
 
@@ -90,12 +90,12 @@ remplacé par un synonyme approximatif qui glisserait le sens). `pickVariant(fac
 formulation de façon **déterministe** (même graine → même phrase) pour éviter la répétition robotique tout
 en restant reproductible.
 
-Côté produit, on peut simplement demander à Damba « **dis-le autrement** » : il reprend son dernier énoncé
+Côté produit, on peut simplement demander à QPath « **dis-le autrement** » : il reprend son dernier énoncé
 et propose une autre formulation attestée du même fait, sans jamais en changer le sens.
 
 ## Redire une scène comprise
 
-Quand une phrase contient un pronom (« Marc a laissé tomber le verre, **il** est cassé »), Damba comprend
+Quand une phrase contient un pronom (« Marc a laissé tomber le verre, **il** est cassé »), QPath comprend
 d'abord à **quoi** le pronom renvoie (ici le verre, pas Marc), puis **redit** la scène correctement :
 
 ```
@@ -104,15 +104,15 @@ d'abord à **quoi** le pronom renvoie (ici le verre, pas Marc), puis **redit** l
 
 La reformulation attribue chaque état à la **bonne** entité, ajoute le connecteur logique (« donc », « puis »),
 et emploie un pronom de reprise uniquement quand c'est sûr. Comme partout dans la Réalisation, rien n'est
-inventé : Damba réutilise les mots réellement écrits et la phrase produite se **relit** à la même scène.
+inventé : QPath réutilise les mots réellement écrits et la phrase produite se **relit** à la même scène.
 
 ## Où ça s'inscrit
 
-La Réalisation est la **voix** de la mémoire : partout où Damba doit répondre par une phrase à propos de
+La Réalisation est la **voix** de la mémoire : partout où QPath doit répondre par une phrase à propos de
 ce qu'il connaît (décrire une entité, confirmer un fait), elle produit un énoncé **fluide, ancré et
 vérifiable**, sans solliciter de génération libre. Elle se combine naturellement avec la [déduction
 générative](/generative-deduction) (qui trouve *quoi* dire) et le [raisonnement](/reasoning-types) (qui
 décide *si* on peut le dire).
 
-> La force reste le **structuré et le vérifiable** : Damba met en mots ce qu'il sait, et chaque phrase
+> La force reste le **structuré et le vérifiable** : QPath met en mots ce qu'il sait, et chaque phrase
 > peut être relue jusqu'au fait dont elle est née.

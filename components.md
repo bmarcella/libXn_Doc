@@ -237,7 +237,7 @@ comp.profileOf({ entity: 'robert' });   // renvoie le profil de bob — un seul,
 - **Propriétaire-entité vs propriétaire-fait** : l'**entité** pour un profil durable d'une
   personne/chose ; le **fait** pour les métadonnées d'un énoncé précis (provenance, score, horodatage).
 
-> **Pattern produit (Damba)** — toute **ingestion de document** (upload + extraction IA, dossier de
+> **Pattern produit (QPath)** — toute **ingestion de document** (upload + extraction IA, dossier de
 > connaissances, synthèse de recherche) rattache chaque fait extrait au document, propriétaire-entité
 > `document:<nom>`, en `cascade: true` :
 > ```ts
@@ -455,7 +455,7 @@ Renvoie une `Promise<PingPongResult>` dont les champs clés sont `conclusion` (l
 
 Le port `VectorStore` connecte QPath à une base vectorielle pour la **recherche par similarité**
 (par chemin ou par sens). Adaptateurs : `InMemoryVectorStore` (noyau, référence/hors-ligne),
-`QdrantVectorStore` (`@damba/libxn-qdrant`), **pgvector** (backend Damba).
+`QdrantVectorStore` (`@damba/libxn-qdrant`), **pgvector** (backend QPath).
 
 **À quoi ça sert :** retrouver les éléments **les plus proches** d'une requête — au-delà de la
 correspondance exacte (recommandation, « éléments similaires », rapprochement).

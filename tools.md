@@ -232,7 +232,7 @@ registre, et `PingPongReasoner(kb, llm, { tools })` reçoit ce registre via l'op
 
 | Assistant | Le LLM appelle | La KB répond |
 |---|---|---|
-| **Damba Banque** | `kb_query \| subject=compte-42 predicate=solde` | le **vrai** solde (jamais inventé) ; `compute=depot:sum` → total déposé |
+| **QPath Banque** | `kb_query \| subject=compte-42 predicate=solde` | le **vrai** solde (jamais inventé) ; `compute=depot:sum` → total déposé |
 | **Cabinet d'avocat** | `kb_query \| subject=dossier-17 predicate=clause` | les clauses du dossier — le LLM rédige **à partir** d'elles |
 | **Médecin** | `kb_query \| subject=patient-9 predicate=allergie` | les antécédents réels — pas d'hallucination clinique |
 | **Mémoire d'équipe** | `org_memory \| subject=alice predicate=poste` | la mémoire **partagée** de l'organisation (côté serveur) |

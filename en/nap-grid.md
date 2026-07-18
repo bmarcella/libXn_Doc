@@ -45,7 +45,7 @@ const p = nap.predict(encodeFeatures([area, distance]));
 `depthReached` tells **how much** of the input was actually in memory (the rest is filled by
 generalization); `contributions` details **the weight of each step** — that's the explainable prediction.
 
-## In Damba — auditable numeric prediction
+## In QPath — auditable numeric prediction
 
 The `NapGridService` trains a model on tabular rows and answers with a **rationale** (which features
 weighed in), at zero tokens.
@@ -59,7 +59,7 @@ napGrid.predict({ area: 80, distance: 3 });
 //                  { feature: 'distance', contribution:  12_000 } ] }
 ```
 
-Damba can thus answer "~210,000, mostly because of the area" **and back it with the path**, without
+QPath can thus answer "~210,000, mostly because of the area" **and back it with the path**, without
 calling a language model.
 
 ## Training on the memory's facts

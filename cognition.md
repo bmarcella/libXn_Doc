@@ -1,6 +1,6 @@
 # La couche cognitive
 
-Comment Damba « pense », vue d'ensemble. Damba ne raisonne pas d'un seul bloc : c'est une **pile de
+Comment QPath « pense », vue d'ensemble. QPath ne raisonne pas d'un seul bloc : c'est une **pile de
 couches** posées autour d'une même **mémoire de faits**, du socle déterministe jusqu'aux briques qui
 apprennent. Une règle gouverne l'ensemble :
 
@@ -42,14 +42,14 @@ le **substrat commun** que toutes les couches lisent et écrivent. Voir [Composa
 
 ## Décider : le raisonnement déterministe
 
-La première réflexe de Damba est de répondre **sans modèle de langage** : lecture directe, héritage et
+La première réflexe de QPath est de répondre **sans modèle de langage** : lecture directe, héritage et
 transitivité, agrégats, quantificateurs, questions temporelles. Ces réponses sont **exactes,
 reproductibles et gratuites** (0 token). C'est la thèse du produit. Voir [Types de
 raisonnement](/reasoning-types) et le [Cycle de vie d'un prompt](/prompt-lifecycle).
 
 ## Décider : l'arbitrage par la preuve
 
-Quand plusieurs voies pourraient répondre au même message, Damba tranche **par la preuve** plutôt que par
+Quand plusieurs voies pourraient répondre au même message, QPath tranche **par la preuve** plutôt que par
 un ordre figé : chaque voie présente ce qu'elle sait, et un arbitre déterministe retient la revendication
 la plus solide. Deux garde-fous : un fait connu l'emporte toujours sur une estimation, et un disjoncteur
 de confiance préfère avouer l'incertitude plutôt que servir une réponse peu fiable. Voir

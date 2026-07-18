@@ -1,6 +1,6 @@
 # The cognitive layer
 
-How Damba "thinks", at a glance. Damba does not reason as one block: it is a **stack of layers** built
+How QPath "thinks", at a glance. QPath does not reason as one block: it is a **stack of layers** built
 around a single **fact memory**, from the deterministic foundation up to the parts that learn. One rule
 governs the whole:
 
@@ -41,14 +41,14 @@ layer reads and writes. See [Key components](/en/components) and [Fact types](/e
 
 ## Deciding: deterministic reasoning
 
-Damba's first reflex is to answer **without a language model**: direct reads, inheritance and
+QPath's first reflex is to answer **without a language model**: direct reads, inheritance and
 transitivity, aggregates, quantifiers, temporal questions. These answers are **exact, reproducible and
 free** (0 tokens). It is the product's thesis. See [Reasoning types](/en/reasoning-types) and the
 [Prompt lifecycle](/en/prompt-lifecycle).
 
 ## Deciding: arbitration by evidence
 
-When several paths could answer the same message, Damba settles it **by evidence** rather than by a fixed
+When several paths could answer the same message, QPath settles it **by evidence** rather than by a fixed
 order: each path presents what it knows, and a deterministic arbiter keeps the strongest claim. Two
 safeguards: a known fact always beats an estimate, and a confidence circuit breaker prefers to admit
 uncertainty rather than serve an unreliable answer. See

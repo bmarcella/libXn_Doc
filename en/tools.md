@@ -233,7 +233,7 @@ reference to the memory it queries), then `register(...)` adds it to the registr
 
 | Assistant | The LLM calls | The KB answers |
 |---|---|---|
-| **Damba Bank** | `kb_query \| subject=account-42 predicate=balance` | the **real** balance (never invented); `compute=deposit:sum` → total deposited |
+| **QPath Bank** | `kb_query \| subject=account-42 predicate=balance` | the **real** balance (never invented); `compute=deposit:sum` → total deposited |
 | **Law firm** | `kb_query \| subject=case-17 predicate=clause` | the case's clauses — the LLM drafts **from** them |
 | **Doctor** | `kb_query \| subject=patient-9 predicate=allergy` | the real history — no clinical hallucination |
 | **Team memory** | `org_memory \| subject=alice predicate=role` | the organization's **shared** memory (server-side) |

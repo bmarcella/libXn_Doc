@@ -9,7 +9,7 @@ timestamped fact; the **balance is never stored**, it is computed by folding. Th
 > **Runnable showcase.** `npm run example:ledger` walks through a complete bank where **all** the
 > logic — accounts, floor/ceiling, velocity limits, a **fraud rule added at runtime (no redeploy)**,
 > a vaulted secret, audit — lives in **governed facts**: deterministic, traceable, atomic, with no
-> hidden state. It is Damba's thesis in one scenario: *an application's behavior IS facts you query,
+> hidden state. It is QPath's thesis in one scenario: *an application's behavior IS facts you query,
 > govern and evolve.*
 
 ### Open an account (initial balance, floor, ceiling, velocity)

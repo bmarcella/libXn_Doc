@@ -6,6 +6,7 @@
   "description": "Site de documentation bilingue (fr/en) de LibXN / QPath — VitePress.",
   "type": "module",
   "scripts": {
+     "dev": "vitepress dev",
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview"

@@ -4,7 +4,7 @@ QPath est une **mémoire symbolique déterministe** : elle stocke des faits, les
 et fiable à l'échelle**, et **raisonne** dessus — sans modèle de langage pour le cœur, à **0 token**, de
 manière **auditable et temporelle**.
 
-> **La thèse Damba.** Au-delà de la mémoire : **le comportement de l'application EST des faits**
+> **La thèse QPath.** Au-delà de la mémoire : **le comportement de l'application EST des faits**
 > gouvernés — flots, règles, limites, anti-fraude vivent dans des faits qu'on interroge, gouverne et
 > fait évoluer **à chaud, sans redéployer**, de façon déterministe et traçable. Voir
 > **[Factflow](dynamic-behavior)** et la vitrine **[grand livre](transaction-ledger)** (`npm run example:ledger`).
