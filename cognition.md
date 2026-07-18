@@ -33,6 +33,15 @@ flowchart TB
   class KB mem;
 ```
 
+## Le problème
+
+Un assistant utile doit faire deux choses qui **s'opposent** : répondre **sûrement** (sans inventer, de
+façon vérifiable) et répondre **largement** (y compris quand rien n'est écrit noir sur blanc). Un système
+purement déterministe est sûr mais muet dès qu'il manque un fait ; un système purement appris est large
+mais peut halluciner. La couche cognitive résout cette tension en **empilant** les deux, avec une règle
+qui empêche l'appris de contaminer le sûr : **le déterministe décide, l'appris propose**. Résultat, on
+gagne l'étendue sans perdre la garantie « d'où vient cette réponse ? ».
+
 ## Le socle : une mémoire de faits
 
 Tout repose sur des faits `(sujet, prédicat, objet)` conservés dans la mémoire QPath, avec leur
@@ -69,6 +78,36 @@ vérifiées avant d'influer sur une réponse :
 
 Aucune de ces couches ne décide seule. Elle **propose** ; l'arbitrage et la vérification décident si la
 proposition mérite d'être servie.
+
+## En pratique — une question qui traverse les couches
+
+> 🎯 **Cas d'usage.** Un assistant d'entreprise reçoit deux questions. La première a une réponse dans les
+> faits : la couche déterministe **décide**, à 0 token, avec la preuve. La seconde n'a **aucun fait**
+> stocké : une couche apprenante **propose** une estimation, clairement marquée comme telle. La règle d'or
+> garantit qu'un fait connu l'emporte toujours sur une estimation.
+
+```ts
+import { KnowledgeBase, XNeuroneGrid } from '@damba/libxn';
+
+// La mémoire de faits, alimentée par l'ingestion (ici à la main pour l'exemple).
+const kb = new KnowledgeBase(new XNeuroneGrid());
+await kb.tell('felix', 'est', 'chat');
+await kb.tell('chat', 'est', 'mammifere');
+
+// 1) DÉCIDER (déterministe, 0 token). « Felix est-il un mammifère ? » se déduit par héritage.
+kb.isA('felix', 'mammifere');            // → true, décidé sur les faits, avec la chaîne felix→chat→mammifère
+const chain = kb.reason('felix', 'est'); // → la trace complète, pour prouver la réponse
+
+// 2) PROPOSER (appris, vérifié). Aucune valeur n'est stockée pour ce cas :
+kb.ask('felix', 'poids');                // → []  (le déterministe ne peut rien affirmer)
+// … une couche apprenante (prédiction) peut alors PROPOSER une estimation à partir des cas connus,
+//    marquée comme estimation. Si un vrai poids est ensuite affirmé, il écrase l'estimation.
+```
+
+Le point clé : la même question ne prend pas le même chemin selon que la mémoire **sait** ou non. Quand
+elle sait, la réponse est exacte et prouvée ; quand elle ignore, une proposition ancrée prend le relais,
+sans jamais se faire passer pour un fait. Le trajet complet, tier par tier, est décrit dans le
+[Cycle de vie d'un prompt](/prompt-lifecycle).
 
 ## Pourquoi cette architecture
 

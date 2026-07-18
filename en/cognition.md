@@ -33,6 +33,15 @@ flowchart TB
   class KB mem;
 ```
 
+## The problem
+
+A useful assistant must do two things that **pull against each other**: answer **safely** (no inventing,
+verifiable) and answer **broadly** (even when nothing is written down). A purely deterministic system is
+safe but goes silent the moment a fact is missing; a purely learned system is broad but can hallucinate.
+The cognitive layer resolves this tension by **stacking** both, with a rule that stops the learned from
+contaminating the safe: **the deterministic decides, the learned proposes**. The result: you gain breadth
+without losing the "where did this answer come from?" guarantee.
+
 ## The foundation: a fact memory
 
 Everything rests on facts `(subject, predicate, object)` held in QPath memory, with their provenance,
@@ -68,6 +77,36 @@ before they can shape an answer:
 
 None of these layers decides on its own. It **proposes**; arbitration and verification decide whether the
 proposal is worth serving.
+
+## In practice — a question flowing through the layers
+
+> 🎯 **Use case.** A company assistant gets two questions. The first has an answer in the facts: the
+> deterministic layer **decides**, at 0 tokens, with the proof. The second has **no** stored fact: a
+> learning layer **proposes** an estimate, clearly marked as such. The golden rule guarantees a known fact
+> always wins over an estimate.
+
+```ts
+import { KnowledgeBase, XNeuroneGrid } from '@damba/libxn';
+
+// The fact memory, populated by ingestion (by hand here for the example).
+const kb = new KnowledgeBase(new XNeuroneGrid());
+await kb.tell('felix', 'is', 'cat');
+await kb.tell('cat', 'is', 'mammal');
+
+// 1) DECIDE (deterministic, 0 tokens). "Is Felix a mammal?" follows by inheritance.
+kb.isA('felix', 'mammal');           // → true, decided on the facts, via the chain felix→cat→mammal
+const chain = kb.reason('felix', 'is'); // → the full trace, to prove the answer
+
+// 2) PROPOSE (learned, verified). No value is stored for this case:
+kb.ask('felix', 'weight');           // → []  (the deterministic layer can assert nothing)
+// … a learning layer (prediction) can then PROPOSE an estimate from known cases, marked as an estimate.
+//    If a real weight is later asserted, it overrides the estimate.
+```
+
+The key point: the same question takes a different path depending on whether memory **knows** or not. When
+it knows, the answer is exact and proven; when it doesn't, a grounded proposal steps in, without ever
+passing itself off as a fact. The full path, tier by tier, is in the
+[Prompt lifecycle](/en/prompt-lifecycle).
 
 ## Why this architecture
 
