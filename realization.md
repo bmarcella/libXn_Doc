@@ -3,7 +3,9 @@
 La [déduction générative](/generative-deduction) produit du **nouveau savoir** (des faits déduits) ; la
 **Réalisation** fait l'étape d'après : elle transforme un fait connu `(sujet, prédicat, objet)` en une
 **phrase française lisible**. QPath énonce ce qu'il **sait**, pas ce qu'il imagine. Déterministe, **0
-token**, aucune invention : la phrase ne dit rien qui ne soit déjà dans la mémoire.
+token**, aucune invention : la phrase ne dit rien qui ne soit déjà dans la mémoire. La suite de cette
+idée — une seule voix, ~50 relations, paragraphes, démonstrations, organes appris en lisant — vit dans
+[l'organe verbal](/verbal-organ).
 
 > 💡 **Le principe.** Répondre en langage naturel sans « générer du texte au hasard ». On part d'un fait
 > réel et on l'**habille** : la bonne préposition, le bon article, la copule, l'accord, les listes. La

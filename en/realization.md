@@ -3,7 +3,9 @@
 [Generative deduction](/en/generative-deduction) produces **new knowledge** (deduced facts); **Realization**
 does the next step: it turns a known fact `(subject, predicate, object)` into a **readable sentence**.
 QPath states what it **knows**, not what it imagines. Deterministic, **0 tokens**, no invention: the
-sentence says nothing that is not already in memory.
+sentence says nothing that is not already in memory. The continuation of this idea — one single voice,
+~50 relations, paragraphs, demonstrations, organs learned by reading — lives in the
+[verbal organ](/en/verbal-organ).
 
 > 💡 **The principle.** Answer in natural language without "generating text at random". We start from a
 > real fact and **dress it up**: the right preposition, the right article, the copula, agreement, lists.
