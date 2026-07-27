@@ -1,6 +1,8 @@
 # Auteur
 
-**QPath / LibXN** est conçu et développé par **Enumeria**.
+**QPath / LibXN** est conçu et développé par **NeuroBit Corp**, société de recherche et
+développement en intelligence artificielle incorporée au Québec, fondée par
+**Bigvai Asgard Marcella**.
 
 QPath est une mémoire symbolique déterministe : _stocker_ des faits, _raisonner_ dessus et _piloter le
 comportement d'une application par des faits_ — de manière déterministe, traçable et sans hallucination.

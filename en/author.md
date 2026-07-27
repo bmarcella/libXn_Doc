@@ -1,6 +1,7 @@
 # Author
 
-**QPath / LibXN** is designed and developed by **Bigvai Asgard Marcella**.
+**QPath / LibXN** is designed and developed by **NeuroBit Corp**, an AI research and
+development company incorporated in Quebec, founded by **Bigvai Asgard Marcella**.
 
 QPath is a deterministic symbolic memory: *store* facts, *reason* over them, and *drive an application's
 behavior with facts* — deterministically, traceably, and without hallucination.
