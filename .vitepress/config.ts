@@ -26,6 +26,10 @@ export default withMermaid(defineConfig({
   ignoreDeadLinks: [/examples/, /\.ts$/],
   themeConfig: {
     logo: '/logo.svg',
+    footer: {
+      message: 'LibXN / QPath — un produit NeuroBit Corp.',
+      copyright: '© 2026 NeuroBit Corp. Tous droits réservés.',
+    },
     search: { provider: 'local' },
     socialLinks: [
       { icon: 'linkedin', link: 'https://www.linkedin.com/in/bigvai-asgard-marcella-62b892221/' },
