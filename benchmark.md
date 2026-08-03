@@ -80,5 +80,6 @@ Sortie : le tableau ci-dessus + un JSON brut (métriques, seed, versions, specs 
 Machine des chiffres publiés : Intel Core Ultra 9 185H, Node 22 — run complet en 7 s, ingestion des
 100 000 faits en 2,3 s. Les cas où la baseline gagne sont publiés au même endroit que les autres.
 
-Un dépôt public autonome du benchmark est en préparation ; en attendant, les résultats datés vivent
-avec le code et chaque nouvelle exécution s'ajoute sans écraser les précédentes.
+Les résultats datés vivent avec le code et chaque nouvelle exécution s'ajoute sans écraser les
+précédentes. Pour reproduire le benchmark sur votre machine dans le cadre d'une évaluation,
+[contactez-nous](https://damba.io) : le harnais complet est fourni sous licence d'évaluation.
