@@ -131,7 +131,7 @@ the **flow name** (the subject that carries `entry`). A second `opts?` argument 
 | Option | Role | Default |
 |---|---|---|
 | `maxSteps` | global step budget — guarantees halting even on a cycle | `1000` |
-| `context` | per-call execution context: `{ event?, item? }`, substituted for the `$event` / `$item` tokens in `arg.*` (UI binding with no race between concurrent flows) | `undefined` (no substitution) |
+| `context` | per-call execution context: `{ event?, item? }`, substituted for the `$event` / `$item` tokens **everywhere they appear** — action arguments, but also `if`, `switch` and `for_each` expressions (see "Execution context" below) | `undefined` (no substitution) |
 | `allowedTools` | **RUNTIME allowlist**: iterable of tools permitted to run. An `action` outside the list is **traced as denied and skipped** (the flow continues), without running it — an execution guard that **doubles** validation (`FlowValidator`, which checks *beforehand*) | `undefined` (no restriction) |
 
 `run` is `async` and **returns the trace**: a `FlowStep[]`, each step carrying `{ step, kind, detail }`
@@ -682,6 +682,50 @@ This example reuses the APIs already covered, with two argument details worth no
 
 Express **never restarted**. The app's source code did **not change**: only its **behavior, in facts**,
 evolved — under validation and the gate.
+
+## Execution context: `$event` and `$item`
+
+A flow is written **once**, without knowing which subject it will run on. Two tokens carry that gap:
+`$event` is **the subject being talked about on this call**, `$item` is the current element of a
+loop. They are replaced at run time, in **arguments** as well as in **control expressions** — so a
+condition `if "$event phone"` tests the subject at hand, and the trace shows the **resolved**
+expression, not the template.
+
+```
+incomplete_record entry ir_test
+ir_test if "$event phone"
+ir_test then ir_ok
+ir_test else ir_missing
+ir_missing action tell
+ir_missing arg.s "$event"
+ir_missing arg.p needs_field
+ir_missing arg.o phone
+```
+
+One flow covers every record: without these tokens you would need one flow per subject. The context
+is **per call** (`runner.run(flow, { context: { event: id } })`), so two concurrent runs never step
+on each other.
+
+## Arming a flow: triggers
+
+A flow can be run on demand, but its value comes from **arming**: a fact declares what it reacts to.
+Two triggers, deliberately kept apart.
+
+| Fact | Meaning | `$event` is then |
+|---|---|---|
+| `<flow> on <predicate>` | reacts to a fact being written with that predicate | the **subject** of the written fact |
+| `<flow> on_form <form>` | reacts to a **response** received by that form | the **record** the response just created |
+
+The separation is a choice, not an omission: a form response writes N facts at once, and letting
+that burst wake up predicate-armed flows would make it unpredictable what runs when someone fills a
+form. What is attached to a form is therefore **exactly** what will run.
+
+Both predicates are **write-protected**, like the control-flow vocabulary: a flow can neither arm
+itself nor arm a neighbour.
+
+⚠️ **Where the flow lives matters.** A public response is handled where the facts are written, that
+is, on the server. A flow meant to react to a public form must therefore live in a memory the server
+reads (the owner's ring), not in a layer local to one conversation.
 
 ## Guarantees
 

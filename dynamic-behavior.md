@@ -131,7 +131,7 @@ est le **nom du flux** (le sujet qui porte `entry`). Un second argument `opts?` 
 | Option | Rôle | Défaut |
 |---|---|---|
 | `maxSteps` | budget de pas global — garantit l'arrêt même sur un cycle | `1000` |
-| `context` | contexte d'exécution propre à l'appel : `{ event?, item? }`, substitué aux jetons `$event` / `$item` des `arg.*` (binding UI sans course entre flux concurrents) | `undefined` (aucune substitution) |
+| `context` | contexte d'exécution propre à l'appel : `{ event?, item? }`, substitué aux jetons `$event` / `$item` **partout où ils apparaissent** — arguments d'action, mais aussi expressions de `if`, de `switch` et de `for_each` (voir « Le contexte d'exécution » plus bas) | `undefined` (aucune substitution) |
 | `allowedTools` | **allowlist au RUNTIME** : itérable des outils autorisés à s'exécuter. Une `action` hors liste est **tracée comme refusée et ignorée** (le flux continue), sans l'exécuter — garde d'exécution qui **double** la validation (`FlowValidator`, qui contrôle *avant*) | `undefined` (aucune restriction) |
 
 `run` est `async` et **retourne la trace** : un `FlowStep[]`, chaque pas portant `{ step, kind, detail }`
@@ -689,6 +689,51 @@ Cet exemple réutilise les API déjà vues, avec deux détails d'argument à not
 
 Express n'a **jamais redémarré**. Le code source de l'app n'a **pas changé** : seul son **comportement
 en faits** a évolué, sous validation et gate.
+
+## Le contexte d'exécution : `$event` et `$item`
+
+Un flux est écrit **une fois**, sans savoir sur quel sujet il tournera. Deux jetons portent ce
+manque : `$event` est **le sujet dont il est question à cet appel**, `$item` est l'élément courant
+d'une boucle. Ils sont remplacés au moment de l'exécution, dans les **arguments** comme dans les
+**expressions de contrôle** — une condition `if "$event telephone"` teste donc le sujet en cours, et
+la trace affiche l'expression **résolue**, pas le gabarit.
+
+```
+dossier_incomplet entry di_test
+di_test if "$event telephone"
+di_test then di_ok
+di_test else di_manque
+di_manque action tell
+di_manque arg.s "$event"
+di_manque arg.p needs_field
+di_manque arg.o telephone
+```
+
+Le même flux vaut pour toutes les fiches : sans ces jetons, il en faudrait un par sujet. Le contexte
+est **propre à l'appel** (`runner.run(flow, { context: { event: id } })`), donc deux exécutions
+concurrentes ne se marchent pas dessus.
+
+## Armer un flux : les déclencheurs
+
+Un flux peut être lancé à la demande, mais son intérêt vient de l'**armement** : un fait le désigne
+comme réagissant à quelque chose. Deux déclencheurs, volontairement distincts.
+
+| Fait | Sens | `$event` vaut alors |
+|---|---|---|
+| `<flux> on <prédicat>` | réagit à l'écriture d'un fait portant ce prédicat | le **sujet** du fait écrit |
+| `<flux> on_form <formulaire>` | réagit à une **réponse** reçue par ce formulaire | la **fiche** que la réponse vient de créer |
+
+La séparation est un choix, pas un manque : une réponse de formulaire écrit N faits d'un coup, et
+laisser cette rafale réveiller des flux armés par prédicat rendrait imprévisible ce qui part en
+remplissant un formulaire. Ce qui est attaché à un formulaire est donc **exactement** ce qui
+s'exécutera.
+
+Ces deux prédicats sont **protégés à l'écriture** au même titre que le vocabulaire de flot de
+contrôle : un flux ne peut ni s'armer lui-même, ni armer un voisin.
+
+⚠️ **Où vit le flux compte.** Une réponse publique est traitée là où les faits sont écrits, c'est-à-dire
+côté serveur. Un flux qui doit réagir à un formulaire public doit donc résider dans une mémoire que
+le serveur lit (l'anneau du propriétaire), pas dans une couche locale à une conversation.
 
 ## Les garanties
 
