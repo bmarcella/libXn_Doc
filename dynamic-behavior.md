@@ -25,8 +25,10 @@ vers la branche premium. Le tout **déterministe, tracé, à 0 token**.
 |-----------|------|---------|
 | **Condition** | brancher selon un fait | `if "user est premium"` → `then` / `else` |
 | **Condition numérique** | comparer une valeur | `if "user age >= 18"` |
+| **Condition de date** | comparer à aujourd'hui | `if "$event echeance < today"`, `if "$event embauche older_than 365"` |
 | **Aiguillage** (switch) | router selon une valeur | `switch "user plan"` → `case.gold` / `default` |
 | **Boucle bornée** | itérer sur une collection | `for_each "panier article"`, `max_iter 50` |
+| **Boucle sur une classe** | itérer sur une population | `for_each "* est employe"` — tous les sujets de la classe, toujours borné par `max_iter` |
 | **Action** | déclencher une capacité | `action notifier` + arguments |
 
 Chaque exécution rend sa **trace complète** — quelle étape, déclenchée par quel fait — comme tout

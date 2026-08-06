@@ -25,8 +25,10 @@ the premium branch. All of it **deterministic, traced, at 0 tokens**.
 |-----------|------|---------|
 | **Condition** | branch on a fact | `if "user est premium"` → `then` / `else` |
 | **Numeric condition** | compare a value | `if "user age >= 18"` |
+| **Date condition** | compare against today | `if "$event due < today"`, `if "$event hired older_than 365"` |
 | **Switch** | route on a value | `switch "user plan"` → `case.gold` / `default` |
 | **Bounded loop** | iterate over a collection | `for_each "panier article"`, `max_iter 50` |
+| **Loop over a class** | iterate over a population | `for_each "* is employee"` — every subject of the class, still bounded by `max_iter` |
 | **Action** | trigger a capability | `action notify` + arguments |
 
 Every run returns its **full trace** — which step, triggered by which fact — like everything else
