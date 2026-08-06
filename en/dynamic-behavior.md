@@ -28,6 +28,8 @@ the premium branch. All of it **deterministic, traced, at 0 tokens**.
 | **Date condition** | compare against today | `if "$event due < today"`, `if "$event hired older_than 365"` |
 | **Switch** | route on a value | `switch "user plan"` → `case.gold` / `default` |
 | **Bounded loop** | iterate over a collection | `for_each "panier article"`, `max_iter 50` |
+| **Read a fact** | use memory in an argument or a condition | `arg.o = $fact($event name)` |
+| **Chain** | pass a step's result to the next one | `arg.body = $last` |
 | **Loop over a class** | iterate over a population | `for_each "* is employee"` — every subject of the class, still bounded by `max_iter` |
 | **Action** | trigger a capability | `action notify` + arguments |
 

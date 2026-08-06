@@ -28,6 +28,8 @@ vers la branche premium. Le tout **déterministe, tracé, à 0 token**.
 | **Condition de date** | comparer à aujourd'hui | `if "$event echeance < today"`, `if "$event embauche older_than 365"` |
 | **Aiguillage** (switch) | router selon une valeur | `switch "user plan"` → `case.gold` / `default` |
 | **Boucle bornée** | itérer sur une collection | `for_each "panier article"`, `max_iter 50` |
+| **Lire un fait** | se servir de la mémoire dans un argument ou une condition | `arg.o = $fact($event nom)` |
+| **Chaîner** | passer le résultat d'une étape à la suivante | `arg.body = $last` |
 | **Boucle sur une classe** | itérer sur une population | `for_each "* est employe"` — tous les sujets de la classe, toujours borné par `max_iter` |
 | **Action** | déclencher une capacité | `action notifier` + arguments |
 
