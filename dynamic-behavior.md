@@ -795,6 +795,19 @@ règles : l'impossibilité d'activer ne repose sur aucune promesse.
 Une proposition qui ne serait jamais adoptable est refusée au dépôt, avec sa raison, et deux flux qui
 remarquent la même chose additionnent leurs soutiens au lieu de créer deux entrées.
 
+## Se suspendre et attendre une réponse
+
+Un flux peut s'arrêter sur une question et reprendre plus tard, exactement là où il s'était arrêté,
+avec la réponse en contexte. L'exécuteur est une boucle sans mémoire entre deux exécutions : l'état
+de reprise survit donc là où tout survit déjà, dans la mémoire, sous forme de faits. Une attente est
+lisible, inspectable et rétractable comme le reste — jamais un état caché dans un processus.
+
+Trois gardes la distinguent d'une fuite. Une seule attente vivante par couple (flux, sujet), sans
+quoi une relance quotidienne accumulerait une question par jour. Une expiration, parce qu'une
+question sans réponse ne doit pas garder une exécution vivante pour toujours : à l'échéance, la
+branche prévue est prise. Et un refus de suspendre quand l'étape de reprise manque — un flux qu'on ne
+peut plus reprendre est pire qu'un flux qui n'a pas demandé.
+
 ## Les garanties
 
 - **Déterministe** : à mémoire et outils donnés, le même flux donne toujours la même trace.

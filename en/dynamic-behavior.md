@@ -787,6 +787,19 @@ inability to activate rests on no promise.
 A proposal that could never be adopted is refused on filing, with its reason, and two flows noticing
 the same thing add up their support instead of creating two entries.
 
+## Suspending and waiting for an answer
+
+A flow can stop on a question and resume later, exactly where it stopped, with the answer in context.
+The runner is a loop with no memory between runs: the resume state therefore survives where
+everything already survives, in memory, as facts. A wait is readable, inspectable and retractable
+like the rest - never a hidden state inside a process.
+
+Three guards separate it from a leak. One live wait per (flow, subject) pair, without which a daily
+reminder would pile up one question per day. An expiry, because an unanswered question must not keep
+an execution alive forever: at the deadline the planned branch is taken. And a refusal to suspend
+when the resume step is missing - a flow you can no longer resume is worse than a flow that never
+asked.
+
 ## Guarantees
 
 - **Deterministic**: given the memory and tools, the same flow always yields the same trace.
