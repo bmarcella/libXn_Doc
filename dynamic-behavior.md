@@ -721,20 +721,30 @@ concurrentes ne se marchent pas dessus.
 ## Armer un flux : les déclencheurs
 
 Un flux peut être lancé à la demande, mais son intérêt vient de l'**armement** : un fait le désigne
-comme réagissant à quelque chose. Deux déclencheurs, volontairement distincts.
+comme réagissant à quelque chose. Quatre déclencheurs, volontairement distincts.
 
 | Fait | Sens | `$event` vaut alors |
 |---|---|---|
 | `<flux> on <prédicat>` | réagit à l'écriture d'un fait portant ce prédicat | le **sujet** du fait écrit |
 | `<flux> on_form <formulaire>` | réagit à une **réponse** reçue par ce formulaire | la **fiche** que la réponse vient de créer |
+| `<flux> on_document <nom>` \| `any` | réagit à l'**ingestion** d'un document | le **document** ingéré |
+| `<flux> every day` \| `week` \| `month` | réagit à une **échéance** | rien (aucun sujet en contexte) |
+
+Un flux déclenché par un document a besoin de savoir ce que ce document contient : les faits extraits
+portent sur ses **sujets** (une personne, une somme), jamais sur le document lui-même. Un index
+minuscule est donc écrit à l'ingestion — quels types d'information la section a produits, et combien
+— ce qui suffit à trier, router ou **réclamer ce qui manque** avec la grammaire de conditions
+existante, sans outil supplémentaire. Cet index accompagne la section en cascade : il ne peut pas
+survivre à ce qu'il décrit.
 
 La séparation est un choix, pas un manque : une réponse de formulaire écrit N faits d'un coup, et
 laisser cette rafale réveiller des flux armés par prédicat rendrait imprévisible ce qui part en
 remplissant un formulaire. Ce qui est attaché à un formulaire est donc **exactement** ce qui
 s'exécutera.
 
-Ces deux prédicats sont **protégés à l'écriture** au même titre que le vocabulaire de flot de
-contrôle : un flux ne peut ni s'armer lui-même, ni armer un voisin.
+Ces prédicats d'armement sont **protégés à l'écriture** au même titre que le vocabulaire de flot de
+contrôle : un flux ne peut ni s'armer lui-même, ni armer un voisin. C'est la forme d'escalade la plus
+durable — s'accorder des occasions de tourner que personne n'a données — donc elle passe par l'humain.
 
 ⚠️ **Où vit le flux compte.** Une réponse publique est traitée là où les faits sont écrits, c'est-à-dire
 côté serveur. Un flux qui doit réagir à un formulaire public doit donc résider dans une mémoire que

@@ -714,19 +714,29 @@ on each other.
 ## Arming a flow: triggers
 
 A flow can be run on demand, but its value comes from **arming**: a fact declares what it reacts to.
-Two triggers, deliberately kept apart.
+Four triggers, deliberately kept apart.
 
 | Fact | Meaning | `$event` is then |
 |---|---|---|
 | `<flow> on <predicate>` | reacts to a fact being written with that predicate | the **subject** of the written fact |
 | `<flow> on_form <form>` | reacts to a **response** received by that form | the **record** the response just created |
+| `<flow> on_document <name>` \| `any` | reacts to a document being **ingested** | the **document** ingested |
+| `<flow> every day` \| `week` \| `month` | reacts to a **due date** | nothing (no subject in context) |
+
+A flow triggered by a document needs to know what that document contains: the extracted facts are
+about its **subjects** (a person, an amount), never about the document itself. A tiny index is
+therefore written at ingestion time - which kinds of information the section produced, and how many -
+which is enough to file, route, or **ask for what is missing** using the existing condition grammar,
+with no extra tool. That index travels with the section and cascades with it: it cannot outlive what
+it describes.
 
 The separation is a choice, not an omission: a form response writes N facts at once, and letting
 that burst wake up predicate-armed flows would make it unpredictable what runs when someone fills a
 form. What is attached to a form is therefore **exactly** what will run.
 
-Both predicates are **write-protected**, like the control-flow vocabulary: a flow can neither arm
-itself nor arm a neighbour.
+These arming predicates are **write-protected**, like the control-flow vocabulary: a flow can neither
+arm itself nor arm a neighbour. That is the most durable form of escalation - granting itself
+occasions to run that nobody granted - so it goes through a human.
 
 ⚠️ **Where the flow lives matters.** A public response is handled where the facts are written, that
 is, on the server. A flow meant to react to a public form must therefore live in a memory the server
