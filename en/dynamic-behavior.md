@@ -772,6 +772,21 @@ the document belongs to the next step, and therefore to that step's permissions 
 report that goes out on its own (due date, then `report`, then sending) without the production of the
 document ever needing an outbound permission.
 
+## Proposing a rule rather than a fact
+
+A flow that writes the same deduction a hundred times does a sentence's work a hundred times. The
+`suggest_rule` action lets it point that out: it files a **candidate**, never an active rule, with
+the proposing flow and how many cases support it. A human adopts, or dismisses.
+
+The distinction is structural, not merely cautious: a fact asserts something about one subject, its
+reach is bounded; a rule quantifies over everything, present and future, and changes the behaviour of
+the whole memory. Its blast radius is unknown at the moment it is written - which is what justifies a
+person deciding. The tool writes only ordinary facts and has no access to the rule engine: the
+inability to activate rests on no promise.
+
+A proposal that could never be adopted is refused on filing, with its reason, and two flows noticing
+the same thing add up their support instead of creating two entries.
+
 ## Guarantees
 
 - **Deterministic**: given the memory and tools, the same flow always yields the same trace.

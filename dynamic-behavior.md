@@ -780,6 +780,21 @@ fait du document appartient à l'étape suivante, donc aux permissions de cette 
 rapport mensuel qui part tout seul (échéance, puis `report`, puis envoi) sans que la production du
 document ait eu besoin d'une permission de sortie.
 
+## Proposer une règle plutôt qu'un fait
+
+Un flux qui écrit cent fois la même déduction fait cent fois le travail d'une phrase. L'action
+`suggest_rule` lui permet de le faire remarquer : elle dépose une **candidate**, jamais une règle
+active, avec le flux qui la propose et le nombre de cas qui l'appuient. Un humain adopte, ou écarte.
+
+La distinction est structurelle et non prudentielle : un fait affirme quelque chose sur un sujet, sa
+portée est bornée ; une règle quantifie sur tout, présent et futur, et change le comportement de la
+mémoire entière. Son rayon d'action est inconnu au moment où on l'écrit — c'est ce qui justifie
+qu'une personne tranche. L'outil n'écrit que des faits ordinaires, il n'a aucun accès au moteur de
+règles : l'impossibilité d'activer ne repose sur aucune promesse.
+
+Une proposition qui ne serait jamais adoptable est refusée au dépôt, avec sa raison, et deux flux qui
+remarquent la même chose additionnent leurs soutiens au lieu de créer deux entrées.
+
 ## Les garanties
 
 - **Déterministe** : à mémoire et outils donnés, le même flux donne toujours la même trace.
