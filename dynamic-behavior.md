@@ -808,6 +808,23 @@ question sans réponse ne doit pas garder une exécution vivante pour toujours :
 branche prévue est prise. Et un refus de suspendre quand l'étape de reprise manque — un flux qu'on ne
 peut plus reprendre est pire qu'un flux qui n'a pas demandé.
 
+## Décider comme l'utilisateur décide
+
+Un seuil écrit une fois ne se révise jamais. Une condition préfixée `~~` s'appuie sur les DÉCISIONS
+PASSÉES déjà présentes en mémoire, via un modèle entraîné dessus. Le noyau n'embarque aucun modèle :
+il définit un port, l'application branche la branche d'apprentissage.
+
+La condition a alors TROIS issues, pas deux. Sûr et oui, sûr et non, et « pas assez sûr » — qui n'est
+ni l'un ni l'autre. Cette troisième issue est ce qui rend l'ensemble honnête : en dessous d'un seuil
+de confiance, le flux ne tranche pas, il demande. Le déterministe garde la main sur ce qui est écrit ;
+l'appris ne fait que proposer.
+
+Le juge REFUSE de se prononcer plutôt que d'inventer — trop peu d'exemples, valeur jamais utilisée,
+cible numérique, sujet sans rien de comparable. Et sans modèle branché, la condition est incertaine,
+jamais fausse : nier par ignorance serait la faute la plus coûteuse. La trace, elle, dit toujours que
+la décision vient d'un modèle appris, avec sa confiance et ce qui a pesé — une conclusion apprise et
+une conclusion déduite ne doivent pas se ressembler dans un journal.
+
 ## Les garanties
 
 - **Déterministe** : à mémoire et outils donnés, le même flux donne toujours la même trace.

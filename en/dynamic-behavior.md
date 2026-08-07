@@ -800,6 +800,23 @@ an execution alive forever: at the deadline the planned branch is taken. And a r
 when the resume step is missing - a flow you can no longer resume is worse than a flow that never
 asked.
 
+## Deciding the way the user decides
+
+A threshold written once is never revised. A condition prefixed with `~~` relies on the PAST
+DECISIONS already in memory, through a model trained on them. The core embeds no model: it defines a
+port, and the application plugs in the learning branch.
+
+The condition then has THREE outcomes, not two. Confident yes, confident no, and "not confident
+enough" - which is neither. That third outcome is what makes the whole thing honest: below a
+confidence floor the flow does not decide, it asks. The deterministic side keeps control of what gets
+written; the learned side only proposes.
+
+The judge REFUSES to answer rather than invent - too few examples, a value never used, a numeric
+target, a subject with nothing comparable. And with no model plugged in, the condition is unsure,
+never false: denying out of ignorance would be the costliest mistake. The trace always says the
+decision came from a learned model, with its confidence and what weighed in - a learned conclusion
+and a deduced one must not look alike in a journal.
+
 ## Guarantees
 
 - **Deterministic**: given the memory and tools, the same flow always yields the same trace.
