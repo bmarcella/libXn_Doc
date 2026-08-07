@@ -750,6 +750,22 @@ durable — s'accorder des occasions de tourner que personne n'a données — do
 côté serveur. Un flux qui doit réagir à un formulaire public doit donc résider dans une mémoire que
 le serveur lit (l'anneau du propriétaire), pas dans une couche locale à une conversation.
 
+## Produire un livrable auditable
+
+L'outil `report` rend un document — tableur ou texte — dont **chaque ligne porte son origine et sa
+date**. C'est la chose qu'un moteur d'automatisation générique ne peut pas fabriquer : il ne sait pas
+d'où viennent ses chiffres. Ici la provenance est déjà là, il ne restait qu'à la rendre.
+
+La sélection se fait par classe, par informations retenues, par période. Le document dit combien de
+lignes il montre sur combien, s'il a été plafonné, combien d'informations ont été écartées faute de
+date, et qu'il a été produit automatiquement. Les faits **secrets n'y figurent jamais** : la lecture
+qui l'alimente ne les voit pas, plutôt que de les filtrer après coup.
+
+L'outil est **pur** : il lit et met en forme, il ne décide de rien et ne fait rien sortir. Ce qu'on
+fait du document appartient à l'étape suivante, donc aux permissions de cette étape-là — d'où le
+rapport mensuel qui part tout seul (échéance, puis `report`, puis envoi) sans que la production du
+document ait eu besoin d'une permission de sortie.
+
 ## Les garanties
 
 - **Déterministe** : à mémoire et outils donnés, le même flux donne toujours la même trace.

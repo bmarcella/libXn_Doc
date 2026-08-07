@@ -742,6 +742,22 @@ occasions to run that nobody granted - so it goes through a human.
 is, on the server. A flow meant to react to a public form must therefore live in a memory the server
 reads (the owner's ring), not in a layer local to one conversation.
 
+## Producing an auditable deliverable
+
+The `report` tool renders a document - spreadsheet or text - where **every line carries its origin and
+its date**. That is the one thing a generic automation engine cannot build: it does not know where its
+figures come from. Here the provenance is already there; it only had to be rendered.
+
+Selection is by class, by chosen kinds of information, by period. The document says how many lines it
+shows out of how many, whether it was capped, how many items were set aside for lack of a date, and
+that it was produced automatically. Secret facts **never appear in it**: the read that feeds it does
+not see them, rather than filtering them out afterwards.
+
+The tool is **pure**: it reads and formats, it decides nothing and sends nothing. What is done with
+the document belongs to the next step, and therefore to that step's permissions - hence the monthly
+report that goes out on its own (due date, then `report`, then sending) without the production of the
+document ever needing an outbound permission.
+
 ## Guarantees
 
 - **Deterministic**: given the memory and tools, the same flow always yields the same trace.
