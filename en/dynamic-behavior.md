@@ -722,6 +722,20 @@ Four triggers, deliberately kept apart.
 | `<flow> on_form <form>` | reacts to a **response** received by that form | the **record** the response just created |
 | `<flow> on_document <name>` \| `any` | reacts to a document being **ingested** | the **document** ingested |
 | `<flow> every day` \| `week` \| `month` | reacts to a **due date** | nothing (no subject in context) |
+| `<flow> on_change <information>` | the value **changes** (≠ it arrives) | the **subject** whose value changed |
+| `<flow> on_cross "<information> > <n>"` | the value **crosses** a threshold | the **subject** concerned |
+| `<flow> on_retract <information>` | the information is **retracted** | the **subject** concerned |
+| `<flow> on_contradiction <information>` | two **incompatible** values coexist | the **subject** concerned |
+
+The last four are about a TRANSITION, not an arrival. Nothing is added to storage to detect them:
+the dated history and retraction-as-archive are enough, and the comparison happens at write time,
+where the information already passes - the cost follows what you write, not the size of the memory.
+Two definitions are deliberately narrow: an information that **appears** is not a change (that is
+`on`), and a threshold is crossed only once as long as the value stays on the same side, otherwise an
+alert would repeat until nobody reads it.
+
+⚠️ `on_contradiction`, not `on_conflict`: the latter already exists with an entirely different
+meaning, a predicate's uniqueness policy. Two meanings for one predicate eventually collide.
 
 A flow triggered by a document needs to know what that document contains: the extracted facts are
 about its **subjects** (a person, an amount), never about the document itself. A tiny index is

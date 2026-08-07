@@ -729,6 +729,20 @@ comme réagissant à quelque chose. Quatre déclencheurs, volontairement distinc
 | `<flux> on_form <formulaire>` | réagit à une **réponse** reçue par ce formulaire | la **fiche** que la réponse vient de créer |
 | `<flux> on_document <nom>` \| `any` | réagit à l'**ingestion** d'un document | le **document** ingéré |
 | `<flux> every day` \| `week` \| `month` | réagit à une **échéance** | rien (aucun sujet en contexte) |
+| `<flux> on_change <information>` | la valeur **change** (≠ elle arrive) | le **sujet** dont la valeur a changé |
+| `<flux> on_cross "<information> > <n>"` | la valeur **franchit** un seuil | le **sujet** concerné |
+| `<flux> on_retract <information>` | l'information est **retirée** | le **sujet** concerné |
+| `<flux> on_contradiction <information>` | deux valeurs **incompatibles** coexistent | le **sujet** concerné |
+
+Les quatre derniers portent sur une TRANSITION, pas sur une arrivée. Rien n'est ajouté au stockage
+pour les détecter : l'historique daté et la rétractation-archive suffisent, et la comparaison se fait
+au moment de l'écriture, là où l'information passe déjà — le coût suit ce qu'on écrit, pas la taille
+de la mémoire. Deux définitions sont volontairement étroites : une information qui **apparaît** n'est
+pas un changement (c'est `on`), et un seuil ne se franchit qu'une fois tant que la valeur reste du
+même côté, sans quoi une alerte se répéterait jusqu'à ne plus être lue.
+
+⚠️ `on_contradiction` et non `on_conflict` : ce dernier existe déjà avec un tout autre sens, la
+politique d'unicité d'un prédicat. Deux sens pour un même prédicat finissent par se croiser.
 
 Un flux déclenché par un document a besoin de savoir ce que ce document contient : les faits extraits
 portent sur ses **sujets** (une personne, une somme), jamais sur le document lui-même. Un index
