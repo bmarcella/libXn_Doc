@@ -845,6 +845,36 @@ jamais fausse : nier par ignorance serait la faute la plus coûteuse. La trace, 
 la décision vient d'un modèle appris, avec sa confiance et ce qui a pesé — une conclusion apprise et
 une conclusion déduite ne doivent pas se ressembler dans un journal.
 
+## Rejouer sans rien écrire : la simulation
+
+Avant d'armer une automatisation, on veut voir ce qu'elle ferait. Après un incident, on veut
+comprendre ce qu'elle a fait. `simulateFlow` répond aux deux, sans une seule écriture réelle :
+
+```ts
+import { simulateFlow } from '@damba/libxn';
+
+// Ce que le flux ferait MAINTENANT :
+const r = await simulateFlow(kb, 'relance');
+r.writes;      // ce qui AURAIT été écrit
+r.retracted;   // ce qui AURAIT été retiré
+r.noop;        // true = le flux tournerait sans rien changer
+r.trace;       // la trace, exactement comme une vraie exécution
+
+// Ce qu'il AURAIT fait le 15 juillet — la mémoire est relue telle qu'elle était ce jour-là :
+const passe = await simulateFlow(kb, 'relance', { at: Date.parse('2026-07-15T12:00:00') });
+```
+
+Avec `at`, la relecture est **temporelle** : un fait retiré depuis y figure encore, un fait arrivé
+après n'y figure pas, et l'horloge de l'exécution suit le jour rejoué — une condition « échéance
+dépassée » répond selon ce jour-là, pas selon aujourd'hui. « Qu'aurait fait ce flux le mois
+dernier ? » a une réponse exacte, ligne par ligne.
+
+Trois garanties structurelles, pas des réglages : la simulation travaille sur une **copie** (un bug
+de la simulation ne peut pas abîmer la vraie mémoire, et les retraits sont rendus fidèlement) ; les
+outils **sortants ne sont pas enregistrés** dans son registre (rien ne peut partir, quelles que
+soient les permissions du compte) ; et le résultat **se dit simulation**, pour ne jamais passer pour
+des écritures réelles.
+
 ## Les garanties
 
 - **Déterministe** : à mémoire et outils donnés, le même flux donne toujours la même trace.

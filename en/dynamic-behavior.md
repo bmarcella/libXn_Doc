@@ -836,6 +836,35 @@ never false: denying out of ignorance would be the costliest mistake. The trace 
 decision came from a learned model, with its confidence and what weighed in - a learned conclusion
 and a deduced one must not look alike in a journal.
 
+## Replay without writing: simulation
+
+Before arming an automation, you want to see what it would do. After an incident, you want to
+understand what it did. `simulateFlow` answers both, without a single real write:
+
+```ts
+import { simulateFlow } from '@damba/libxn';
+
+// What the flow would do NOW:
+const r = await simulateFlow(kb, 'relance');
+r.writes;      // what WOULD have been written
+r.retracted;   // what WOULD have been removed
+r.noop;        // true = the flow would run without changing anything
+r.trace;       // the trace, exactly like a real run
+
+// What it WOULD have done on July 15 — memory is re-read as it was that day:
+const past = await simulateFlow(kb, 'relance', { at: Date.parse('2026-07-15T12:00:00') });
+```
+
+With `at`, the re-read is **temporal**: a fact removed since is still there, a fact that arrived
+later is not, and the execution clock follows the replayed day — a "deadline passed" condition
+answers for that day, not for today. "What would this flow have done last month?" has an exact
+answer, line by line.
+
+Three structural guarantees, not settings: simulation works on a **copy** (a simulation bug cannot
+damage real memory, and retractions are reported faithfully); **outbound** tools are not registered
+in its registry (nothing can leave, whatever the account allows); and the result **says it is a
+simulation**, so it can never pass for real writes.
+
 ## Guarantees
 
 - **Deterministic**: given the memory and tools, the same flow always yields the same trace.
