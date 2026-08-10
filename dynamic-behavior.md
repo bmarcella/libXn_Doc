@@ -25,6 +25,7 @@ vers la branche premium. Le tout **déterministe, tracé, à 0 token**.
 |-----------|------|---------|
 | **Condition** | brancher selon un fait | `if "user est premium"` → `then` / `else` |
 | **Condition numérique** | comparer une valeur | `if "user age >= 18"` |
+| **Égalité de texte** | comparer une valeur non chiffrée avec `=` / `!=` | `if "client statut = vip"` |
 | **Condition de date** | comparer à aujourd'hui | `if "$event echeance < today"`, `if "$event embauche older_than 365"` |
 | **Aiguillage** (switch) | router selon une valeur | `switch "user plan"` → `case.gold` / `default` |
 | **Boucle bornée** | itérer sur une collection | `for_each "panier article"`, `max_iter 50` |
@@ -296,6 +297,13 @@ await new FlowRunner(kb, tools).run('checkout');   // 64 >= 75 ? non → 5.90 �
 **Résultat.** Opérateurs `>` `>=` `<` `<=` `=` `!=`. Le seuil est une **donnée** → un gestionnaire
 l'ajuste à chaud. Autres cas : `if "user age >= 18"`, `if "stock quantite < 5"`.
 
+**Sur du texte, `=` et `!=` comparent le texte** : `if "client statut = vip"` fait ce qu'il dit, y
+compris avec des espaces à droite (`= grand client`). Deux règles pour ne pas surprendre : un fait
+**absent** ne rend pas `!=` vrai (une fiche qui n'a simplement pas encore la valeur ne déclenche
+rien, et la trace dit « aucune valeur ») ; et les **ordres** (`>` `<` `>=` `<=`) restent réservés aux
+nombres et aux dates — « statut > vip » n'a pas de sens, la validation le signale avant l'exécution
+(`cond-order-on-text`) et la trace en donne la raison.
+
 ### 4. Aiguillage — router sur une valeur (`switch` / `case.<v>` / `default`)
 
 **Problème.** Aiguiller un ticket vers la bonne file selon sa priorité, et **ajouter une catégorie**
@@ -354,6 +362,13 @@ console.log(sent);   // ['alice', 'bob']  ← 2 sur 3, jamais d'emballement
 
 **Résultat.** `for_each` itère sur `(liste, destinataire)`, `$item` = l'élément courant,
 `max_iter` **borne** → arrêt garanti. Cas voisins : relancer les paniers abandonnés, vider une file.
+
+**Le corps peut être un appel de flux.** `body` → une étape `action call` avec `arg.flow` et des
+paramètres (`arg.client, $item`) : la même brique — « relancer un client » — sert alors à toute une
+population, un appel par élément, budget et profondeur toujours partagés. Et si le corps pose une
+**question** (`ask_human`), l'exécution s'arrête à la PREMIÈRE : la validation prévient
+(`ask-in-loop`) que la reprise ne rejouera pas les éléments restants — celui qui arme le sait avant,
+pas en le découvrant sur une population.
 
 ### 6. Action — déclencher une capacité (`action` + `arg.*`)
 
@@ -805,8 +820,13 @@ lisible, inspectable et rétractable comme le reste — jamais un état caché d
 Trois gardes la distinguent d'une fuite. Une seule attente vivante par couple (flux, sujet), sans
 quoi une relance quotidienne accumulerait une question par jour. Une expiration, parce qu'une
 question sans réponse ne doit pas garder une exécution vivante pour toujours : à l'échéance, la
-branche prévue est prise. Et un refus de suspendre quand l'étape de reprise manque — un flux qu'on ne
-peut plus reprendre est pire qu'un flux qui n'a pas demandé.
+branche prévue est prise — sous les permissions du flux, jamais élargies au passage. Et un refus de
+suspendre quand l'étape de reprise manque — un flux qu'on ne peut plus reprendre est pire qu'un flux
+qui n'a pas demandé.
+
+Une question posée dans un flux **appelé** arrête toute la chaîne d'appel, et une question posée dans
+une **boucle** arrête l'exécution à la première : dans les deux cas, un flux suspendu ne se dit
+jamais « terminé ».
 
 ## Décider comme l'utilisateur décide
 

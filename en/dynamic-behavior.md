@@ -25,6 +25,7 @@ the premium branch. All of it **deterministic, traced, at 0 tokens**.
 |-----------|------|---------|
 | **Condition** | branch on a fact | `if "user est premium"` → `then` / `else` |
 | **Numeric condition** | compare a value | `if "user age >= 18"` |
+| **Text equality** | compare a non-numeric value with `=` / `!=` | `if "client statut = vip"` |
 | **Date condition** | compare against today | `if "$event due < today"`, `if "$event hired older_than 365"` |
 | **Switch** | route on a value | `switch "user plan"` → `case.gold` / `default` |
 | **Bounded loop** | iterate over a collection | `for_each "panier article"`, `max_iter 50` |
@@ -295,6 +296,13 @@ await new FlowRunner(kb, tools).run('checkout');   // 64 >= 75 ? no → 5.90 €
 **Result.** Operators `>` `>=` `<` `<=` `=` `!=`. The threshold is **data** → a manager tweaks it
 hot. Other cases: `if "user age >= 18"`, `if "stock quantite < 5"`.
 
+**On text, `=` and `!=` compare the text**: `if "client statut = vip"` does what it says, including
+with spaces on the right (`= grand client`). Two rules to avoid surprises: an **absent** fact does
+not make `!=` true (a record that simply doesn't have the value yet triggers nothing, and the trace
+says "no value"); and **ordering** operators (`>` `<` `>=` `<=`) stay reserved for numbers and dates
+— "statut > vip" is meaningless, validation flags it before execution (`cond-order-on-text`) and the
+trace gives the reason.
+
 ### 4. Switch — route on a value (`switch` / `case.<v>` / `default`)
 
 **Problem.** Route a ticket to the right queue by priority, and **add a category** without touching
@@ -352,6 +360,13 @@ console.log(sent);   // ['alice', 'bob']  ← 2 of 3, never a runaway
 
 **Result.** `for_each` iterates over `(liste, destinataire)`, `$item` = the current element,
 `max_iter` **bounds** it → guaranteed halt. Neighboring cases: re-engage abandoned carts, drain a queue.
+
+**The body can be a flow call.** `body` → an `action call` step with `arg.flow` and parameters
+(`arg.client, $item`): the same brick — "follow up with a client" — then serves a whole population,
+one call per element, budget and depth still shared. And if the body asks a **question**
+(`ask_human`), execution stops at the FIRST one: validation warns (`ask-in-loop`) that resuming will
+not replay the remaining elements — whoever arms the flow knows before, not by finding out on a
+population.
 
 ### 6. Action — trigger a capability (`action` + `arg.*`)
 
@@ -796,9 +811,13 @@ like the rest - never a hidden state inside a process.
 
 Three guards separate it from a leak. One live wait per (flow, subject) pair, without which a daily
 reminder would pile up one question per day. An expiry, because an unanswered question must not keep
-an execution alive forever: at the deadline the planned branch is taken. And a refusal to suspend
-when the resume step is missing - a flow you can no longer resume is worse than a flow that never
-asked.
+an execution alive forever: at the deadline the planned branch is taken — under the flow's own
+permissions, never widened along the way. And a refusal to suspend when the resume step is missing -
+a flow you can no longer resume is worse than a flow that never asked.
+
+A question asked inside a **called** flow stops the whole call chain, and a question asked inside a
+**loop** stops execution at the first one: in both cases, a suspended flow never claims to be
+"finished".
 
 ## Deciding the way the user decides
 
