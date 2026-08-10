@@ -48,6 +48,8 @@ besoin : tout le reste reste découplé, et le cœur fonctionne seul, sans rése
 | **`@damba/libxn-react-ui`** | [UI pilotée par faits](/fact-driven-ui) : binding **React** du cœur ci-dessus. | Construire une UI **dont l'état vit dans la mémoire**, en React. | navigateur |
 | **`@damba/libxn-angular-ui`** | [UI pilotée par faits](/fact-driven-ui) : binding **Angular** (`<fact-ui>`, réconciliation par identité de nœud). | Même chose, en Angular. | navigateur |
 | **`@damba/libxn-form`** | Formulaires **typés pilotés par faits** : builder + remplissage → faits compagnons en cascade (relations 1-N / N-N). | Collecter des données **structurées** (vs saisie chat bruitée). | universel |
+| **`@damba/libxn-form-react`** | Poser un formulaire **publié** dans une app **React** (`<DambaForm>`) : cadre isolé, hauteur qui suit le contenu. | Collecter des réponses **dans** votre application, sans en faire sortir la personne. | navigateur |
+| **`@damba/libxn-form-angular`** | Le même, en **Angular** (`<damba-form>`). Le protocole vit dans `libxn-form` : les deux bindings ne peuvent pas diverger. | Idem, en Angular. | navigateur |
 
 ## Persistance & infrastructure
 
@@ -70,7 +72,8 @@ local (monorepo). Niveaux de maturité indicatifs :
   `libxn-qpath-ml`, `libxn-nap-grid`, `libxn-tools-llm`, `libxn-lexkey`, `libxn-web-search-scraping`,
   `libxn-llm-providers`, `libxn-form` — testés, mais l'API peut bouger avant la 1.0.
 - **Navigateur / périphérie** : `libxn-encoders`, `libxn-embeddings`, `libxn-visualization`,
-  `libxn-react-ui`, `libxn-angular-ui` (+ cœur `libxn-ui-core`) — fonctionnels, dépendants de
+  `libxn-react-ui`, `libxn-angular-ui` (+ cœur `libxn-ui-core`), `libxn-form-react`,
+  `libxn-form-angular` — fonctionnels, dépendants de
   l'environnement (Canvas/WebGL/Worker/React/Angular).
 
 > En pratique : bâtissez sur le **cœur** sans réserve ; pour les paquets périphériques, épinglez la version

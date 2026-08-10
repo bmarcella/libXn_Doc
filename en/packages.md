@@ -48,6 +48,8 @@ decoupled, and the core runs on its own, with no network and no browser.
 | **`@damba/libxn-react-ui`** | [Fact-driven UI](/en/fact-driven-ui): **React** binding of the core above. | Build a UI **whose state lives in the memory**, in React. | browser |
 | **`@damba/libxn-angular-ui`** | [Fact-driven UI](/en/fact-driven-ui): **Angular** binding (`<fact-ui>`, reconciliation by node identity). | Same, in Angular. | browser |
 | **`@damba/libxn-form`** | **Typed, fact-driven forms**: builder + filling → cascading companion facts (1-N / N-N relations). | Collect **structured** data (vs noisy chat input). | universal |
+| **`@damba/libxn-form-react`** | Place a **published** form inside a **React** app (`<DambaForm>`): isolated frame, height that follows the content. | Collect answers **inside** your application, without sending people away. | browser |
+| **`@damba/libxn-form-angular`** | The same, in **Angular** (`<damba-form>`). The protocol lives in `libxn-form`, so the two bindings cannot drift apart. | Same, in Angular. | browser |
 
 ## Persistence & infrastructure
 
@@ -70,7 +72,7 @@ monorepo). Indicative maturity levels:
   `libxn-qpath-ml`, `libxn-nap-grid`, `libxn-tools-llm`, `libxn-lexkey`, `libxn-web-search-scraping`,
   `libxn-llm-providers`, `libxn-form` — tested, but the API may move before 1.0.
 - **Browser / periphery**: `libxn-encoders`, `libxn-embeddings`, `libxn-visualization`, `libxn-react-ui`,
-  `libxn-angular-ui` (+ core `libxn-ui-core`) — functional, environment-dependent
+  `libxn-angular-ui` (+ core `libxn-ui-core`), `libxn-form-react`, `libxn-form-angular` — functional, environment-dependent
   (Canvas/WebGL/Worker/React/Angular).
 
 > In practice: build on the **core** without reservation; for peripheral packages, pin the version and
