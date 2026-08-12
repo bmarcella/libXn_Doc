@@ -254,6 +254,49 @@ comp.profileOf({ entity: 'robert' });   // renvoie le profil de bob — un seul,
 > document est rétracté — sans cesser d'être des faits ordinaires (interrogeables, agrégeables).
 
 
+### FicheQuery — questions analytiques sur vos fiches, sans IA générative
+
+Un **parseur déterministe** qui répond aux questions analytiques posées en langage libre sur des
+**fiches** (les entités créées par vos formulaires : employés, patients, clients…). Le principe qui
+le rend fiable : le vocabulaire est **fermé**. Le schéma de vos formulaires (types d'entité, champs
+typés, options de choix, synonymes déclarés) est le seul lexique — la question est compilée en
+requêtes exécutées sur la mémoire, jamais « devinée » par un modèle.
+
+**Ce qu'il comprend :** comptes (« combien d'employés femmes ? »), agrégats à portée (« la moyenne
+d'âge du service ventes »), extrêmes (« qui a le plus gros salaire ? »), fréquences (« l'allergie la
+plus récurrente de mes patients »), group-by à 1 ou 2 clés avec tranches automatiques sur les clés
+numériques et tables pivot (« le salaire moyen par sexe et par service, avec le total »),
+comparaisons avec verdict (« les femmes gagnent-elles plus que les hommes ? »), listes multi-champs,
+et le rendu en barres, camembert ou tableau.
+
+**Ses garanties :**
+- **la preuve accompagne la réponse** : les opérations exécutées sont montrées, vérifiables ;
+- **les fautes sont tolérées et DITES** (« saiare → salaire ») — jamais de correction silencieuse ;
+- **l'ambigu se demande** : deux mesures possibles → la question est posée, rien n'est deviné ;
+- **un inconnu escalade** : ni « 0 » inventé, ni agrégat global servi à la place d'une portée ;
+- **zéro token** : tout est local et déterministe, sans IA générative.
+
+```ts
+import { answerFicheQuery, type FicheSchema } from '@damba/libxn';
+
+const schema: FicheSchema = { classes: [{
+  entityType: 'employe',
+  fields: [
+    { predicate: 'nom', kind: 'text' },
+    { predicate: 'sexe', kind: 'choice', options: ['femme', 'homme'] },
+    { predicate: 'salaire', kind: 'number', aliases: ['gagne', 'revenu'] },
+  ],
+}] };
+
+const r = answerFicheQuery(kb, 'le salaire moyen des femmes ?', schema);
+// → { answer: { text: 'Moyenne de « salaire » (employe · sexe femme) : 55000.',
+//               ops: ['aggwhere:est=employe&sexe=femme,salaire,avg'], … } }
+```
+
+**Quand l'utiliser :** dès que des humains posent des questions de rapport sur des données saisies
+par formulaires — tableaux de bord conversationnels, back-offices, CRM — et que la réponse doit être
+**exacte, prouvée et gratuite en tokens**.
+
 ### NaturalParser — du langage aux faits
 
 Le **pont entre le texte libre et la KnowledgeBase** : il transforme une phrase en langage naturel en un

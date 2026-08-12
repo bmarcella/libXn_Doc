@@ -243,6 +243,46 @@ comp.profileOf({ entity: 'robert' });   // returns bob's profile — a single on
   **fact** for metadata of a precise statement (provenance, score, timestamp).
 
 
+### FicheQuery — analytic questions over your records, no generative AI
+
+A **deterministic parser** that answers free-language analytic questions about **records** (the
+entities your forms create: employees, patients, customers…). What makes it reliable: the vocabulary
+is **closed**. Your forms' schema (entity types, typed fields, choice options, declared synonyms) is
+the only lexicon — the question is compiled into queries executed against memory, never "guessed"
+by a model.
+
+**What it understands:** counts ("how many female employees?"), scoped aggregates ("average age of
+the sales team"), extremes ("who has the highest salary?"), frequencies ("my patients' most common
+allergy"), group-by with 1 or 2 keys, automatic bins on numeric keys and pivot tables ("average
+salary by gender and by team, with totals"), comparisons with a verdict, multi-field listings, and
+bar / pie / table rendering.
+
+**Its guarantees:**
+- **the proof ships with the answer**: the executed operations are shown, verifiable;
+- **typos are tolerated and STATED** ("salry → salary") — never a silent correction;
+- **ambiguity asks**: two possible measures → the question is asked, nothing is guessed;
+- **the unknown escalates**: no invented "0", no global aggregate served instead of a scope;
+- **zero tokens**: everything is local and deterministic, without generative AI.
+
+```ts
+import { answerFicheQuery, type FicheSchema } from '@damba/libxn';
+
+const schema: FicheSchema = { classes: [{
+  entityType: 'employee',
+  fields: [
+    { predicate: 'name', kind: 'text' },
+    { predicate: 'gender', kind: 'choice', options: ['female', 'male'] },
+    { predicate: 'salary', kind: 'number', aliases: ['earns', 'income'] },
+  ],
+}] };
+
+const r = answerFicheQuery(kb, 'average salary of female employees?', schema);
+// → { answer: { text: '…: 55000.', ops: ['aggwhere:est=employee&gender=female,salary,avg'], … } }
+```
+
+**When to use it:** whenever humans ask reporting questions about form-entered data — conversational
+dashboards, back-offices, CRMs — and the answer must be **exact, proven, and token-free**.
+
 ### NaturalParser — from language to facts
 
 The **bridge between free text and the KnowledgeBase**: it turns a natural-language sentence into a
