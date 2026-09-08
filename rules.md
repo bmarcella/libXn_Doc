@@ -80,6 +80,46 @@ report.proposals[0];
   la KB, renvoie des **propositions triées par confiance** avec leurs **contre-exemples** (preuve
   d'imperfection). Options : `minSupport`, `minConfidence`, `maxRules`.
 
+## Les exceptions, parce qu'un domaine réel en est fait
+
+Une règle générale suivie de ses exceptions, c'est la forme même d'un code, d'une norme ou d'une
+procédure interne. Sans exceptions, une base produit des règles vraies une à une et fausses
+ensemble.
+
+Une règle porte donc une clause **`unless`** (« sauf si »), et une **priorité**. Quand deux règles
+concluent des choses différentes sur le même sujet, c'est la plus **spécifique** qui l'emporte,
+c'est-à-dire celle dont les conditions sont un sur-ensemble strict de l'autre.
+
+```ts
+engine.addRuleFromText(
+  'X employe vrai => X acces vrai unless X suspendu vrai',
+  'acces-employe',
+);
+```
+
+En langage naturel, « sauf si », « sauf s'il », « à moins que » et « unless » sont reconnus.
+
+### Une conclusion peut être retirée plus tard
+
+C'est la propriété qui manque à la plupart des moteurs : un fait dérivé dont l'exception devient
+vraie **est retiré**, sans qu'on ait à rejouer quoi que ce soit à la main. Ajouter « Alice est
+suspendue » après coup retire l'accès qui avait été dérivé.
+
+### Un conflit se dit, il ne se perd pas
+
+Un dérivé écarté par une exception ou par une règle plus spécifique est **consigné**, jamais
+supprimé en silence. On peut donc demander pourquoi une conclusion attendue n'est pas là.
+
+```ts
+engine.listConflicts();                       // ce qui a été bloqué, et par quoi
+engine.whyBlocked('alice', 'acces', 'vrai');  // la règle qui l'emporte, ou l'exception qui joue
+```
+
+> ⚠️ **Limite connue.** Une exception qui dépend de sa propre chaîne (« a implique b, sauf c ;
+> b implique c ») se stabilise sans boucler, mais laisse la conclusion intermédiaire en place :
+> la révision juge la **défaite**, pas le **support**. Le retrait complet passe par la
+> rétractation, qui redérive.
+
 ## Cas d'usage
 
 | Situation | Outil |

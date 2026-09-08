@@ -79,6 +79,44 @@ report.proposals[0];
   KB, returns **proposals sorted by confidence** with their **counterexamples** (proof of imperfection).
   Options: `minSupport`, `minConfidence`, `maxRules`.
 
+## Exceptions, because a real domain is made of them
+
+A general rule followed by its exceptions is the very shape of a code, a standard or an internal
+procedure. Without exceptions, a base produces rules that are true one by one and false together.
+
+So a rule carries an **`unless`** clause and a **priority**. When two rules conclude different
+things about the same subject, the more **specific** one wins, that is, the one whose conditions
+are a strict superset of the other's.
+
+```ts
+engine.addRuleFromText(
+  'X employee true => X access true unless X suspended true',
+  'employee-access',
+);
+```
+
+In plain language, "unless", "except if", and their French equivalents are recognised.
+
+### A conclusion can be withdrawn later
+
+This is the property most engines lack: a derived fact whose exception becomes true **is
+withdrawn**, with nothing to replay by hand. Adding "Alice is suspended" afterwards removes the
+access that had been derived.
+
+### A conflict is stated, not lost
+
+A derivation set aside by an exception or by a more specific rule is **logged**, never silently
+dropped. You can therefore ask why an expected conclusion is missing.
+
+```ts
+engine.listConflicts();                        // what was blocked, and by what
+engine.whyBlocked('alice', 'access', 'true');  // the winning rule, or the exception in play
+```
+
+> ⚠️ **Known limit.** An exception that depends on its own chain ("a implies b, unless c; b implies
+> c") settles without looping, but leaves the intermediate conclusion in place: revision judges
+> **defeat**, not **support**. Full removal goes through retraction, which re-derives.
+
 ## Use cases
 
 | Situation | Tool |
