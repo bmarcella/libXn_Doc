@@ -465,6 +465,10 @@ pour décrire une étape du flux.
 | `action` | une étape | exécute un **outil** déclaré (la seule brique à effet de bord) | `(e, action, nomOutil)` |
 | `arg.<clé>` | une étape `action` | un **paramètre** passé à l'outil (`$item` substitué en boucle) | `(e, arg.msg, "Bonjour")` |
 | `next` | une étape (action / boucle) | l'étape suivante en **séquence** | `(e, next, etapeSuivante)` |
+| `timeout` | une étape | **diffère** le `body` d'un nombre de jours, une seule fois | `(e, timeout, "3")` |
+| `interval` | une étape | **répète** le `body` tous les N jours | `(e, interval, "7")` |
+| `max_runs` | une étape `interval` | **plafond de répétitions** — obligatoire, garantit l'arrêt | `(e, max_runs, "10")` |
+| `stop_at` | une étape `timeout`/`interval` | jour butoir (facultatif) | `(e, stop_at, "2026-12-31")` |
 
 **Ordre d'évaluation d'un nœud** : `if` → `switch` → `for_each` → `action` → `next`. Un nœud est
 d'**un seul type** (condition, switch, boucle ou action) ; on ne mélange pas `if` et `switch` sur le
@@ -827,6 +831,40 @@ qui n'a pas demandé.
 Une question posée dans un flux **appelé** arrête toute la chaîne d'appel, et une question posée dans
 une **boucle** arrête l'exécution à la première : dans les deux cas, un flux suspendu ne se dit
 jamais « terminé ».
+
+## Différer une liste d'actions, une fois ou en série
+
+Un flux sait faire partir une liste d'actions *maintenant*. Deux nœuds la font partir *plus tard* :
+`timeout` une seule fois, `interval` à intervalle régulier. Les deux portent un `body`, comme une
+boucle porte le sien — la différence est qu'ils parcourent le **temps** plutôt qu'une collection.
+
+Ils **n'attendent pas**. Armer un minuteur écrit une échéance et le flux continue sur son `next`
+tout de suite : c'est le comportement d'un `setTimeout`, et c'est ce qui les distingue d'une
+attente, qui suspend. Un balayage périodique tire les échéances arrivées à terme.
+
+L'échéance est écrite **en faits**, comme le reste. Ce n'est pas un détail d'implémentation :
+l'annulation a lieu dans une autre exécution, souvent des jours plus tard, parfois par un humain
+devant un écran. Un minuteur vivant dans un processus n'aurait survécu ni au redémarrage ni au
+déploiement, et sa poignée aurait été introuvable au moment de s'en servir. Écrite, l'échéance est
+lisible, inspectable et rétractable — et le **nœud qui arme est lui-même la poignée**, ce qui
+supprime le nom à saisir des deux côtés, donc la faute de frappe entre l'armement et l'arrêt.
+
+Cinq façons d'en sortir, et chacune couvre un cas qu'aucune autre ne couvre :
+
+- le **corps s'arrête lui-même** (`stop_timer`), l'idiome principal : « relancer *jusqu'à ce que* » ;
+- l'**épuisement** : `max_runs` est obligatoire sur une série, comme `max_iter` sur une boucle — le
+  dispositif n'a jamais accepté de répétition non bornée, et il n'en accepte pas dans le temps ;
+- un **jour butoir** (`stop_at`) ;
+- le **flux supprimé** : le minuteur est clos et la raison consignée, jamais laissé à sonner seul ;
+- l'**échec d'un tic**, décidé par la politique d'échec ordinaire de l'étape (`on_error`).
+
+Chaque fermeture est une **rétractation**, donc une archive avec son motif : « pourquoi ce rappel
+s'est-il arrêté » reste une question à laquelle on peut répondre après coup.
+
+Deux gardes viennent de la même prudence que pour les attentes. Ré-armer le même nœud sur le même
+sujet **remplace** au lieu d'ajouter, sans quoi un flux quotidien laisserait trois cent soixante-
+cinq minuteurs vivants au bout d'un an. Et le corps d'un minuteur ne doit pas rejoindre la suite du
+flux : chaque tic rejouerait alors tout ce qui suit l'armement — c'est refusé avant exécution.
 
 ## Décider comme l'utilisateur décide
 

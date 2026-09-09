@@ -463,6 +463,10 @@ to describe a flow step.
 | `action` | a step | runs a declared **tool** (the only side-effecting brick) | `(e, action, toolName)` |
 | `arg.<key>` | an `action` step | a **parameter** passed to the tool (`$item` substituted in a loop) | `(e, arg.msg, "Hello")` |
 | `next` | a step (action / loop) | the next step in **sequence** | `(e, next, nextStep)` |
+| `timeout` | a step | **defers** the `body` by a number of days, once | `(e, timeout, "3")` |
+| `interval` | a step | **repeats** the `body` every N days | `(e, interval, "7")` |
+| `max_runs` | an `interval` step | **repetition cap** — required, guarantees termination | `(e, max_runs, "10")` |
+| `stop_at` | a `timeout`/`interval` step | cut-off day (optional) | `(e, stop_at, "2026-12-31")` |
 
 **Node evaluation order**: `if` → `switch` → `for_each` → `action` → `next`. A node is of a **single
 type** (condition, switch, loop, or action); you don't mix `if` and `switch` on the same node. Objects
@@ -818,6 +822,40 @@ a flow you can no longer resume is worse than a flow that never asked.
 A question asked inside a **called** flow stops the whole call chain, and a question asked inside a
 **loop** stops execution at the first one: in both cases, a suspended flow never claims to be
 "finished".
+
+## Deferring a list of actions, once or on repeat
+
+A flow can run a list of actions *now*. Two nodes make it run *later*: `timeout` once, `interval`
+at a regular pace. Both carry a `body`, the way a loop carries its own — the difference is that
+they walk **time** rather than a collection.
+
+They **do not wait**. Arming a timer writes a due date and the flow moves on to its `next`
+immediately: that is `setTimeout` behaviour, and it is what sets them apart from a wait, which
+suspends. A periodic sweep fires the timers that have come due.
+
+The due date is written **as facts**, like everything else. That is not an implementation detail:
+cancelling happens in another run, often days later, sometimes by a human looking at a screen. A
+timer living inside a process would have survived neither a restart nor a deployment, and its
+handle would have been unreachable by the time anyone needed it. Written down, a timer is
+readable, inspectable and retractable — and the **node that arms it is the handle**, which removes
+the name typed on both sides, and with it the typo between arming and stopping.
+
+Five ways out, each covering a case no other one covers:
+
+- the **body stops itself** (`stop_timer`), the main idiom: “remind *until*”;
+- **exhaustion**: `max_runs` is required on a series, as `max_iter` is on a loop — this engine has
+  never accepted an unbounded repetition, and it does not accept one in time either;
+- a **cut-off day** (`stop_at`);
+- the **flow being deleted**: the timer is closed and the reason recorded, never left ringing;
+- a **failing tick**, decided by the step's ordinary failure policy (`on_error`).
+
+Every closure is a **retraction**, hence an archive with its reason: “why did this reminder stop”
+stays a question that can be answered afterwards.
+
+Two guards come from the same caution as waits. Re-arming the same node on the same subject
+**replaces** instead of adding, otherwise a daily flow would leave three hundred and sixty-five
+live timers after a year. And a timer's body must not rejoin the rest of the flow: every tick
+would then replay everything that follows the arming — this is refused before execution.
 
 ## Deciding the way the user decides
 
