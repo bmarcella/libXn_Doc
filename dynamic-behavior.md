@@ -469,6 +469,7 @@ pour décrire une étape du flux.
 | `interval` | une étape | **répète** le `body` tous les N jours | `(e, interval, "7")` |
 | `max_runs` | une étape `interval` | **plafond de répétitions** — obligatoire, garantit l'arrêt | `(e, max_runs, "10")` |
 | `stop_at` | une étape `timeout`/`interval` | jour butoir (facultatif) | `(e, stop_at, "2026-12-31")` |
+| `timer_for` | une étape `timeout`/`interval` | **pour qui** : un minuteur par élément | `(e, timer_for, "$bail")` |
 
 **Ordre d'évaluation d'un nœud** : `if` → `switch` → `for_each` → `action` → `next`. Un nœud est
 d'**un seul type** (condition, switch, boucle ou action) ; on ne mélange pas `if` et `switch` sur le
@@ -860,6 +861,11 @@ Cinq façons d'en sortir, et chacune couvre un cas qu'aucune autre ne couvre :
 
 Chaque fermeture est une **rétractation**, donc une archive avec son motif : « pourquoi ce rappel
 s'est-il arrêté » reste une question à laquelle on peut répondre après coup.
+
+Un minuteur est armé pour le sujet déclencheur, ou pour celui qu'on lui écrit (`timer_for`). Ce
+second cas est ce qui permet d'en avoir **un par élément** : une liste de baux parcourue, un rappel
+par bail, chacun avec sa propre échéance et son propre arrêt. Sans lui, tous les armements d'une même
+boucle porteraient la même clé et il n'en resterait qu'un.
 
 Deux gardes viennent de la même prudence que pour les attentes. Ré-armer le même nœud sur le même
 sujet **remplace** au lieu d'ajouter, sans quoi un flux quotidien laisserait trois cent soixante-

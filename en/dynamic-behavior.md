@@ -467,6 +467,7 @@ to describe a flow step.
 | `interval` | a step | **repeats** the `body` every N days | `(e, interval, "7")` |
 | `max_runs` | an `interval` step | **repetition cap** — required, guarantees termination | `(e, max_runs, "10")` |
 | `stop_at` | a `timeout`/`interval` step | cut-off day (optional) | `(e, stop_at, "2026-12-31")` |
+| `timer_for` | a `timeout`/`interval` step | **who for**: one timer per item | `(e, timer_for, "$lease")` |
 
 **Node evaluation order**: `if` → `switch` → `for_each` → `action` → `next`. A node is of a **single
 type** (condition, switch, loop, or action); you don't mix `if` and `switch` on the same node. Objects
@@ -851,6 +852,11 @@ Five ways out, each covering a case no other one covers:
 
 Every closure is a **retraction**, hence an archive with its reason: “why did this reminder stop”
 stays a question that can be answered afterwards.
+
+A timer is armed for the triggering subject, or for the one written on it (`timer_for`). That second
+case is what gives you **one per item**: a list of leases walked through, one reminder per lease, each
+with its own due date and its own stop. Without it, every arming in the same loop would carry the same
+key and only one would survive.
 
 Two guards come from the same caution as waits. Re-arming the same node on the same subject
 **replaces** instead of adding, otherwise a daily flow would leave three hundred and sixty-five
