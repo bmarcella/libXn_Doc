@@ -64,7 +64,8 @@ and answers in a few milliseconds, deterministically.
 ## In the chat
 
 "Create a flow that…" tries synthesis first. When the blocks are not enough, the AI takes over and
-proposes the flow. Either way, the proposed flow goes through the validator and waits for your approval
+proposes the flow. The preview says where the flow comes from: **"Composed and verified by Damba"**,
+with the number of cases it was checked on, or **"Proposed by the AI"**, to be reviewed. Either way, the proposed flow goes through the validator and waits for your approval
 before it is written.
 
 ## Using it in code

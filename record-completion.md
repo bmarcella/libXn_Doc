@@ -44,7 +44,7 @@ champ :
 
 ## Dans l'application
 
-Dans l'onglet Fiches, vue Cartes, le bouton **« Proposer les valeurs manquantes »** affiche pour chaque
+Dans l'onglet Fiches, vues Cartes et Tableau, le bouton **« Proposer les valeurs manquantes »** affiche pour chaque
 champ vide la valeur, sa confiance et sa raison, avec **Appliquer**, ou l'abstention.
 
 ## Utilisation dans le code

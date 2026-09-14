@@ -63,7 +63,8 @@ candidat et répond en quelques millisecondes, de façon déterministe.
 ## Dans le chat
 
 « Crée un flux qui… » tente d'abord la synthèse. Quand les briques ne suffisent pas, l'IA prend le
-relais et propose le flux. Dans les deux cas, le flux proposé passe par le validateur et attend votre
+relais et propose le flux. L'aperçu dit d'où vient le flux : **« Composé et vérifié par Damba »**,
+avec le nombre de cas sur lesquels il a été vérifié, ou **« Proposé par l'IA »**, à relire. Dans les deux cas, le flux proposé passe par le validateur et attend votre
 accord avant d'être écrit.
 
 ## Utilisation dans le code

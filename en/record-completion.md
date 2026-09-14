@@ -43,7 +43,7 @@ Held-out records, one field hidden per record, compared with the most frequent v
 
 ## In the application
 
-In the Records tab, Cards view, the **"Propose missing values"** button shows, for each empty field, the
+In the Records tab, in the Cards and Table views, the **"Propose missing values"** button shows, for each empty field, the
 value, its confidence and its reason, with **Apply**, or the abstention.
 
 ## Using it in code
