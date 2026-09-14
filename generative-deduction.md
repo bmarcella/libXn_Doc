@@ -559,3 +559,16 @@ approchée → analogie → héritage), source externe **en tout dernier recours
 
 > La génération de prose fluide n'est volontairement **pas** l'objectif : la force de la déduction
 > générative est le **structuré, le déductif et les données** — du nouveau qu'on peut **expliquer**.
+
+## Ce qui se génère nativement, et ce qui reste à l'IA
+
+Damba génère nativement des **artefacts structurés**, chacun **prouvé** avant d'être proposé :
+
+- un **flux** à partir d'une phrase, vérifié par le validateur et une exécution simulée : voir la
+  [synthèse de flux](/flow-synthesis) ;
+- une **valeur manquante** de fiche, avec sa confiance et sa raison, ou une abstention : voir
+  [Proposer les valeurs manquantes](/record-completion) ;
+- une **clé de mémoire** complétée pendant la saisie, jamais un nom qui n'existe pas en mémoire.
+
+La **prose libre** reste confiée à l'IA, sous le contrôle des faits : ce qu'elle affirme doit s'appuyer
+sur la mémoire, et ce qui ne s'y appuie pas se voit.

@@ -510,6 +510,9 @@ dev : ajouter/ajuster des faits → exécuter → vérifier la trace
 
 ## Faire évoluer l'app par un prompt — en sûreté
 
+> Décrire l'automatisation en une phrase suffit souvent : la [synthèse de flux](/flow-synthesis) compose
+> le flux à partir de briques éprouvées et le vérifie sans modèle de langue, l'IA ne servant qu'en repli.
+
 Le flux étant des **faits**, on peut le faire **écrire par un LLM** à partir d'une demande en langage
 naturel — à condition de garder le LLM **auteur**, jamais exécuteur, et de **valider** avant la prod.
 
@@ -832,6 +835,9 @@ qui n'a pas demandé.
 Une question posée dans un flux **appelé** arrête toute la chaîne d'appel, et une question posée dans
 une **boucle** arrête l'exécution à la première : dans les deux cas, un flux suspendu ne se dit
 jamais « terminé ».
+
+Les étapes de reprise d'une question font partie du flux : elles suivent sa suppression et sa
+promotion, et une reprise qui vise une étape absente est refusée dès la validation.
 
 ## Différer une liste d'actions, une fois ou en série
 

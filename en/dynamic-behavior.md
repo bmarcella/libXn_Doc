@@ -507,6 +507,10 @@ dev : add/adjust facts → run → check the trace
 
 ## Evolving the app by a prompt — safely
 
+> Describing the automation in one sentence is often enough: [flow synthesis](/en/flow-synthesis)
+> composes the flow from proven building blocks and verifies it without a language model, the AI
+> serving only as a fallback.
+
 Since the flow is **facts**, it can be **written by an LLM** from a natural-language request — as long
 as the LLM stays an **author**, never an executor, and the result is **validated** before prod.
 
@@ -823,6 +827,9 @@ a flow you can no longer resume is worse than a flow that never asked.
 A question asked inside a **called** flow stops the whole call chain, and a question asked inside a
 **loop** stops execution at the first one: in both cases, a suspended flow never claims to be
 "finished".
+
+The resume steps of a question belong to the flow: they follow its deletion and its promotion, and a
+resume that targets a missing step is refused at validation.
 
 ## Deferring a list of actions, once or on repeat
 

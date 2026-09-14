@@ -547,3 +547,16 @@ analogy → inheritance), external source **as a last resort**, and everything s
 
 > Fluent prose generation is deliberately **not** the goal: the strength of grounded deduction is the
 > **structured, the deductive and data** — something new that you can **explain**.
+
+## What is generated natively, and what stays with the AI
+
+Damba natively generates **structured artifacts**, each **proven** before it is proposed:
+
+- a **flow** from a sentence, verified by the validator and a simulated run: see
+  [flow synthesis](/en/flow-synthesis);
+- a **missing value** of a record, with its confidence and reason, or an abstention: see
+  [Proposing missing values](/en/record-completion);
+- a **memory key** completed while typing, never a name that does not exist in memory.
+
+**Free prose** stays with the AI, under the control of facts: what it asserts must rest on memory, and
+what does not is visible.
