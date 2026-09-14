@@ -21,7 +21,7 @@ attestent la forme). La raison dit, en mots, laquelle des deux sources a parlé.
 ## Les gardes
 
 - **Jamais contre une valeur décidée.** Une proposition qui contredirait une valeur fermée (décidée) est
-  écartée, et l'écart est consigné.
+  écartée. Un champ déjà rempli n'est de toute façon jamais proposé.
 - **Abstention assumée.** Sous le seuil de confiance, le champ reste vide et l'abstention est affichée,
   sans valeur inventée. C'est le cas typique des **mesures numériques bruitées**, où ni une forme ni un
   voisinage ne tranche.

@@ -63,8 +63,9 @@ and answers in a few milliseconds, deterministically.
 
 ## In the chat
 
-"Create a flow that…" tries synthesis first. The proposal states its origin: **composed and verified**
-by Damba, or **proposed by the AI** when the blocks were not enough.
+"Create a flow that…" tries synthesis first. When the blocks are not enough, the AI takes over and
+proposes the flow. Either way, the proposed flow goes through the validator and waits for your approval
+before it is written.
 
 ## Using it in code
 

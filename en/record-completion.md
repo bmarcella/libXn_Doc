@@ -21,7 +21,7 @@ attesting the shape). The reason says, in words, which of the two sources spoke.
 ## Safeguards
 
 - **Never against a decided value.** A proposal that would contradict a closed (decided) value is
-  discarded, and the discard is logged.
+  discarded. A field that already has a value is never proposed anyway.
 - **Abstention by design.** Below the confidence threshold, the field stays empty and the abstention is
   shown, with no invented value. This is typical of **noisy numeric measurements**, where neither a shape
   nor a neighborhood decides.

@@ -62,8 +62,9 @@ candidat et répond en quelques millisecondes, de façon déterministe.
 
 ## Dans le chat
 
-« Crée un flux qui… » tente d'abord la synthèse. La proposition indique sa provenance : **composée et
-vérifiée** par Damba, ou **proposée par l'IA** quand les briques ne suffisaient pas.
+« Crée un flux qui… » tente d'abord la synthèse. Quand les briques ne suffisent pas, l'IA prend le
+relais et propose le flux. Dans les deux cas, le flux proposé passe par le validateur et attend votre
+accord avant d'être écrit.
 
 ## Utilisation dans le code
 
