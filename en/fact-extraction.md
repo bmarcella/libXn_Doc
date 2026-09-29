@@ -167,3 +167,29 @@ readDecisions('Still to decide who signs the notices.');
 > 4 open questions of 4, 55 silences of 55) — but that figure proves little on its own, since the
 > formulas were written while looking at that corpus. On sentences that did not shape them:
 > **11 recognised of 11**, and **10 silences held of 10** against traps chosen to look like decisions.
+
+## Writing without a human review: the gate
+
+Damba normally shows the facts it understood and waits for a click. When it works in the background,
+that click does not exist. `FreeFactGate` then decides not "is this fact true?" — nobody knows how to
+do that — but "am I allowed to write it without a human reading it first?".
+
+```ts
+const gated = gateFreeFacts(facts, { knownSubjects: subjectsInMemory });
+factsToWrite(gated);   // what gets written
+factsToReview(gated);  // what waits for a human, with its reason in words
+```
+
+- **A reader measured at 100 % writes on its own.** A reader does not join the list because it looks
+  safe: it joins with its number, and it leaves if the number drops.
+- **The general reader only writes on an already-known subject.** Its errors land on badly segmented
+  subjects, hence on subjects the memory has never seen: the condition catches them.
+- **An obligation is not a state.** "Atlas must deliver in March" goes to review.
+- **Strong markers are stripped.** A fact written in the background is neither a human decision nor
+  the backbone of the memory: it never outranks what you typed yourself.
+- **Nothing vanishes silently**: every fact gets a verdict, and a refusal states its reason in words.
+
+> 📏 **Measured between two bounds.** On an empty memory: 8 facts written, **no false ones**, 15 % of
+> what a human wanted kept. On a memory that already knows the domain — a real account: **30 written,
+> no false ones, 56 %**, where having no gate let one false fact through. The truth moves toward the
+> second bound as the memory fills up.

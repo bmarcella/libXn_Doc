@@ -173,3 +173,29 @@ readDecisions('Reste a trancher qui signe les avis.');
 > rien seul, puisque les formules ont été écrites en regardant ce corpus. Sur des phrases qui n'ont
 > pas servi à les écrire : **11 reconnues sur 11**, et **10 silences tenus sur 10** face à des
 > pièges choisis pour ressembler à des décisions.
+
+## Écrire sans relecture humaine : la porte
+
+Damba montre normalement les faits qu'il a compris et attend un clic. Quand il travaille en fond,
+ce clic n'existe pas. `FreeFactGate` décide alors non pas « ce fait est-il vrai ? » — personne ne
+sait le faire — mais « ai-je le droit de l'écrire sans qu'un humain le relise ? ».
+
+```ts
+const portes = gateFreeFacts(faits, { knownSubjects: sujetsDeLaMemoire });
+factsToWrite(portes);   // ce qui s'écrit
+factsToReview(portes);  // ce qui attend un humain, avec sa raison en mots
+```
+
+- **Un lecteur mesuré à 100 % écrit seul.** Un lecteur n'entre pas dans la liste parce qu'il semble
+  sûr : il y entre avec son chiffre, et il en sort si le chiffre baisse.
+- **Le lecteur général n'écrit que sur un sujet déjà connu.** Ses erreurs portent sur des sujets mal
+  découpés, donc sur des sujets que la mémoire n'a jamais vus : la condition les attrape.
+- **Une obligation n'est pas un état.** « Atlas doit livrer en mars » part en revue.
+- **Les marqueurs forts sont retirés.** Un fait écrit en fond n'est ni une décision humaine, ni
+  l'ossature de la mémoire : il ne passe jamais devant ce que vous avez saisi vous-même.
+- **Rien ne disparaît en silence** : chaque fait reçoit un verdict, et un refus dit sa raison en mots.
+
+> 📏 **Mesuré entre deux bornes.** Sur une mémoire vierge : 8 faits écrits, **aucun faux**, 15 % de
+> ce qu'un humain voulait retenir. Sur une mémoire qui connaît déjà le domaine — le cas d'un compte
+> réel : **30 écrits, aucun faux, 56 %**, là où l'absence de porte laissait passer un faux. La
+> vérité se déplace vers la seconde borne à mesure que la mémoire se peuple.
