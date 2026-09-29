@@ -117,3 +117,59 @@ plan.homonyms;   // [{ name:'jean', classes:['boulanger','astronaute'] }]    amb
 > ✅ **Repli LLM optionnel.** Les candidats d'un extracteur LLM se mélangent aux candidats grammaticaux
 > dans le **même** `runFactPipeline` : l'accord entre les deux **renforce la confiance**, et la qualité
 > finale reste garantie par le pipeline — déterministe.
+
+## Deux formes que la copule ne lit pas
+
+La grammaire lit « X est Y » et les compléments prépositionnels. Deux formes pourtant ordinaires lui
+échappaient, et elles ne produisaient **aucun** candidat : donner un nom, et le verbe de relation.
+
+```ts
+extractGrammar("Ma clinique s'appelle Dentaco.");  // → (clinique, nom, Dentaco)
+extractGrammar('Le parc compte 42 logements.');    // → (parc, compte, 42 logements)
+```
+
+- **Nommage** (`extractNaming`) — « X s'appelle Y », « X est nommé Y », « X is called Y ». La casse du
+  nom est préservée. Un attribut qui porte un verbe conjugué n'est pas un nom : « s'appelle comme tu
+  veux » ne donne rien.
+- **Verbe de relation** (`extractRelationVerb`) — la liste des verbes est **fermée**, et c'est ce qui
+  rend ce lecteur sûr. N'y entrent que des verbes qui disent ce qui **est** ; un verbe qui raconte ce
+  que quelqu'un **fait** ou **croit** (« je gère », « je pense ») n'y entre jamais. Le sujet doit être
+  une entité nommée : un pronom reste au parseur général, à qui appartient la coréférence.
+
+Les gardes ne bougent pas : une question n'écrit rien, un ordre non plus, un énoncé irréel non plus.
+
+> 📏 **Mesuré, pas supposé.** Sur un corpus de conversation annoté à la main, ces deux lecteurs font
+> passer la part des faits lus de 42,6 % à 57,4 %, et les questions auxquelles la mémoire sait
+> répondre de 56 % à 84 % — **sans ajouter un seul faux fait** (leur part baisse même de 11,5 % à
+> 8,8 %, le dénominateur ayant grandi).
+
+## Décisions et questions restées ouvertes
+
+« Qu'est-ce qu'on a décidé pour le dossier Laval ? » est exactement ce qu'on vient rechercher trois
+semaines plus tard. Une décision se dit par un **verbe** (« on a tranché que »), pas par une copule :
+la grammaire ordinaire la lisait très mal. `DecisionGrammar` la lit, sans appel à un modèle.
+
+```ts
+readDecisions("On a decide de relancer les locataires 90 jours avant l echeance.");
+// → [{ kind: 'decided', text: 'relancer les locataires 90 jours avant l echeance',
+//       cue: 'on a decide de' }]
+
+readDecisions('Reste a trancher qui signe les avis.');
+// → [{ kind: 'open_question', text: 'qui signe les avis', cue: 'reste a trancher' }]
+```
+
+- **`cue` dit POURQUOI la lecture a eu lieu** : la formule reconnue est rendue avec l'énoncé. La
+  lecture est explicable, pas seulement correcte.
+- **La liste de formules est fermée.** Une formule n'y entre que si elle **annonce** la décision ou
+  l'ouverture. Un énoncé qui décrit une action (« on relance les locataires chaque lundi ») n'est pas
+  une décision : c'est ce que quelqu'un fait, et l'écrire comme tranché inventerait un accord que
+  personne n'a donné.
+- **Le silence est la moitié du travail.** Une question posée à l'assistant attend une réponse au
+  tour suivant : elle n'est pas « en suspens ». Un énoncé irréel (« peut-être qu'on retient… ») n'a
+  rien tranché.
+
+> 📏 **Mesuré sur des phrases jamais vues.** Sur le corpus de mise au point, la lecture est complète
+> (9 décisions sur 9, 4 questions ouvertes sur 4, 55 silences sur 55) — mais ce chiffre ne prouve
+> rien seul, puisque les formules ont été écrites en regardant ce corpus. Sur des phrases qui n'ont
+> pas servi à les écrire : **11 reconnues sur 11**, et **10 silences tenus sur 10** face à des
+> pièges choisis pour ressembler à des décisions.

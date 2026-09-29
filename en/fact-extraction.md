@@ -115,3 +115,55 @@ plan.homonyms;   // [{ name:'jean', classes:['baker','astronaut'] }]     ambigui
 > ✅ **Optional LLM fallback.** Candidates from an LLM extractor mix with grammar candidates in the
 > **same** `runFactPipeline`: agreement between the two **boosts confidence**, and final quality stays
 > guaranteed by the pipeline — deterministic.
+
+## Two shapes the copula cannot read
+
+The grammar reads "X is Y" and prepositional complements. Two ordinary shapes escaped it, and they
+produced **no** candidate at all: giving a name, and the relation verb.
+
+```ts
+extractGrammar("My clinic is called Dentaco.");  // → (clinic, name, Dentaco)
+extractGrammar('The park includes 42 units.');   // → (park, includes, 42 units)
+```
+
+- **Naming** (`extractNaming`) — "X is called Y", "X is named Y", and the French pronominal form. The
+  name keeps its case. An attribute carrying a conjugated verb is not a name: "is called whatever you
+  want" yields nothing.
+- **Relation verb** (`extractRelationVerb`) — the verb list is **closed**, and that is what makes this
+  reader safe. Only verbs that state what **is** belong to it; a verb that reports what someone
+  **does** or **believes** ("I manage", "I think") never does. The subject must be a named entity: a
+  pronoun is left to the general parser, which owns coreference.
+
+The guards are unchanged: a question writes nothing, nor does an order, nor an irrealis statement.
+
+> 📏 **Measured, not assumed.** On a hand-annotated conversation corpus, these two readers raise the
+> share of facts read from 42.6 % to 57.4 %, and the questions the memory can answer from 56 % to
+> 84 % — **without adding a single false fact** (their share even drops from 11.5 % to 8.8 %, the
+> denominator having grown).
+
+## Decisions and questions left open
+
+"What did we decide about the Laval file?" is exactly what people come back for three weeks later. A
+decision is stated with a **verb** ("we agreed that"), not a copula: the ordinary grammar read it
+very poorly. `DecisionGrammar` reads it, with no model call.
+
+```ts
+readDecisions('We decided to chase tenants 90 days before expiry.');
+// → [{ kind: 'decided', text: 'chase tenants 90 days before expiry', cue: 'we decided to' }]
+
+readDecisions('Still to decide who signs the notices.');
+// → [{ kind: 'open_question', text: 'who signs the notices', cue: 'still to decide' }]
+```
+
+- **`cue` says WHY the read happened**: the recognised formula comes back with the statement. The
+  read is explainable, not merely correct.
+- **The formula list is closed.** A formula belongs only if it **announces** the decision or the open
+  question. A statement describing an action ("we chase tenants every Monday") is not a decision: it
+  is what someone does, and writing it as settled would invent an agreement nobody gave.
+- **Silence is half the job.** A question asked of the assistant expects an answer next turn: it is
+  not "open". An irrealis statement ("maybe we keep the eco model") settled nothing.
+
+> 📏 **Measured on unseen sentences.** On the tuning corpus the read is complete (9 decisions of 9,
+> 4 open questions of 4, 55 silences of 55) — but that figure proves little on its own, since the
+> formulas were written while looking at that corpus. On sentences that did not shape them:
+> **11 recognised of 11**, and **10 silences held of 10** against traps chosen to look like decisions.
